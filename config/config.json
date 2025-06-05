@@ -1,0 +1,17 @@
+{
+  "telegram": {
+    "token": "7784101535:AAExQJrZDdHItJY_FnkTf2w6Y5jwDL6DDe4",
+    "chat_id": "1278228744"
+  },
+  "scraping": {
+    "headless": true,
+    "timeout": 60,
+    "delay_min": 2.0,
+    "delay_max": 4.0,
+    "max_retries": 5,
+    "page_load_timeout": 45,
+    "implicit_wait": 20,
+    "explicit_wait": 30
+  },
+  "updated_at": "2025-06-05 00:00:00.000000"
+}
