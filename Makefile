@@ -92,6 +92,22 @@ run: ## Executa scraping uma vez
 	@echo "$(BLUE)Executando scraping...$(NC)"
 	$(PYTHON) main.py scrape
 
+run-url: ## Executa scraping com URL específica (uso: make run-url URL=<url>)
+	@echo "$(BLUE)Executando scraping para URL...$(NC)"
+	@if [ -z "$(URL)" ]; then \
+		echo "$(RED)Erro: URL não fornecida. Use: make run-url URL=<url>$(NC)"; \
+		exit 1; \
+	fi
+	$(PYTHON) main.py scrape --url "$(URL)"
+
+run-full-url: ## Executa workflow completo com URL específica (uso: make run-full-url URL=<url>)
+	@echo "$(BLUE)Executando workflow completo para URL...$(NC)"
+	@if [ -z "$(URL)" ]; then \
+		echo "$(RED)Erro: URL não fornecida. Use: make run-full-url URL=<url>$(NC)"; \
+		exit 1; \
+	fi
+	$(PYTHON) main.py run --url "$(URL)"
+
 generate: ## Gera respostas para avaliações
 	@echo "$(BLUE)Gerando respostas...$(NC)"
 	$(PYTHON) main.py generate

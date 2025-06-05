@@ -1,0 +1,32 @@
+{
+  "telegram": {
+    "token": "YOUR_BOT_TOKEN_HERE",
+    "chat_id": "YOUR_CHAT_ID_HERE",
+    "enabled": false
+  },
+  "scraping": {
+    "headless": true,
+    "timeout": 60,
+    "delay_min": 2.0,
+    "delay_max": 4.0,
+    "max_retries": 5,
+    "page_load_timeout": 45,
+    "implicit_wait": 20,
+    "explicit_wait": 30
+  },
+  "urls": {
+    "base_url": "https://www.doctoralia.com.br",
+    "profile_url": "YOUR_DOCTORALIA_PROFILE_URL_HERE"
+  },
+  "daemon": {
+    "interval_minutes": 30,
+    "max_cycles": -1,
+    "run_on_startup": false
+  },
+  "logging": {
+    "level": "INFO",
+    "max_file_size": "10MB",
+    "backup_count": 5,
+    "console_output": true
+  }
+}

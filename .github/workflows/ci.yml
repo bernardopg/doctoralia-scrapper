@@ -2,92 +2,92 @@ name: 🔍 CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: 🐍 Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: 🐍 Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: 💾 Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: 💾 Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: 📦 Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest pytest-cov black isort mypy
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov black isort mypy
 
-    - name: 🎨 Check code formatting
-      run: |
-        black --check .
-        isort --check-only .
+      - name: 🎨 Check code formatting
+        run: |
+          black --check .
+          isort --check-only .
 
-    - name: 🔍 Type checking
-      run: |
-        mypy src/ --ignore-missing-imports
+      - name: 🔍 Type checking
+        run: |
+          mypy src/ --ignore-missing-imports
 
-    - name: 🧪 Run tests
-      run: |
-        pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
+      - name: 🧪 Run tests
+        run: |
+          pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
 
-    - name: 📊 Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
-        fail_ci_if_error: false
+      - name: 📊 Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
 
   security:
     runs-on: ubuntu-latest
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: 🐍 Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: 🔒 Run security checks
-      run: |
-        pip install bandit safety
-        bandit -r src/
-        safety check --file requirements.txt
+      - name: 🔒 Run security checks
+        run: |
+          pip install bandit safety
+          bandit -r src/
+          safety check --file requirements.txt
 
   lint:
     runs-on: ubuntu-latest
     steps:
-    - name: 📥 Checkout code
-      uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
 
-    - name: 🐍 Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: 📦 Install dependencies
-      run: |
-        pip install flake8 pylint
+      - name: 📦 Install dependencies
+        run: |
+          pip install flake8 pylint
 
-    - name: 🔍 Run linting
-      run: |
-        flake8 src/ --max-line-length=88 --extend-ignore=E203
-        pylint src/ --disable=C0114,C0115,C0116
+      - name: 🔍 Run linting
+        run: |
+          flake8 src/ --max-line-length=88 --extend-ignore=E203
+          pylint src/ --disable=C0114,C0115,C0116
