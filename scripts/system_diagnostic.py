@@ -12,32 +12,33 @@ from pathlib import Path
 # Adicionar o diretório raiz do projeto ao path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from config.settings import AppConfig
+from config.settings import AppConfig  # noqa: E402
 
 
 class SystemDiagnostic:
-    def __init__(self):
+    def __init__(self) -> None:
         self.config = AppConfig.load()
-        self.issues = []
-        self.warnings = []
+        self.issues: list[str] = []
+        self.warnings: list[str] = []
 
-    def check_chrome_installation(self):
+    def check_chrome_installation(self) -> None:
         """Verifica instalação do Chrome/Chromium"""
         print("🔍 Verificando instalação do Chrome...")
 
-        chrome_commands = ['google-chrome', 'chromium-browser', 'chromium', 'chrome']
+        chrome_commands = ["google-chrome", "chromium-browser", "chromium", "chrome"]
         chrome_found = False
 
         for cmd in chrome_commands:
             if shutil.which(cmd):
                 try:
-                    result = subprocess.run([cmd, '--version'],
-                                          capture_output=True, text=True, timeout=10)
+                    result = subprocess.run(
+                        [cmd, "--version"], capture_output=True, text=True, timeout=10
+                    )
                     if result.returncode == 0:
                         print(f"✅ Chrome encontrado: {result.stdout.strip()}")
                         chrome_found = True
                         break
-                except:
+                except Exception:
                     continue
 
         if not chrome_found:
@@ -45,28 +46,31 @@ class SystemDiagnostic:
             print("❌ Chrome/Chromium não encontrado")
             print("💡 Instale com: sudo apt install chromium-browser")
 
-    def check_chromedriver(self):
+    def check_chromedriver(self) -> None:
         """Verifica ChromeDriver"""
         print("\n🔍 Verificando ChromeDriver...")
 
         chromedriver_paths = [
             "/usr/bin/chromedriver",
             "/usr/local/bin/chromedriver",
-            shutil.which("chromedriver")
+            shutil.which("chromedriver"),
         ]
 
         driver_found = False
         for path in chromedriver_paths:
             if path and os.path.exists(path) and os.access(path, os.X_OK):
                 try:
-                    result = subprocess.run([path, '--version'],
-                                          capture_output=True, text=True, timeout=10)
+                    result = subprocess.run(
+                        [path, "--version"], capture_output=True, text=True, timeout=10
+                    )
                     if result.returncode == 0:
-                        print(f"✅ ChromeDriver encontrado: {result.stdout.strip()}")
+                        print(
+                            f"✅ ChromeDriver encontrado: " f"{result.stdout.strip()}"
+                        )
                         print(f"   Localização: {path}")
                         driver_found = True
                         break
-                except:
+                except Exception:
                     continue
 
         if not driver_found:
@@ -75,44 +79,49 @@ class SystemDiagnostic:
             print("💡 Baixe em: https://chromedriver.chromium.org/")
             print("💡 Ou instale com: sudo apt install chromium-chromedriver")
 
-    def check_memory(self):
+    def check_memory(self) -> None:
         """Verifica memória disponível"""
         print("\n🔍 Verificando recursos do sistema...")
 
         try:
             import psutil
+
             memory = psutil.virtual_memory()
             memory_gb = memory.total / (1024**3)
             available_gb = memory.available / (1024**3)
 
             print(f"💾 Memória total: {memory_gb:.1f}GB")
-            print(f"💾 Memória disponível: {available_gb:.1f}GB ({memory.percent}% usado)")
+            print(
+                f"💾 Memória disponível: {available_gb:.1f}GB "
+                f"({memory.percent}% usado)"
+            )
 
             if available_gb < 1:
                 self.warnings.append(f"Pouca memória disponível: {available_gb:.1f}GB")
                 print("⚠️ Pouca memória disponível - pode causar timeouts")
             elif available_gb < 2:
                 self.warnings.append(f"Memória limitada: {available_gb:.1f}GB")
-                print("⚠️ Memória limitada - considere fechar outras aplicações")
+                print("⚠️ Memória limitada - considere fechar outras " "aplicações")
             else:
                 print("✅ Memória suficiente")
 
         except ImportError:
             self.warnings.append("psutil não disponível para verificar memória")
 
-    def check_network(self):
+    def check_network(self) -> None:
         """Verifica conectividade"""
         print("\n🔍 Verificando conectividade...")
 
         try:
             import urllib.request
-            urllib.request.urlopen('https://www.doctoralia.com.br', timeout=10)
+
+            urllib.request.urlopen("https://www.doctoralia.com.br", timeout=10)
             print("✅ Conectividade com Doctoralia OK")
         except Exception as e:
             self.issues.append(f"Problema de conectividade: {e}")
             print(f"❌ Erro de conectividade: {e}")
 
-    def check_permissions(self):
+    def check_permissions(self) -> None:
         """Verifica permissões de arquivo"""
         print("\n🔍 Verificando permissões...")
 
@@ -121,7 +130,7 @@ class SystemDiagnostic:
             self.config.data_dir,
             self.config.logs_dir,
             self.config.data_dir / "extractions",
-            self.config.data_dir / "responses"
+            self.config.data_dir / "responses",
         ]
 
         for dir_path in dirs_to_check:
@@ -136,15 +145,15 @@ class SystemDiagnostic:
                 self.issues.append(f"Erro de permissão em {dir_path}: {e}")
                 print(f"❌ Erro de permissão: {dir_path}")
 
-    def check_dependencies(self):
+    def check_dependencies(self) -> None:
         """Verifica dependências Python"""
         print("\n🔍 Verificando dependências Python...")
 
         required_packages = [
-            ('selenium', 'selenium'),
-            ('beautifulsoup4', 'bs4'),
-            ('requests', 'requests'),
-            ('psutil', 'psutil')
+            ("selenium", "selenium"),
+            ("beautifulsoup4", "bs4"),
+            ("requests", "requests"),
+            ("psutil", "psutil"),
         ]
 
         for package_name, import_name in required_packages:
@@ -155,7 +164,7 @@ class SystemDiagnostic:
                 self.issues.append(f"Pacote não encontrado: {package_name}")
                 print(f"❌ {package_name} não encontrado")
 
-    def test_simple_scraping(self):
+    def test_simple_scraping(self) -> None:
         """Teste simples de scraping"""
         print("\n🔍 Testando configuração básica do Selenium...")
 
@@ -174,7 +183,7 @@ class SystemDiagnostic:
             chromedriver_paths = [
                 "/usr/bin/chromedriver",
                 "/usr/local/bin/chromedriver",
-                "chromedriver"
+                "chromedriver",
             ]
 
             driver = None
@@ -202,18 +211,21 @@ class SystemDiagnostic:
             self.issues.append(f"Erro no teste do Selenium: {e}")
             print(f"❌ Erro no teste do Selenium: {e}")
 
-    def print_configuration(self):
+    def print_configuration(self) -> None:
         """Mostra configuração atual"""
         print("\n📋 Configuração atual:")
         print(f"   Timeout: {self.config.scraping.timeout}s")
-        print(f"   Page Load Timeout: {self.config.scraping.page_load_timeout}s")
+        print(f"   Page Load Timeout: " f"{self.config.scraping.page_load_timeout}s")
         print(f"   Implicit Wait: {self.config.scraping.implicit_wait}s")
         print(f"   Explicit Wait: {self.config.scraping.explicit_wait}s")
         print(f"   Max Retries: {self.config.scraping.max_retries}")
-        print(f"   Delay: {self.config.scraping.delay_min}-{self.config.scraping.delay_max}s")
+        print(
+            f"   Delay: {self.config.scraping.delay_min}-"
+            f"{self.config.scraping.delay_max}s"
+        )
         print(f"   Headless: {self.config.scraping.headless}")
 
-    def run_full_diagnostic(self):
+    def run_full_diagnostic(self) -> None:
         """Executa diagnóstico completo"""
         print("🏥 DIAGNÓSTICO DO SISTEMA DOCTORALIA SCRAPER")
         print("=" * 50)
@@ -234,7 +246,7 @@ class SystemDiagnostic:
             print("✅ Sistema configurado corretamente!")
         else:
             if self.issues:
-                print(f"❌ {len(self.issues)} problema(s) crítico(s) encontrado(s):")
+                print(f"❌ {len(self.issues)} problema(s) crítico(s) " "encontrado(s):")
                 for issue in self.issues:
                     print(f"   • {issue}")
 
@@ -249,10 +261,13 @@ class SystemDiagnostic:
             print("   2. Execute o diagnóstico novamente")
         else:
             print("   1. Tente executar o scraping normalmente")
-            print("   2. Use 'python scripts/monitor_scraping.py monitor' para monitorar recursos")
+            print(
+                "   2. Use 'python scripts/monitor_scraping.py monitor' "
+                "para monitorar recursos"
+            )
 
 
-def main():
+def main() -> None:
     diagnostic = SystemDiagnostic()
     diagnostic.run_full_diagnostic()
 

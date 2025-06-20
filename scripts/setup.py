@@ -10,32 +10,37 @@ from pathlib import Path
 # Adicionar diretório pai ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import AppConfig
+# Import depois do path insert para evitar E402
+from config.settings import AppConfig  # noqa: E402
 
 
-def print_banner():
-    print("""
+def print_banner() -> None:
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║                 🔧 CONFIGURAÇÃO INICIAL                      ║
 ║                  Doctoralia Bot Setup                        ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
-def setup_directories(config):
+
+def setup_directories(config: AppConfig) -> None:
     """Cria estrutura de diretórios necessária"""
     directories = [
         config.data_dir,
         config.data_dir / "extractions",
         config.data_dir / "responses",
         config.data_dir / "logs",
-        config.base_dir / "config"
+        config.base_dir / "config",
     ]
 
     for directory in directories:
         directory.mkdir(parents=True, exist_ok=True)
         print(f"✅ Diretório criado: {directory}")
 
-def setup_telegram(config):
+
+def setup_telegram(config: AppConfig) -> None:
     """Configura integração com Telegram"""
     print("\n📱 CONFIGURAÇÃO DO TELEGRAM")
     print("=" * 50)
@@ -55,8 +60,8 @@ def setup_telegram(config):
         print("✅ Telegram configurado com sucesso!")
 
         # Testar configuração
-        from src.logger import setup_logger
-        from src.telegram_notifier import TelegramNotifier
+        from src.logger import setup_logger  # noqa: E402
+        from src.telegram_notifier import TelegramNotifier  # noqa: E402
 
         logger = setup_logger("setup", config)
         notifier = TelegramNotifier(config, logger)
@@ -68,13 +73,14 @@ def setup_telegram(config):
     else:
         print("⚠️ Telegram não configurado - notificações desabilitadas")
 
-def setup_scraping(config):
+
+def setup_scraping(config: AppConfig) -> None:
     """Configura opções de scraping"""
     print("\n🕷️ CONFIGURAÇÃO DO SCRAPING")
     print("=" * 50)
 
     headless = input("Executar navegador em modo headless? (S/n): ").strip().lower()
-    config.scraping.headless = headless != 'n'
+    config.scraping.headless = headless != "n"
 
     if config.scraping.headless:
         print("✅ Modo headless ativado (sem interface gráfica)")
@@ -83,23 +89,26 @@ def setup_scraping(config):
 
     # Timeout
     try:
-        timeout = input(f"Timeout para carregamento (atual: {config.scraping.timeout}s, Enter para manter): ").strip()
+        timeout = input(
+            f"Timeout para carregamento (atual: {config.scraping.timeout}s, Enter para manter): "
+        ).strip()
         if timeout:
             config.scraping.timeout = int(timeout)
     except ValueError:
         print("⚠️ Valor inválido, mantendo configuração atual")
 
-def check_dependencies():
+
+def check_dependencies() -> bool:
     """Verifica se as dependências estão instaladas"""
     print("\n🔍 VERIFICANDO DEPENDÊNCIAS")
     print("=" * 50)
 
     # Mapeamento módulo -> nome do pacote
     required_packages = {
-        'selenium': 'selenium',
-        'bs4': 'beautifulsoup4',
-        'requests': 'requests',
-        'lxml': 'lxml'
+        "selenium": "selenium",
+        "bs4": "beautifulsoup4",
+        "requests": "requests",
+        "lxml": "lxml",
     }
 
     missing_packages = []
@@ -120,15 +129,13 @@ def check_dependencies():
         print("\n✅ Todas as dependências estão instaladas!")
         return True
 
-def check_chromedriver():
+
+def check_chromedriver() -> bool:
     """Verifica se o ChromeDriver está disponível"""
     print("\n🌐 VERIFICANDO CHROMEDRIVER")
     print("=" * 50)
 
-    chromedriver_paths = [
-        "/usr/bin/chromedriver",
-        "/usr/local/bin/chromedriver"
-    ]
+    chromedriver_paths = ["/usr/bin/chromedriver", "/usr/local/bin/chromedriver"]
 
     found = False
     for path in chromedriver_paths:
@@ -146,7 +153,8 @@ def check_chromedriver():
 
     return True
 
-def main():
+
+def main() -> bool:
     print_banner()
 
     # Carregar configurações
@@ -184,6 +192,7 @@ def main():
     print("\nPara ajuda: python main.py --help")
 
     return True
+
 
 if __name__ == "__main__":
     success = main()

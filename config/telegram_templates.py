@@ -49,8 +49,8 @@ class TelegramTemplates:
 
         # Mostra até 3 comentários para não ficar muito longo
         for i, response in enumerate(responses[:3], 1):
-            author = response.get('author', 'Anônimo')
-            comment = response.get('comment', '')
+            author = response.get("author", "Anônimo")
+            comment = response.get("comment", "")
             comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
             message += f"\n{i}. *{author}*: {comment_preview}"
 
@@ -79,7 +79,9 @@ class TelegramTemplates:
 🔄 *Próxima verificação automática em breve*"""
 
     @staticmethod
-    def daemon_error(error_message: str, context: str = "Daemon de geração automática") -> str:
+    def daemon_error(
+        error_message: str, context: str = "Daemon de geração automática"
+    ) -> str:
         """Template para erros do daemon"""
         return f"""❌ *Doctoralia - Erro no Daemon*
 
@@ -97,7 +99,9 @@ class TelegramTemplates:
         doctor_name = data.get("doctor_name", "Médico")
         total_reviews = data.get("total_reviews", 0)
 
-        with_replies = len([r for r in data.get('reviews', []) if r.get('doctor_reply')])
+        with_replies = len(
+            [r for r in data.get("reviews", []) if r.get("doctor_reply")]
+        )
         without_replies = total_reviews - with_replies
 
         return f"""🏥 *Doctoralia - Scraping Concluído*
@@ -127,8 +131,8 @@ class TelegramTemplates:
 """
 
         for i, response in enumerate(responses[:5], 1):
-            author = response.get('author', 'Anônimo')
-            comment = response.get('comment', '')
+            author = response.get("author", "Anônimo")
+            comment = response.get("comment", "")
             comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
             message += f"\n{i}. *{author}*: {comment_preview}"
 
@@ -144,7 +148,9 @@ class TelegramTemplates:
         return message
 
     @staticmethod
-    def responses_generated_with_file(responses: List[Dict[str, Any]], file_path: Path) -> str:
+    def responses_generated_with_file(
+        responses: List[Dict[str, Any]], file_path: Path
+    ) -> str:
         """Template para respostas geradas com arquivo anexado"""
         total = len(responses)
 
@@ -159,8 +165,8 @@ class TelegramTemplates:
 """
 
         for i, response in enumerate(responses[:3], 1):
-            author = response.get('author', 'Anônimo')
-            comment = response.get('comment', '')
+            author = response.get("author", "Anônimo")
+            comment = response.get("comment", "")
             comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
             message += f"\n{i}. *{author}*: {comment_preview}"
 
@@ -202,22 +208,22 @@ class NotificationConfig:
 
     # Emojis principais
     EMOJIS = {
-        'daemon_start': '🔄',
-        'daemon_stop': '🛑',
-        'success': '✅',
-        'error': '❌',
-        'info': 'ℹ️',
-        'warning': '⚠️',
-        'robot': '🤖',
-        'clock': '⏰',
-        'calendar': '📅',
-        'folder': '📁',
-        'doctor': '👨‍⚕️',
-        'bell': '🔔'
+        "daemon_start": "🔄",
+        "daemon_stop": "🛑",
+        "success": "✅",
+        "error": "❌",
+        "info": "ℹ️",
+        "warning": "⚠️",
+        "robot": "🤖",
+        "clock": "⏰",
+        "calendar": "📅",
+        "folder": "📁",
+        "doctor": "👨‍⚕️",
+        "bell": "🔔",
     }
 
     # Formato de data/hora padrão
-    DATE_FORMAT = '%d/%m/%Y %H:%M:%S'
+    DATE_FORMAT = "%d/%m/%Y %H:%M:%S"
 
     # Limite de caracteres para preview de comentários
     COMMENT_PREVIEW_LIMIT = 50

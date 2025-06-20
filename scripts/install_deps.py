@@ -9,18 +9,14 @@ import sys
 from pathlib import Path
 
 
-def run_command(command, description):
+def run_command(command: str, description: str) -> bool:
     """Executa comando e exibe resultado"""
     print(f"\n🔧 {description}")
     print("=" * 50)
 
     try:
         result = subprocess.run(
-            command,
-            shell=True,
-            check=True,
-            capture_output=True,
-            text=True
+            command, shell=True, check=True, capture_output=True, text=True
         )
         print(f"✅ {description} - Sucesso")
         if result.stdout:
@@ -32,7 +28,8 @@ def run_command(command, description):
             print(e.stderr)
         return False
 
-def install_python_packages():
+
+def install_python_packages() -> bool:
     """Instala pacotes Python"""
     requirements_file = Path(__file__).parent.parent / "requirements.txt"
 
@@ -43,12 +40,13 @@ def install_python_packages():
     command = f"{sys.executable} -m pip install -r {requirements_file}"
     return run_command(command, "Instalando pacotes Python")
 
-def install_chromedriver_ubuntu():
+
+def install_chromedriver_ubuntu() -> bool:
     """Instala ChromeDriver no Ubuntu/Debian"""
     commands = [
         ("sudo apt update", "Atualizando repositórios"),
         ("sudo apt install -y chromium-chromedriver", "Instalando ChromeDriver"),
-        ("sudo apt install -y chromium-browser", "Instalando Chromium")
+        ("sudo apt install -y chromium-browser", "Instalando Chromium"),
     ]
 
     success = True
@@ -58,13 +56,14 @@ def install_chromedriver_ubuntu():
 
     return success
 
-def check_installation():
+
+def check_installation() -> bool:
     """Verifica se a instalação foi bem-sucedida"""
     print("\n🔍 VERIFICANDO INSTALAÇÃO")
     print("=" * 50)
 
     # Verificar pacotes Python
-    required_packages = ['selenium', 'beautifulsoup4', 'requests', 'lxml']
+    required_packages = ["selenium", "beautifulsoup4", "requests", "lxml"]
     python_ok = True
 
     for package in required_packages:
@@ -76,10 +75,7 @@ def check_installation():
             python_ok = False
 
     # Verificar ChromeDriver
-    chromedriver_paths = [
-        "/usr/bin/chromedriver",
-        "/usr/local/bin/chromedriver"
-    ]
+    chromedriver_paths = ["/usr/bin/chromedriver", "/usr/local/bin/chromedriver"]
 
     chromedriver_ok = False
     for path in chromedriver_paths:
@@ -93,13 +89,16 @@ def check_installation():
 
     return python_ok and chromedriver_ok
 
-def main():
-    print("""
+
+def main() -> bool:
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║                 📦 INSTALAÇÃO DE DEPENDÊNCIAS                ║
 ║                    Doctoralia Bot Setup                      ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
     print("Este script irá instalar:")
     print("• Pacotes Python necessários")
@@ -107,9 +106,9 @@ def main():
     print("• Chromium Browser")
 
     choice = input("\nContinuar? (S/n): ").strip().lower()
-    if choice == 'n':
+    if choice == "n":
         print("❌ Instalação cancelada")
-        return
+        return False
 
     success = True
 
@@ -118,7 +117,7 @@ def main():
         success = False
 
     # Detectar sistema operacional e instalar ChromeDriver
-    if sys.platform.startswith('linux'):
+    if sys.platform.startswith("linux"):
         if not install_chromedriver_ubuntu():
             success = False
     else:
@@ -136,6 +135,7 @@ def main():
         print("Verifique os erros acima e instale manualmente se necessário")
 
     return success
+
 
 if __name__ == "__main__":
     success = main()

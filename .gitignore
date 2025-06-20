@@ -131,3 +131,5 @@ coverage.xml
 
 # pytest
 .pytest_cache/
+
+config.json

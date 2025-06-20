@@ -24,10 +24,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 
 class DoctoraliaScraper:
-    def __init__(self, config, logger):
+    def __init__(self, config: Any, logger: Any) -> None:
         self.config = config
         self.logger = logger
-        self.driver = None
+        self.driver: Optional[webdriver.Chrome] = None
         self.skip_keywords = [
             "CONSULTA VERIFICADA",
             "Local:",
@@ -166,7 +166,7 @@ class DoctoraliaScraper:
 
         return False
 
-    def safe_driver_quit(self):
+    def safe_driver_quit(self) -> None:
         """Encerra o driver de forma segura"""
         if self.driver:
             try:
@@ -177,8 +177,10 @@ class DoctoraliaScraper:
                 self.logger.warning(f"⚠️ Aviso ao encerrar navegador: {e}")
                 try:
                     # Tentar forçar encerramento
-                    if hasattr(self.driver, "service") and self.driver.service.process:
-                        self.driver.service.process.terminate()
+                    if self.driver and hasattr(self.driver, "service"):
+                        service = self.driver.service
+                        if service and hasattr(service, "process") and service.process:
+                            service.process.terminate()
                 except Exception:
                     pass
             finally:
@@ -186,14 +188,16 @@ class DoctoraliaScraper:
 
     def add_human_delay(
         self, min_delay: Optional[float] = None, max_delay: Optional[float] = None
-    ):
+    ) -> None:
         """Adiciona delay aleatório para simular comportamento humano"""
         min_d = min_delay or self.config.scraping.delay_min
         max_d = max_delay or self.config.scraping.delay_max
         delay = random.uniform(min_d, max_d)
         time.sleep(delay)
 
-    def retry_on_failure(self, func, max_retries=None, *args, **kwargs):
+    def retry_on_failure(
+        self, func: Any, max_retries: Optional[int] = None, *args: Any, **kwargs: Any
+    ) -> Any:
         """Executa uma função com retry automático em caso de falha"""
         max_retries = max_retries or self.config.scraping.max_retries
         last_exception = None
@@ -243,7 +247,9 @@ class DoctoraliaScraper:
             "mb-0-5 > h1 > div > span:nth-child(2)"
         )
 
-        def _extract_name():
+        def _extract_name() -> str:
+            if self.driver is None:
+                raise Exception("Driver não inicializado")
             wait = WebDriverWait(self.driver, self.config.scraping.explicit_wait)
             name_element = wait.until(
                 EC.visibility_of_element_located((By.CSS_SELECTOR, css_selector))
@@ -252,7 +258,8 @@ class DoctoraliaScraper:
             return self.clean_text(doctor_name)
 
         try:
-            return self.retry_on_failure(_extract_name)
+            doctor_name = self.retry_on_failure(_extract_name)
+            return str(doctor_name) if doctor_name is not None else None
         except (TimeoutException, NoSuchElementException):
             self.logger.warning("Nome do médico não encontrado")
             return None
@@ -262,6 +269,10 @@ class DoctoraliaScraper:
 
     def click_load_more_button(self) -> int:
         """Clica no botão 'Veja Mais' até carregar todos os comentários"""
+        if self.driver is None:
+            self.logger.error("Driver não inicializado")
+            return 0
+
         clicks_realizados = 0
         max_clicks = 20  # Limite para evitar loops infinitos
 
@@ -448,16 +459,17 @@ class DoctoraliaScraper:
 
         for line in lines:
             line = line.strip()
-            if (
-                line
-                and len(line) > 15
-                and not any(keyword in line for keyword in self.skip_keywords)
-                and not re.match(r"^[A-Z]\.?$", line)
-                and not re.match(r"^\d+\s*de\s*\w+\s*de\s*\d+", line)
-                and not line.isupper()
-                and "•" not in line
-                and not re.match(r"^\d+\s*estrelas?", line, re.IGNORECASE)
-            ):
+            line_checks = [
+                line and len(line) > 15,
+                not any(keyword in line for keyword in self.skip_keywords),
+                not re.match(r"^[A-Z]\.?$", line),
+                not re.match(r"^\d+\s*de\s*\w+\s*de\s*\d+", line),
+                not line.isupper(),
+                "•" not in line,
+                not re.match(r"^\d+\s*estrelas?", line, re.IGNORECASE),
+            ]
+
+            if all(line_checks):
                 comment_lines.append(line)
 
         if comment_lines:
@@ -492,13 +504,11 @@ class DoctoraliaScraper:
             ]
 
             reply_element: Optional[PageElement] = None
-            found_selector = None
 
             # Tenta encontrar o elemento da resposta com diferentes seletores
             for selector in reply_selectors:
                 reply_element = soup.select_one(selector)
                 if reply_element:
-                    found_selector = selector
                     self.logger.debug(f"Resposta encontrada com seletor: {selector}")
                     break
 
@@ -542,11 +552,13 @@ class DoctoraliaScraper:
                     # Procura por qualquer div que contenha "Dra. Bruna" ou similar
                     for element in soup.find_all(["div", "p"]):
                         text = element.get_text(strip=True)
-                        if (
-                            ("dra." in text.lower() and "bruna" in text.lower())
-                            or ("atenciosamente" in text.lower())
-                            or ("agradeço" in text.lower() and len(text) > 30)
-                        ):
+                        dra_bruna_check = (
+                            "dra." in text.lower() and "bruna" in text.lower()
+                        )
+                        atenciosamente_check = "atenciosamente" in text.lower()
+                        agradeco_check = "agradeço" in text.lower() and len(text) > 30
+
+                        if dra_bruna_check or atenciosamente_check or agradeco_check:
                             reply_element = element
                             self.logger.debug(
                                 f"Resposta encontrada por nome do médico: {text[:50]}..."
@@ -625,7 +637,7 @@ class DoctoraliaScraper:
                 if not self.setup_driver():
                     if attempt < self.config.scraping.max_retries - 1:
                         self.logger.warning(
-                            f"Falha na inicialização do driver, tentando novamente em 5s..."
+                            "Falha na inicialização do driver, tentando novamente em 5s..."
                         )
                         time.sleep(5)
                         continue
@@ -642,7 +654,9 @@ class DoctoraliaScraper:
 
                     self.logger.info("🌐 Acessando página...")
 
-                    def _load_page():
+                    def _load_page() -> None:
+                        if self.driver is None:
+                            raise Exception("Driver não inicializado")
                         self.driver.get(url)
                         # Verificar se a página carregou corretamente
                         WebDriverWait(
@@ -659,7 +673,9 @@ class DoctoraliaScraper:
 
                     self.logger.info("📝 Localizando comentários...")
 
-                    def _find_reviews():
+                    def _find_reviews() -> Any:
+                        if self.driver is None:
+                            raise Exception("Driver não inicializado")
                         wait = WebDriverWait(
                             self.driver, self.config.scraping.explicit_wait
                         )
@@ -674,6 +690,8 @@ class DoctoraliaScraper:
 
                     reviews_element = self.retry_on_failure(_find_reviews)
 
+                    if self.driver is None:
+                        raise Exception("Driver não inicializado")
                     self.driver.execute_script(
                         "arguments[0].scrollIntoView(true);", reviews_element
                     )
@@ -687,6 +705,8 @@ class DoctoraliaScraper:
                         )
 
                     # Atualizar elemento após carregar mais comentários
+                    if self.driver is None:
+                        raise Exception("Driver não inicializado")
                     reviews_element = self.driver.find_element(
                         By.CSS_SELECTOR,
                         "#profile-reviews > div > div.card-body.opinions-list",
@@ -747,6 +767,8 @@ class DoctoraliaScraper:
 
         review_items = []
         for selector in selectors:
+            if self.driver is None:
+                break
             elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
             if elements:
                 review_items = elements
@@ -764,36 +786,36 @@ class DoctoraliaScraper:
                 html = review.get_attribute("outerHTML")
                 text = review.text.strip()
 
-                self.logger.debug(f"Processando comentário {i+1}...")
-                comment = self.extract_comment(text, html)
+                self.logger.debug(f"Processando comentário {i + 1}...")
+                comment = self.extract_comment(text, html or "")
 
                 if comment and len(comment) > 10:
-                    author = self.extract_author_name(html)
-                    rating = self.extract_rating_from_html(html)
-                    date = self.extract_date_from_html(html)
+                    author = self.extract_author_name(html or "")
+                    rating = self.extract_rating_from_html(html or "")
+                    date = self.extract_date_from_html(html or "")
 
                     # Log detalhado para debug da resposta
                     self.logger.debug(
-                        f"Comentário {i+1} - Autor: {author}, Data: {date}"
+                        f"Comentário {i + 1} - Autor: {author}, Data: {date}"
                     )
                     self.logger.debug(
-                        f"Comentário {i+1} - Buscando resposta do médico..."
+                        f"Comentário {i + 1} - Buscando resposta do médico..."
                     )
 
-                    reply = self.extract_reply_from_html(html)
+                    reply = self.extract_reply_from_html(html or "")
 
                     if reply:
                         self.logger.debug(
-                            f"Comentário {i+1} - Resposta encontrada: {reply[:50]}..."
+                            f"Comentário {i + 1} - Resposta encontrada: {reply[:50]}..."
                         )
                     else:
                         self.logger.debug(
-                            f"Comentário {i+1} - Nenhuma resposta encontrada"
+                            f"Comentário {i + 1} - Nenhuma resposta encontrada"
                         )
                         # Log adicional do HTML para debug (apenas primeiros 500 chars)
                         if html:
                             self.logger.debug(
-                                f"HTML do comentário {i+1}: {html[:500]}..."
+                                f"HTML do comentário {i + 1}: {html[:500]}..."
                             )
 
                     review_data = {
@@ -812,11 +834,11 @@ class DoctoraliaScraper:
                     reviews_data.append(review_data)
 
                     self.logger.info(
-                        f"Comentário {i+1} processado - Autor: {author}, Tem resposta: {'Sim' if reply else 'Não'}"
+                        f"Comentário {i + 1} processado - Autor: {author}, Tem resposta: {'Sim' if reply else 'Não'}"
                     )
 
             except Exception as e:
-                self.logger.warning(f"Erro ao processar avaliação {i+1}: {e}")
+                self.logger.warning(f"Erro ao processar avaliação {i + 1}: {e}")
                 continue
 
         self.logger.info(f"Total de comentários processados: {len(reviews_data)}")
@@ -899,4 +921,4 @@ class DoctoraliaScraper:
             json.dump(summary, f, ensure_ascii=False, indent=2)
 
         self.logger.info(f"💾 Dados salvos em: {save_dir}")
-        return save_dir
+        return Path(save_dir)

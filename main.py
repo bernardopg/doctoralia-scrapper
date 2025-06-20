@@ -5,8 +5,6 @@ Sistema completo para scraping e geração de respostas
 """
 
 import argparse
-import sys
-from pathlib import Path
 
 from config.settings import AppConfig
 from src.logger import setup_logger
@@ -15,16 +13,19 @@ from src.scraper import DoctoraliaScraper
 from src.telegram_notifier import TelegramNotifier
 
 
-def print_banner():
+def print_banner() -> None:
     """Exibe banner do aplicativo"""
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║                    🏥 DOCTORALIA BOT                         ║
 ║              Sistema de Respostas Automáticas               ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
-def setup_command(config):
+
+def setup_command(config: AppConfig) -> None:
     """Comando de configuração inicial"""
     print("🔧 Configuração Inicial")
     print("=" * 50)
@@ -56,12 +57,13 @@ def setup_command(config):
     # Configurar scraping
     print("\n🕷️ Configuração do Scraping")
     headless = input("Executar em modo headless? (S/n): ").strip().lower()
-    config.scraping.headless = headless != 'n'
+    config.scraping.headless = headless != "n"
 
     config.save()
-    print(f"\n✅ Configuração salva!")
+    print("\n✅ Configuração salva!")
 
-def scrape_command(config, args):
+
+def scrape_command(config: AppConfig, args: argparse.Namespace) -> bool:
     """Comando de scraping"""
     logger = setup_logger("scraper", config, args.verbose)
 
@@ -86,8 +88,10 @@ def scrape_command(config, args):
     save_path = scraper.save_data(data)
 
     # Estatísticas
-    total = data.get('total_reviews', 0)
-    without_replies = len([r for r in data.get('reviews', []) if not r.get('doctor_reply')])
+    total = data.get("total_reviews", 0)
+    without_replies = len(
+        [r for r in data.get("reviews", []) if not r.get("doctor_reply")]
+    )
 
     logger.info(f"📊 Resumo: {total} comentários, {without_replies} sem resposta")
 
@@ -98,7 +102,8 @@ def scrape_command(config, args):
 
     return True
 
-def generate_command(config, args):
+
+def generate_command(config: AppConfig, args: argparse.Namespace) -> None:
     """Comando de geração de respostas"""
     logger = setup_logger("generator", config, args.verbose)
 
@@ -120,16 +125,20 @@ def generate_command(config, args):
     else:
         logger.info("ℹ️ Nenhuma nova resposta necessária")
 
-def status_command(config, args):
-    """Mostra status do sistema"""
-    logger = setup_logger("status", config, args.verbose)
 
+def status_command(config: AppConfig, args: argparse.Namespace) -> None:
+    """Mostra status do sistema"""
     print("📊 STATUS DO SISTEMA")
     print("=" * 50)
 
     # Status das configurações
-    print(f"📱 Telegram: {'✅ Configurado' if config.telegram.enabled else '❌ Não configurado'}")
-    print(f"🕷️ Scraping: {'Headless' if config.scraping.headless else 'Com interface'}")
+    telegram_status = (
+        "✅ Configurado" if config.telegram.enabled else "❌ Não configurado"
+    )
+    print(f"� Telegram: {telegram_status}")
+
+    scraping_mode = "Headless" if config.scraping.headless else "Com interface"
+    print(f"🕷️ Scraping: {scraping_mode}")
 
     # Status dos dados
     extractions_dir = config.data_dir / "extractions"
@@ -149,7 +158,8 @@ def status_command(config, args):
     else:
         print("💬 Respostas geradas: Nenhuma")
 
-def main():
+
+def main() -> None:
     parser = argparse.ArgumentParser(description="Doctoralia Bot")
     parser.add_argument("-v", "--verbose", action="store_true", help="Modo verbose")
 
@@ -202,6 +212,7 @@ def main():
         print("🚀 Executando workflow completo...")
         if scrape_command(config, args):
             generate_command(config, args)
+
 
 if __name__ == "__main__":
     main()
