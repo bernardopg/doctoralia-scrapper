@@ -132,4 +132,5 @@ coverage.xml
 # pytest
 .pytest_cache/
 
-config.json
+# Configuration files with sensitive data
+config/config.json
