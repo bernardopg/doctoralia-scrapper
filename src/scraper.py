@@ -20,6 +20,7 @@ from selenium.common.exceptions import (
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
@@ -66,26 +67,8 @@ class DoctoraliaScraper:
                     f"Tentativa {attempt + 1}/{max_attempts} de inicializar navegador..."
                 )
 
-                # Encontrar ChromeDriver
-                chromedriver_paths = [
-                    "/usr/bin/chromedriver",
-                    "/usr/local/bin/chromedriver",
-                    "chromedriver",
-                ]
-
-                chromedriver_binary = None
-                for path in chromedriver_paths:
-                    if os.path.exists(path) and os.access(path, os.X_OK):
-                        chromedriver_binary = path
-                        break
-                    elif path == "chromedriver":
-                        # Tenta usar chromedriver no PATH
-                        chromedriver_binary = path
-                        break
-
-                if not chromedriver_binary:
-                    self.logger.error("ChromeDriver não encontrado")
-                    return False
+                # Use webdriver-manager to automatically manage ChromeDriver
+                chromedriver_binary = ChromeDriverManager().install()
 
                 options = Options()
 
