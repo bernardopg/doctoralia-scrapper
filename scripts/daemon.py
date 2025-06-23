@@ -64,10 +64,11 @@ class DaemonController:
                 file_path = kwargs.get("file_path")
                 if file_path is not None:
                     file_path = Path(file_path)
-                result = self.notifier.send_responses_with_file(
-                    kwargs.get("responses", []), file_path
-                )
-                return bool(result)
+                    result = self.notifier.send_responses_with_file(
+                        kwargs.get("responses", []), file_path
+                    )
+                    return bool(result)
+                return False
 
             elif notification_type == "generation_no_responses":
                 result = self.notifier.send_generation_cycle_no_responses()
