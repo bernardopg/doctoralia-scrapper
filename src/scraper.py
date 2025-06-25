@@ -19,9 +19,9 @@ from selenium.common.exceptions import (
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 class DoctoraliaScraper:
@@ -257,64 +257,218 @@ class DoctoraliaScraper:
             return 0
 
         clicks_realizados = 0
-        max_clicks = 20  # Limite para evitar loops infinitos
+        max_clicks = 10  # Reduce from 50 to 10 to prevent excessive loading
+
+        # Múltiplos seletores para o botão "Veja Mais" (atualizado para suportar <button> e data-id)
+        button_selectors = [
+            # Novos seletores para <button> e data-id
+            "#profile-reviews > div > div.card-footer.text-center > button",
+            ".card-footer.text-center > button",
+            "button[data-id='load-more-opinions']",
+            "button:contains('Veja mais')",
+            "button:contains('Ver mais')",
+            "button:contains('Carregar mais')",
+            ".text-center button",
+            ".card-footer button",
+            # Seletores antigos para compatibilidade
+            "#profile-reviews > div > div.card-footer.text-center > a",
+            ".card-footer.text-center > a",
+            "a[data-test-id='load-more-opinions']",
+            "a[href*='load-more']",
+            ".load-more-reviews",
+            ".btn-load-more",
+            "a:contains('Veja mais')",
+            "a:contains('Ver mais')",
+            "a:contains('Carregar mais')",
+            ".text-center a",
+            ".card-footer a",
+        ]
+
+        # Contar comentários iniciais
+        initial_reviews_count = self._count_current_reviews()
+        self.logger.info(f"Comentários iniciais encontrados: {initial_reviews_count}")
+
+        # Add timeout protection for the entire method (max 2 minutes)
+        method_start_time = time.time()
+        method_timeout = 120  # 2 minutes
 
         while clicks_realizados < max_clicks:
+            # Check if we've exceeded the method timeout
+            if time.time() - method_start_time > method_timeout:
+                self.logger.warning(
+                    f"Timeout de {method_timeout}s atingido para carregamento de comentários"
+                )
+                break
+
             try:
                 if clicks_realizados > 0:
-                    self.add_human_delay(2.0, 4.0)
+                    self.add_human_delay(3.0, 5.0)  # Aumentar delay entre cliques
 
-                # Tentar encontrar o botão
-                try:
-                    veja_mais_button = WebDriverWait(self.driver, 5).until(
-                        EC.element_to_be_clickable(
-                            (
-                                By.CSS_SELECTOR,
-                                "#profile-reviews > div > div.card-footer.text-center > a",
-                            )
-                        )
-                    )
-                except TimeoutException:
-                    # Botão não encontrado ou não clicável
-                    break
+                # Scroll para baixo para garantir que o botão esteja visível
+                self.driver.execute_script(
+                    "window.scrollTo(0, document.body.scrollHeight);"
+                )
+                time.sleep(2)
 
-                if veja_mais_button.is_displayed() and veja_mais_button.is_enabled():
-                    # Scroll para o botão
+                # Tentar encontrar o botão com múltiplos seletores
+                veja_mais_button = None
+                button_found_with = None
+                for selector in button_selectors:
                     try:
-                        self.driver.execute_script(
-                            "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
-                            veja_mais_button,
-                        )
-                        time.sleep(2)
+                        # Add timeout protection for find_elements calls
+                        self.logger.debug(f"Tentando seletor: {selector}")
 
-                        # Tentar clicar
-                        self.driver.execute_script(
-                            "arguments[0].click();", veja_mais_button
-                        )
-                        clicks_realizados += 1
-                        self.logger.info(
-                            f"Clique {clicks_realizados} no botão 'Veja Mais'"
-                        )
+                        if selector.startswith("a:contains"):
+                            # Para seletores que usam :contains, usar XPath
+                            text = selector.split("'")[1]
+                            xpath_selector = f"//a[contains(text(), '{text}')]"
 
-                        # Aguardar carregamento
-                        time.sleep(4)
+                            # Use direct find_elements with shorter implicit wait
+                            original_wait = self.driver.implicitly_wait(
+                                2
+                            )  # Reduce to 2 seconds
+                            try:
+                                elements = self.driver.find_elements(
+                                    By.XPATH, xpath_selector
+                                )
+                                if elements and elements[0].is_displayed():
+                                    veja_mais_button = elements[0]
+                                    button_found_with = f"XPath: {xpath_selector}"
+                                    break
+                            finally:
+                                self.driver.implicitly_wait(
+                                    original_wait or 10.0
+                                )  # Restore original wait
+                        else:
+                            # Seletores CSS normais com timeout reduzido
+                            original_wait = self.driver.implicitly_wait(
+                                2
+                            )  # Reduce to 2 seconds
+                            try:
+                                elements = self.driver.find_elements(
+                                    By.CSS_SELECTOR, selector
+                                )
+                                if not elements:
+                                    continue
 
-                        # Verificar se há novos comentários carregando
-                        WebDriverWait(self.driver, 10).until(
-                            lambda driver: driver.execute_script(
-                                "return document.readyState"
-                            )
-                            == "complete"
-                        )
-
+                                for element in elements:
+                                    if element.is_displayed() and element.is_enabled():
+                                        # Verificar se é realmente um botão de carregar mais
+                                        button_text = element.text.lower()
+                                        if any(
+                                            keyword in button_text
+                                            for keyword in [
+                                                "veja mais",
+                                                "ver mais",
+                                                "carregar mais",
+                                                "load more",
+                                                "mostrar mais",
+                                            ]
+                                        ):
+                                            veja_mais_button = element
+                                            button_found_with = f"CSS: {selector}"
+                                            break
+                                if veja_mais_button:
+                                    break
+                            finally:
+                                self.driver.implicitly_wait(
+                                    original_wait or 10.0
+                                )  # Restore original wait
                     except Exception as e:
-                        self.logger.warning(f"Erro ao clicar no botão: {e}")
-                        break
-                else:
+                        self.logger.debug(f"Erro ao tentar seletor {selector}: {e}")
+                        continue
+
+                if not veja_mais_button:
+                    self.logger.info(
+                        "Botão 'Veja Mais' não encontrado - todos os comentários podem ter sido carregados"
+                    )
                     break
+
+                self.logger.info(f"Botão encontrado com: {button_found_with}")
+                self.logger.debug(f"Texto do botão: '{veja_mais_button.text}'")
+
+                # Verificar se o botão ainda está clicável
+                if not (
+                    veja_mais_button.is_displayed() and veja_mais_button.is_enabled()
+                ):
+                    self.logger.info("Botão não está mais clicável")
+                    break
+
+                # Scroll para o botão com mais precisão
+                try:
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});",
+                        veja_mais_button,
+                    )
+                    time.sleep(2)
+
+                    # Contar comentários antes do clique
+                    reviews_before = self._count_current_reviews()
+
+                    # Tentar clicar usando JavaScript (mais confiável)
+                    self.driver.execute_script(
+                        "arguments[0].click();", veja_mais_button
+                    )
+                    clicks_realizados += 1
+
+                    self.logger.info(
+                        f"✅ Clique {clicks_realizados} realizado no botão 'Veja Mais'"
+                    )
+
+                    # Aguardar carregamento inicial
+                    time.sleep(3)
+
+                    # Aguardar novos comentários carregarem
+                    timeout = 15
+                    start_time = time.time()
+
+                    while time.time() - start_time < timeout:
+                        current_reviews = self._count_current_reviews()
+                        if current_reviews > reviews_before:
+                            self.logger.info(
+                                f"Novos comentários carregados: {reviews_before} → {current_reviews}"
+                            )
+                            break
+                        time.sleep(1)
+
+                    # Verificar se realmente carregaram novos comentários
+                    final_reviews = self._count_current_reviews()
+                    if final_reviews <= reviews_before:
+                        self.logger.warning(
+                            f"Nenhum comentário novo carregado após clique {clicks_realizados}"
+                        )
+                        # Tentar mais uma vez antes de desistir
+                        if clicks_realizados < 3:
+                            continue
+                        else:
+                            self.logger.info(
+                                "Parando - não há mais comentários para carregar"
+                            )
+                            break
+
+                    # Aguardar página estabilizar
+                    WebDriverWait(self.driver, 10).until(
+                        lambda driver: driver.execute_script(
+                            "return document.readyState"
+                        )
+                        == "complete"
+                    )
+
+                    time.sleep(2)  # Delay adicional para estabilizar
+
+                except Exception as e:
+                    self.logger.warning(
+                        f"Erro ao clicar no botão (tentativa {clicks_realizados}): {e}"
+                    )
+                    if (
+                        clicks_realizados < 3
+                    ):  # Tentar novamente se não foram muitos cliques
+                        continue
+                    else:
+                        break
 
             except NoSuchElementException:
-                # Botão não existe mais
+                self.logger.info("Botão 'Veja Mais' não existe mais")
                 break
             except Exception as e:
                 self.logger.warning(f"Erro no carregamento de comentários: {e}")
@@ -323,8 +477,15 @@ class DoctoraliaScraper:
                 else:
                     break
 
-        if clicks_realizados > 0:
-            self.logger.info(f"Total de {clicks_realizados} cliques realizados")
+        # Contagem final
+        final_count = self._count_current_reviews()
+        self.logger.info("📊 Carregamento concluído:")
+        self.logger.info(f"   - Cliques realizados: {clicks_realizados}")
+        self.logger.info(f"   - Comentários iniciais: {initial_reviews_count}")
+        self.logger.info(f"   - Comentários finais: {final_count}")
+        self.logger.info(
+            f"   - Novos comentários carregados: {final_count - initial_reviews_count}"
+        )
 
         return clicks_realizados
 
@@ -461,12 +622,28 @@ class DoctoraliaScraper:
         return None
 
     def extract_reply_from_html(self, html: str) -> Optional[str]:
-        """Extrai a resposta do médico ao comentário"""
+        """Extrai a resposta do médico ao comentário, ignorando surveys e votações"""
         if not html:
             return None
 
         try:
             soup = BeautifulSoup(html, "html.parser")
+
+            # Função auxiliar para checar se um elemento está dentro de um survey
+            def is_inside_survey(element: PageElement) -> bool:
+                parent = element.parent
+                while parent:
+                    if (
+                        isinstance(parent, Tag)
+                        and parent.has_attr("data-id")
+                        and parent["data-id"] == "opinions-survey"
+                    ) or (
+                        isinstance(parent, Tag)
+                        and "voteButton" in parent.get("class", [])
+                    ):
+                        return True
+                    parent = parent.parent if hasattr(parent, "parent") else None
+                return False
 
             # Lista de seletores possíveis para respostas do médico
             reply_selectors = [
@@ -490,8 +667,9 @@ class DoctoraliaScraper:
 
             # Tenta encontrar o elemento da resposta com diferentes seletores
             for selector in reply_selectors:
-                reply_element = soup.select_one(selector)
-                if reply_element:
+                candidate = soup.select_one(selector)
+                if candidate and not is_inside_survey(candidate):
+                    reply_element = candidate
                     self.logger.debug(f"Resposta encontrada com seletor: {selector}")
                     break
 
@@ -501,6 +679,8 @@ class DoctoraliaScraper:
                 # Procura por divs que contenham texto típico de resposta médica
                 potential_replies = soup.find_all(["div", "p", "span"])
                 for element in potential_replies:
+                    if is_inside_survey(element):
+                        continue
                     text = element.get_text(strip=True)
                     if (
                         text
@@ -534,6 +714,8 @@ class DoctoraliaScraper:
                 if not reply_element:
                     # Procura por qualquer div que contenha "Dra. Bruna" ou similar
                     for element in soup.find_all(["div", "p"]):
+                        if is_inside_survey(element):
+                            continue
                         text = element.get_text(strip=True)
                         dra_bruna_check = (
                             "dra." in text.lower() and "bruna" in text.lower()
@@ -740,6 +922,7 @@ class DoctoraliaScraper:
         """Extrai dados de todas as avaliações"""
         reviews_data: List[Dict[str, Any]] = []
 
+        # Usar os mesmos seletores do método de contagem
         selectors = [
             "[data-test-id='opinion-block']",
             ".opinion.d-block",
@@ -749,27 +932,99 @@ class DoctoraliaScraper:
         ]
 
         review_items = []
+        selector_used = None
+
         for selector in selectors:
             if self.driver is None:
                 break
             elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
             if elements:
-                review_items = elements
-                self.logger.info(
-                    f"Encontrados {len(elements)} comentários com seletor: {selector}"
-                )
-                break
+                # Filtrar elementos que realmente têm conteúdo de comentário
+                valid_elements = []
+                for element in elements:
+                    try:
+                        text = element.text.strip()
+                        if (
+                            len(text) > 50
+                        ):  # Comentários válidos devem ter texto substancial
+                            valid_elements.append(element)
+                    except Exception:
+                        continue
+
+                if valid_elements:
+                    review_items = valid_elements
+                    selector_used = selector
+                    self.logger.info(
+                        f"✅ Encontrados {len(valid_elements)} comentários válidos com seletor: {selector}"
+                    )
+                    break
 
         if not review_items:
-            self.logger.warning("Nenhum comentário encontrado com os seletores padrão")
-            return reviews_data
+            self.logger.warning(
+                "❌ Nenhum comentário encontrado com os seletores padrão"
+            )
+            # Tentar seletores alternativos mais genéricos
+            fallback_selectors = [
+                "div[class*='opinion']",
+                "div[class*='review']",
+                "div[class*='comment']",
+                ".card .card-body",
+                ".review-content",
+            ]
+
+            for selector in fallback_selectors:
+                if self.driver is None:
+                    break
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements:
+                    valid_elements = []
+                    for element in elements:
+                        try:
+                            text = element.text.strip()
+                            # Critério mais flexível para fallback
+                            if len(text) > 30 and any(
+                                keyword in text.lower()
+                                for keyword in [
+                                    "estrela",
+                                    "recomendo",
+                                    "consulta",
+                                    "tratamento",
+                                    "médic",
+                                    "doutor",
+                                ]
+                            ):
+                                valid_elements.append(element)
+                        except Exception:
+                            continue
+
+                    if valid_elements:
+                        review_items = valid_elements
+                        selector_used = f"{selector} (fallback)"
+                        self.logger.info(
+                            f"⚠️  Encontrados {len(valid_elements)} comentários com seletor fallback: {selector}"
+                        )
+                        break
+
+            if not review_items:
+                self.logger.error(
+                    "❌ Nenhum comentário encontrado mesmo com seletores fallback"
+                )
+                return reviews_data
+
+        self.logger.info(
+            f"🔍 Processando {len(review_items)} comentários encontrados..."
+        )
+        self.logger.info(f"📋 Seletor utilizado: {selector_used}")
+        successful_extractions = 0
 
         for i, review in enumerate(review_items):
             try:
                 html = review.get_attribute("outerHTML")
                 text = review.text.strip()
 
-                self.logger.debug(f"Processando comentário {i + 1}...")
+                self.logger.debug(
+                    f"Processando comentário {i + 1}/{len(review_items)}..."
+                )
                 comment = self.extract_comment(text, html or "")
 
                 if comment and len(comment) > 10:
@@ -815,16 +1070,23 @@ class DoctoraliaScraper:
                         k: v for k, v in review_data.items() if v is not None
                     }
                     reviews_data.append(review_data)
+                    successful_extractions += 1
 
                     self.logger.info(
-                        f"Comentário {i + 1} processado - Autor: {author}, Tem resposta: {'Sim' if reply else 'Não'}"
+                        f"✅ Comentário {i + 1} processado - Autor: {author}, Tem resposta: {'Sim' if reply else 'Não'}"
+                    )
+                else:
+                    self.logger.debug(
+                        f"❌ Comentário {i + 1} ignorado - conteúdo insuficiente"
                     )
 
             except Exception as e:
                 self.logger.warning(f"Erro ao processar avaliação {i + 1}: {e}")
                 continue
 
-        self.logger.info(f"Total de comentários processados: {len(reviews_data)}")
+        self.logger.info(
+            f"📊 Extração concluída: {successful_extractions}/{len(review_items)} comentários processados com sucesso"
+        )
         return reviews_data
 
     def save_data(self, data: Dict[str, Any]) -> Path:
@@ -905,3 +1167,42 @@ class DoctoraliaScraper:
 
         self.logger.info(f"💾 Dados salvos em: {save_dir}")
         return Path(save_dir)
+
+    def _count_current_reviews(self) -> int:
+        """Conta o número atual de comentários na página"""
+        if self.driver is None:
+            return 0
+
+        try:
+            # Múltiplos seletores para encontrar comentários
+            review_selectors = [
+                "[data-test-id='opinion-block']",
+                ".opinion.d-block",
+                ".opinion-item",
+                ".review-item",
+                ".opinion",
+            ]
+
+            for selector in review_selectors:
+                elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements:
+                    # Filtrar elementos que realmente são comentários (com texto suficiente)
+                    valid_reviews = []
+                    for element in elements:
+                        try:
+                            text = element.text.strip()
+                            if (
+                                len(text) > 50
+                            ):  # Comentários válidos devem ter texto substancial
+                                valid_reviews.append(element)
+                        except Exception:
+                            continue
+
+                    if valid_reviews:
+                        return len(valid_reviews)
+
+            return 0
+
+        except Exception as e:
+            self.logger.debug(f"Erro ao contar comentários: {e}")
+            return 0
