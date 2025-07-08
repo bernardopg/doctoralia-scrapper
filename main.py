@@ -98,7 +98,8 @@ def scrape_command(config: AppConfig, args: argparse.Namespace) -> bool:
     # Notificar via Telegram se configurado
     if config.telegram.enabled:
         notifier = TelegramNotifier(config, logger)
-        notifier.send_scraping_complete(data, save_path)
+        if save_path is not None:
+            notifier.send_scraping_complete(data, save_path)
 
     return True
 
