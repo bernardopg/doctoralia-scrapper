@@ -2,8 +2,8 @@
 Testes básicos para o sistema de logger
 """
 
-from unittest.mock import Mock
 from pathlib import Path
+from unittest.mock import Mock
 
 from src.logger import setup_logger
 

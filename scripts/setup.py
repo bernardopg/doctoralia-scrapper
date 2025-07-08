@@ -89,9 +89,7 @@ def setup_scraping(config: AppConfig) -> None:
 
     # Timeout
     try:
-        timeout = input(
-            f"Timeout para carregamento (atual: {config.scraping.timeout}s, Enter para manter): "
-        ).strip()
+        timeout = input(f"Timeout para carregamento (atual: {config.scraping.timeout}s, Enter para manter): ").strip()
         if timeout:
             config.scraping.timeout = int(timeout)
     except ValueError:

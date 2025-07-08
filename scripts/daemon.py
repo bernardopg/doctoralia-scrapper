@@ -45,9 +45,7 @@ class DaemonController:
 
         try:
             if notification_type == "daemon_started":
-                result = self.notifier.send_daemon_started(
-                    kwargs.get("interval_minutes", 30)
-                )
+                result = self.notifier.send_daemon_started(kwargs.get("interval_minutes", 30))
                 return bool(result)
 
             elif notification_type == "daemon_stopped":
@@ -55,18 +53,14 @@ class DaemonController:
                 return bool(result)
 
             elif notification_type == "generation_success":
-                result = self.notifier.send_generation_cycle_success(
-                    kwargs.get("responses", [])
-                )
+                result = self.notifier.send_generation_cycle_success(kwargs.get("responses", []))
                 return bool(result)
 
             elif notification_type == "generation_success_with_file":
                 file_path = kwargs.get("file_path")
                 if file_path is not None:
                     file_path = Path(file_path)
-                    result = self.notifier.send_responses_with_file(
-                        kwargs.get("responses", []), file_path
-                    )
+                    result = self.notifier.send_responses_with_file(kwargs.get("responses", []), file_path)
                     return bool(result)
                 return False
 
@@ -90,9 +84,7 @@ class DaemonController:
                 return bool(result)
 
             else:
-                self.logger.warning(
-                    f"Tipo de notificação desconhecido: {notification_type}"
-                )
+                self.logger.warning(f"Tipo de notificação desconhecido: {notification_type}")
                 return False
 
         except Exception as e:
@@ -134,9 +126,7 @@ class DaemonController:
 
     def start(self, interval_minutes: int = 30) -> None:
         """Inicia o daemon com intervalo especificado"""
-        self.logger.info(
-            f"🔄 Daemon iniciado - execução a cada {interval_minutes} minutos"
-        )
+        self.logger.info(f"🔄 Daemon iniciado - execução a cada {interval_minutes} minutos")
         self.logger.info("Pressione Ctrl+C para parar")
 
         # Agendar execução

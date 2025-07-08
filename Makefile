@@ -1,12 +1,11 @@
 # Makefile para Doctoralia Scrapper
 # ===================================
 
-.PHONY: help install install-dev setup test test-unit test-integration lint format clean run daemon monitor status stop
+.PHONY: help install setup test lint run daemon monitor clean
 
 # Variáveis
 PYTHON := python3
 PIP := pip3
-VENV := venv
 SRC_DIR := src
 TEST_DIR := tests
 
@@ -23,69 +22,53 @@ help: ## Mostra esta mensagem de ajuda
 	@echo "========================================="
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
 
-# Instalação
+# Instalação e Configuração
 install: ## Instala dependências de produção
 	@echo "$(BLUE)Instalando dependências...$(NC)"
 	$(PIP) install -r requirements.txt
 
-install-dev: ## Instala dependências de desenvolvimento
+install-dev: ## Instala dependências completas + setup do ambiente
 	@echo "$(BLUE)Instalando dependências de desenvolvimento...$(NC)"
 	$(PIP) install -r requirements.txt
 	$(PIP) install pytest pytest-cov pytest-mock black isort mypy flake8 pylint bandit safety pre-commit
-
-# Configuração
-setup: ## Executa configuração inicial do projeto
-	@echo "$(BLUE)Configurando projeto...$(NC)"
-	$(PYTHON) main.py setup
-
-setup-env: ## Cria arquivo .env a partir do exemplo
 	@if [ ! -f .env ]; then \
 		echo "$(YELLOW)Criando arquivo .env...$(NC)"; \
 		cp .env.example .env; \
 		echo "$(GREEN)Arquivo .env criado! Edite-o com suas configurações.$(NC)"; \
-	else \
-		echo "$(YELLOW)Arquivo .env já existe.$(NC)"; \
 	fi
+	$(PYTHON) main.py setup
+	@echo "$(GREEN)Configuração de desenvolvimento concluída!$(NC)"
 
-# Testes
-test: ## Executa todos os testes
+setup: ## Executa configuração inicial do projeto
+	@echo "$(BLUE)Configurando projeto...$(NC)"
+	$(PYTHON) main.py setup
+
+# Testes e Qualidade
+test: ## Executa todos os testes com cobertura
 	@echo "$(BLUE)Executando testes...$(NC)"
 	$(PYTHON) -m pytest $(TEST_DIR) -v --cov=$(SRC_DIR) --cov-report=term-missing
 
-test-unit: ## Executa apenas testes unitários
-	@echo "$(BLUE)Executando testes unitários...$(NC)"
-	$(PYTHON) -m pytest $(TEST_DIR)/unit -v -m unit
-
-test-integration: ## Executa apenas testes de integração
-	@echo "$(BLUE)Executando testes de integração...$(NC)"
-	$(PYTHON) -m pytest $(TEST_DIR)/integration -v -m integration
-
-test-coverage: ## Executa testes com relatório de cobertura HTML
-	@echo "$(BLUE)Executando testes com cobertura...$(NC)"
+test-html: ## Executa testes com relatório HTML
+	@echo "$(BLUE)Executando testes com cobertura HTML...$(NC)"
 	$(PYTHON) -m pytest $(TEST_DIR) --cov=$(SRC_DIR) --cov-report=html --cov-report=term
 	@echo "$(GREEN)Relatório de cobertura salvo em htmlcov/index.html$(NC)"
 
-# Qualidade de código
-lint: ## Executa linting do código
-	@echo "$(BLUE)Executando linting...$(NC)"
-	flake8 $(SRC_DIR) --max-line-length=88 --extend-ignore=E203
-	pylint $(SRC_DIR) --disable=C0114,C0115,C0116
-	mypy $(SRC_DIR) --ignore-missing-imports
-
-format: ## Formata o código usando black e isort
+lint: ## Executa linting, formatação e verificação de segurança
 	@echo "$(BLUE)Formatando código...$(NC)"
 	black .
 	isort .
-
-format-check: ## Verifica formatação sem alterar arquivos
-	@echo "$(BLUE)Verificando formatação...$(NC)"
-	black --check .
-	isort --check-only .
-
-security: ## Executa verificações de segurança
+	@echo "$(BLUE)Executando linting...$(NC)"
+	flake8 $(SRC_DIR) --extend-ignore=E203 --max-line-length=120
+	pylint $(SRC_DIR) --disable=C0114,C0115,C0116
+	mypy $(SRC_DIR) --ignore-missing-imports
 	@echo "$(BLUE)Verificando segurança...$(NC)"
 	bandit -r $(SRC_DIR)
 	safety check --file requirements.txt
+
+check: ## Verifica formatação sem alterar arquivos
+	@echo "$(BLUE)Verificando formatação...$(NC)"
+	black --check .
+	isort --check-only .
 
 # Execução
 run: ## Executa scraping uma vez
@@ -100,10 +83,10 @@ run-url: ## Executa scraping com URL específica (uso: make run-url URL=<url>)
 	fi
 	$(PYTHON) main.py scrape --url "$(URL)"
 
-run-full-url: ## Executa workflow completo com URL específica (uso: make run-full-url URL=<url>)
+run-full: ## Executa workflow completo com URL específica (uso: make run-full URL=<url>)
 	@echo "$(BLUE)Executando workflow completo para URL...$(NC)"
 	@if [ -z "$(URL)" ]; then \
-		echo "$(RED)Erro: URL não fornecida. Use: make run-full-url URL=<url>$(NC)"; \
+		echo "$(RED)Erro: URL não fornecida. Use: make run-full URL=<url>$(NC)"; \
 		exit 1; \
 	fi
 	$(PYTHON) main.py run --url "$(URL)"
@@ -112,6 +95,7 @@ generate: ## Gera respostas para avaliações
 	@echo "$(BLUE)Gerando respostas...$(NC)"
 	$(PYTHON) main.py generate
 
+# Daemon e Monitoramento
 daemon: ## Inicia daemon em background
 	@echo "$(BLUE)Iniciando daemon...$(NC)"
 	$(PYTHON) main.py daemon --interval 30
@@ -120,8 +104,7 @@ daemon-debug: ## Inicia daemon em modo debug
 	@echo "$(BLUE)Iniciando daemon em modo debug...$(NC)"
 	$(PYTHON) main.py daemon --interval 5 --debug
 
-# Monitoramento
-monitor: ## Monitora status do scraping
+monitor: ## Monitora status do scraping e sistema
 	@echo "$(BLUE)Iniciando monitor...$(NC)"
 	$(PYTHON) scripts/monitor_scraping.py
 
@@ -134,8 +117,9 @@ stop: ## Para daemon em execução
 	$(PYTHON) scripts/daemon.py stop
 
 # Limpeza
-clean: ## Remove arquivos temporários e cache
+clean: ## Remove dados/arquivos temporários/cache
 	@echo "$(BLUE)Limpando arquivos temporários...$(NC)"
+	@read -p "Tem certeza? Esta ação não pode ser desfeita [y/N]: " confirm && [ "$$confirm" = "y" ]
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -delete
 	rm -rf .pytest_cache
@@ -145,39 +129,15 @@ clean: ## Remove arquivos temporários e cache
 	rm -rf build
 	rm -rf dist
 	rm -rf *.egg-info
+	rm -rf data/
 
-clean-logs: ## Remove arquivos de log
-	@echo "$(YELLOW)Removendo logs...$(NC)"
-	rm -rf data/logs/*.log
+# Comandos Úteis
+dev: install-dev ## Configuração completa para desenvolvimento
+	@echo "$(GREEN)Ambiente de desenvolvimento pronto!$(NC)"
 
-clean-data: ## Remove dados processados (CUIDADO!)
-	@echo "$(RED)Removendo dados processados...$(NC)"
-	@read -p "Tem certeza? Esta ação não pode ser desfeita [y/N]: " confirm && [ "$$confirm" = "y" ]
-	rm -rf data/extractions/*
-	rm -rf data/responses/*
+ci: check lint test ## Executa verificações de CI/CD
+	@echo "$(GREEN)Todas as verificações de CI passaram!$(NC)"
 
-# Desenvolvimento
-dev-setup: install-dev setup-env ## Configuração completa para desenvolvimento
-	@echo "$(GREEN)Configuração de desenvolvimento concluída!$(NC)"
-
-pre-commit: format lint test ## Executa verificações antes do commit
-	@echo "$(GREEN)Todas as verificações passaram!$(NC)"
-
-# Docker (opcional)
-docker-build: ## Constrói imagem Docker
-	@echo "$(BLUE)Construindo imagem Docker...$(NC)"
-	docker build -t doctoralia-scrapper .
-
-docker-run: ## Executa container Docker
-	@echo "$(BLUE)Executando container...$(NC)"
-	docker run -it --rm -v $(PWD)/data:/app/data doctoralia-scrapper
-
-# Git helpers
-git-hooks: ## Instala git hooks para desenvolvimento
-	@echo "$(BLUE)Instalando git hooks...$(NC)"
-	pre-commit install
-
-# Informações
 info: ## Mostra informações do ambiente
 	@echo "$(BLUE)Informações do Ambiente$(NC)"
 	@echo "======================"

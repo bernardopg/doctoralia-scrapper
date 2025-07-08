@@ -22,7 +22,7 @@ class ResponseGenerator:
                 with open(self.processed_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     return set(data.get("processed_ids", []))
-            except Exception:
+            except json.JSONDecodeError:
                 return set()
         return set()
 
@@ -72,14 +72,10 @@ class ResponseGenerator:
 
         # 1. Saudação
         if first_name:
-            greeting = random.choice(  # nosec B311
-                [t for t in self.templates["saudacoes"] if "{nome}" in t]
-            )
+            greeting = random.choice([t for t in self.templates["saudacoes"] if "{nome}" in t])  # nosec B311
             response_parts.append(greeting.format(nome=first_name))
         else:
-            greeting = random.choice(  # nosec B311
-                [t for t in self.templates["saudacoes"] if "{nome}" not in t]
-            )
+            greeting = random.choice([t for t in self.templates["saudacoes"] if "{nome}" not in t])  # nosec B311
             response_parts.append(greeting)
 
         # 2. Agradecimento
@@ -89,9 +85,7 @@ class ResponseGenerator:
         # 3. Resposta específica às qualidades mencionadas
         qualities = self.identify_mentioned_qualities(comment)
         if qualities:
-            quality_response = self.templates["qualidades_mencionadas"].get(
-                random.choice(qualities)
-            )
+            quality_response = self.templates["qualidades_mencionadas"].get(random.choice(qualities))
             if quality_response:
                 response_parts.append(quality_response)
 
@@ -122,9 +116,7 @@ class ResponseGenerator:
         latest_dir = sorted(extraction_dirs, key=lambda x: x.name)[-1]
         return Path(latest_dir)
 
-    def create_consolidated_file(
-        self, responses_data: List[Dict], timestamp: str
-    ) -> Path:
+    def create_consolidated_file(self, responses_data: List[Dict], timestamp: str) -> Path:
         """Cria arquivo consolidado com todas as respostas geradas"""
         responses_dir = self.config.data_dir / "responses"
         consolidated_file = responses_dir / f"respostas_consolidadas_{timestamp}.txt"
@@ -150,9 +142,7 @@ class ResponseGenerator:
                 f.write("\n\n" + "=" * 60 + "\n\n")
 
             f.write("INSTRUÇÕES:\n")
-            f.write(
-                "1. Copie cada resposta e cole no comentário correspondente no Doctoralia\n"
-            )
+            f.write("1. Copie cada resposta e cole no comentário correspondente no Doctoralia\n")
             f.write("2. Verifique se o autor corresponde antes de colar\n")
             f.write("3. Personalize se necessário antes de publicar\n")
             f.write("\n" + "=" * 80 + "\n")
@@ -210,9 +200,7 @@ class ResponseGenerator:
                 author = review.get("author", "Unknown")
                 review_id = review.get("id", "unknown")
 
-                filename = (
-                    f"response_{timestamp}_{review_id}_{author.replace(' ', '_')}.txt"
-                )
+                filename = f"response_{timestamp}_{review_id}_{author.replace(' ', '_')}.txt"
                 response_file = responses_dir / filename
 
                 # Salvar arquivo individual
@@ -221,9 +209,7 @@ class ResponseGenerator:
                     f.write(f"COMENTÁRIO: {review.get('comment', '')}\n")
                     f.write(f"DATA: {review.get('date', '')}\n")
                     f.write(f"NOTA: {review.get('rating', '')}\n")
-                    f.write(
-                        f"GERADO EM: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
-                    )
+                    f.write(f"GERADO EM: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
                     f.write("=" * 60 + "\n")
                     f.write("RESPOSTA SUGERIDA:\n\n")
                     f.write(response_text)
@@ -253,18 +239,14 @@ class ResponseGenerator:
 
                 self.logger.info(f"✓ Resposta gerada para {author}")
 
-            except Exception as e:
-                self.logger.error(
-                    f"Erro ao gerar resposta para {review.get('author', 'Unknown')}: {e}"
-                )
+            except ValueError as e:
+                self.logger.error(f"Erro ao gerar resposta para {review.get('author', 'Unknown')}: {e}")
                 continue
 
         # Criar arquivo consolidado se houver respostas
         consolidated_file = None
         if generated_responses:
-            consolidated_file = self.create_consolidated_file(
-                consolidated_content, timestamp
-            )
+            consolidated_file = self.create_consolidated_file(consolidated_content, timestamp)
 
         # Salvar IDs processados
         self.save_processed_reviews(processed_ids)

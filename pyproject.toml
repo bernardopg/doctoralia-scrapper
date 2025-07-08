@@ -86,7 +86,7 @@ include = ["src*", "config*", "scripts*"]
 exclude = ["tests*"]
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py310', 'py311', 'py312']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -172,4 +172,14 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == .__main__.:"
+]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.messages_control]
+disable = [
+    "C0114",  # missing-module-docstring
+    "C0115",  # missing-class-docstring
+    "C0116",  # missing-function-docstring
 ]

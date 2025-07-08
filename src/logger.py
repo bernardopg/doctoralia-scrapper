@@ -19,9 +19,7 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         # Aplicar cor baseada no nível
         if record.levelname in self.COLORS:
-            levelname_color = (
-                f"{self.COLORS[record.levelname]}{record.levelname}{self.RESET}"
-            )
+            levelname_color = f"{self.COLORS[record.levelname]}{record.levelname}{self.RESET}"
             record.levelname = levelname_color
 
         return super().format(record)
@@ -52,9 +50,7 @@ def setup_logger(name: str, config: Any, verbose: bool = False) -> logging.Logge
     log_file = config.logs_dir / f"{name}_{datetime.now().strftime('%Y%m')}.log"
 
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_format = (
-        "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
-    )
+    file_format = "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
     file_handler.setFormatter(logging.Formatter(file_format))
     file_handler.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)

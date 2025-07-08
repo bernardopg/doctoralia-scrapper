@@ -15,9 +15,7 @@ def run_command(command: str, description: str) -> bool:
     print("=" * 50)
 
     try:
-        result = subprocess.run(
-            command, shell=True, check=True, capture_output=True, text=True
-        )
+        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
         print(f"✅ {description} - Sucesso")
         if result.stdout:
             print(result.stdout)
