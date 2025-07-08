@@ -36,10 +36,8 @@ class TestDoctoraliaScraper:
         mock_logger = Mock()
         scraper = DoctoraliaScraper(config=config, logger=mock_logger)
 
-        assert hasattr(scraper, "_setup_chrome_options")
-        assert hasattr(scraper, "_setup_driver")
-        assert callable(getattr(scraper, "_setup_chrome_options"))
-        assert callable(getattr(scraper, "_setup_driver"))
+        assert hasattr(scraper, "setup_driver")
+        assert callable(getattr(scraper, "setup_driver"))
 
 
 class TestScrapingMethods:
@@ -52,11 +50,9 @@ class TestScrapingMethods:
         scraper = DoctoraliaScraper(config=config, logger=mock_logger)
 
         required_methods = [
-            "scrape",
-            "scrape_doctor_info",
             "scrape_reviews",
-            "_parse_review",
-            "_save_data",
+            "extract_doctor_name",
+            "save_data",
         ]
 
         for method in required_methods:

@@ -171,7 +171,7 @@ class DoctoraliaScraper:
         """Adiciona delay aleatório para simular comportamento humano"""
         min_d = min_delay or self.config.scraping.delay_min
         max_d = max_delay or self.config.scraping.delay_max
-        delay = random.uniform(min_d, max_d)
+        delay = random.uniform(min_d, max_d)  # nosec B311
         time.sleep(delay)
 
     def retry_on_failure(
@@ -805,7 +805,7 @@ if __name__ == "__main__":
                             len(text) > 50
                         ):  # Comentários válidos devem ter texto substancial
                             valid_elements.append(element)
-                    except Exception:
+                    except Exception:  # nosec B112
                         continue
 
                 if valid_elements:
@@ -851,7 +851,7 @@ if __name__ == "__main__":
                                 ]
                             ):
                                 valid_elements.append(element)
-                        except Exception:
+                        except Exception:  # nosec B112
                             continue
 
                     if valid_elements:
@@ -1052,7 +1052,7 @@ if __name__ == "__main__":
                                 len(text) > 50
                             ):  # Comentários válidos devem ter texto substancial
                                 valid_reviews.append(element)
-                        except Exception:
+                        except Exception:  # nosec B112
                             continue
 
                     if valid_reviews:

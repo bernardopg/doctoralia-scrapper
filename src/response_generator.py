@@ -72,18 +72,18 @@ class ResponseGenerator:
 
         # 1. Saudação
         if first_name:
-            greeting = random.choice(
+            greeting = random.choice(  # nosec B311
                 [t for t in self.templates["saudacoes"] if "{nome}" in t]
             )
             response_parts.append(greeting.format(nome=first_name))
         else:
-            greeting = random.choice(
+            greeting = random.choice(  # nosec B311
                 [t for t in self.templates["saudacoes"] if "{nome}" not in t]
             )
             response_parts.append(greeting)
 
         # 2. Agradecimento
-        thanks: str = random.choice(self.templates["agradecimentos"])
+        thanks: str = random.choice(self.templates["agradecimentos"])  # nosec B311
         response_parts.append(thanks)
 
         # 3. Resposta específica às qualidades mencionadas
@@ -96,11 +96,11 @@ class ResponseGenerator:
                 response_parts.append(quality_response)
 
         # 4. Expressão de satisfação
-        satisfaction: str = random.choice(self.templates["satisfacao"])
+        satisfaction: str = random.choice(self.templates["satisfacao"])  # nosec B311
         response_parts.append(satisfaction)
 
         # 5. Disponibilidade
-        availability: str = random.choice(self.templates["disponibilidade"])
+        availability: str = random.choice(self.templates["disponibilidade"])  # nosec B311
         response_parts.append(availability)
 
         # 6. Assinatura

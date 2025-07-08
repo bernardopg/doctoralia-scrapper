@@ -3,16 +3,16 @@
 import re
 
 # Read the original file
-with open('src/scraper.py', 'r') as f:
+with open("src/scraper.py", "r") as f:
     content = f.read()
 
 # Add import after the other selenium imports
-import_pattern = r'(from selenium\.webdriver\.common\.by import By\n)(from selenium\.webdriver\.support import expected_conditions as EC)'
-import_replacement = r'\1from webdriver_manager.chrome import ChromeDriverManager\n\2'
+import_pattern = r"(from selenium\.webdriver\.common\.by import By\n)(from selenium\.webdriver\.support import expected_conditions as EC)"
+import_replacement = r"\1from webdriver_manager.chrome import ChromeDriverManager\n\2"
 content = re.sub(import_pattern, import_replacement, content)
 
 # Replace the ChromeDriver detection logic
-old_logic = r'''                # Encontrar ChromeDriver
+old_logic = r"""                # Encontrar ChromeDriver
                 chromedriver_paths = \[
                     "/usr/bin/chromedriver",
                     "/usr/local/bin/chromedriver",
@@ -31,15 +31,15 @@ old_logic = r'''                # Encontrar ChromeDriver
 
                 if not chromedriver_binary:
                     self\.logger\.error\("ChromeDriver não encontrado"\)
-                    return False'''
+                    return False"""
 
-new_logic = '''                # Use webdriver-manager to automatically manage ChromeDriver
-                chromedriver_binary = ChromeDriverManager().install()'''
+new_logic = """                # Use webdriver-manager to automatically manage ChromeDriver
+                chromedriver_binary = ChromeDriverManager().install()"""
 
 content = re.sub(old_logic, new_logic, content, flags=re.MULTILINE)
 
 # Write the modified content back
-with open('src/scraper.py', 'w') as f:
+with open("src/scraper.py", "w") as f:
     f.write(content)
 
 print("Successfully updated scraper.py to use webdriver-manager")

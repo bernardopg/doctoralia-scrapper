@@ -1,7 +1,3 @@
-"""
-Testes básicos para o módulo de configuração
-"""
-
 import json
 import os
 from pathlib import Path
