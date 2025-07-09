@@ -49,20 +49,19 @@ class MockConfig:
 
 # Standard logger setup
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 logger = logging.getLogger(__name__)
 # --- End of Setup ---
 
 
 class DoctoraliaScraper:
-    # <--- REFACTOR: Type hint for logger is now more specific.
     def __init__(self, config: Any, logger: logging.Logger) -> None:
         self.config = config
         self.logger = logger
         self.driver: Optional[webdriver.Chrome] = None
-        # <--- REFACTOR: Removed unused `skip_keywords` list.
-        # This list was defined but never used in the original code.
 
     def get_random_user_agent(self) -> str:
         """Retorna um user-agent aleatório"""
@@ -71,7 +70,8 @@ class DoctoraliaScraper:
             "Chrome/121.0.0.0 Safari/537.36",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) " "Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/121.0.0.0 Safari/537.36",
         ]
         return random.choice(user_agents)
 
@@ -81,7 +81,9 @@ class DoctoraliaScraper:
 
         for attempt in range(max_attempts):
             try:
-                self.logger.info(f"Tentativa {attempt + 1}/{max_attempts} de inicializar navegador...")
+                self.logger.info(
+                    f"Tentativa {attempt + 1}/{max_attempts} de inicializar navegador..."
+                )
 
                 chromedriver_binary = ChromeDriverManager().install()
 
@@ -118,10 +120,14 @@ class DoctoraliaScraper:
                 service = Service(chromedriver_binary)
                 self.driver = webdriver.Chrome(service=service, options=options)
 
-                self.driver.set_page_load_timeout(self.config.scraping.page_load_timeout)
+                self.driver.set_page_load_timeout(
+                    self.config.scraping.page_load_timeout
+                )
                 self.driver.implicitly_wait(self.config.scraping.implicit_wait)
 
-                self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+                self.driver.execute_script(
+                    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+                )
 
                 self.logger.info("✅ Navegador inicializado com sucesso")
                 return True
@@ -131,11 +137,15 @@ class DoctoraliaScraper:
                 if attempt < max_attempts - 1:
                     time.sleep(2)
                 else:
-                    self.logger.error("Falha ao criar sessão do navegador após todas as tentativas")
+                    self.logger.error(
+                        "Falha ao criar sessão do navegador após todas as tentativas"
+                    )
                     return False
 
             except WebDriverException as e:
-                self.logger.error(f"❌ Erro ao inicializar navegador (tentativa {attempt + 1}): {e}")
+                self.logger.error(
+                    f"❌ Erro ao inicializar navegador (tentativa {attempt + 1}): {e}"
+                )
                 if attempt < max_attempts - 1:
                     time.sleep(2)
                 else:
@@ -155,14 +165,18 @@ class DoctoraliaScraper:
             finally:
                 self.driver = None
 
-    def add_human_delay(self, min_delay: Optional[float] = None, max_delay: Optional[float] = None) -> None:
+    def add_human_delay(
+        self, min_delay: Optional[float] = None, max_delay: Optional[float] = None
+    ) -> None:
         """Adiciona delay aleatório para simular comportamento humano"""
         min_d = min_delay or self.config.scraping.delay_min
         max_d = max_delay or self.config.scraping.delay_max
         delay = random.uniform(min_d, max_d)  # nosec B311
         time.sleep(delay)
 
-    def retry_on_failure(self, func: Any, max_retries: Optional[int] = None, *args: Any, **kwargs: Any) -> Any:
+    def retry_on_failure(
+        self, func: Any, max_retries: Optional[int] = None, *args: Any, **kwargs: Any
+    ) -> Any:
         """Executa uma função com retry automático em caso de falha"""
         max_retries_value = max_retries or self.config.scraping.max_retries
         last_exception = None
@@ -176,10 +190,14 @@ class DoctoraliaScraper:
                 InvalidSessionIdException,
             ) as e:
                 last_exception = e
-                self.logger.warning(f"Tentativa {attempt + 1}/{max_retries_value} falhou: {type(e).__name__}")
+                self.logger.warning(
+                    f"Tentativa {attempt + 1}/{max_retries_value} falhou: {type(e).__name__}"
+                )
                 if attempt < max_retries_value - 1:
                     wait_time = (attempt + 1) * 2
-                    self.logger.info(f"Aguardando {wait_time}s antes da próxima tentativa...")
+                    self.logger.info(
+                        f"Aguardando {wait_time}s antes da próxima tentativa..."
+                    )
                     time.sleep(wait_time)
                 else:
                     break
@@ -187,7 +205,11 @@ class DoctoraliaScraper:
                 self.logger.error(f"Erro não recuperável: {e}")
                 raise e
 
-        raise (last_exception if last_exception else RuntimeError("Falha após todas as tentativas"))
+        raise (
+            last_exception
+            if last_exception
+            else RuntimeError("Falha após todas as tentativas")
+        )
 
     def extract_doctor_name(self) -> Optional[str]:
         """Extrai o nome do médico da página com um seletor robusto."""
@@ -197,7 +219,9 @@ class DoctoraliaScraper:
             if self.driver is None:
                 raise RuntimeError("Driver não inicializado")
             wait = WebDriverWait(self.driver, self.config.scraping.explicit_wait)
-            name_element = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, css_selector)))
+            name_element = wait.until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, css_selector))
+            )
             text_content = name_element.get_attribute("textContent")
             if text_content:
                 doctor_name = text_content.strip()
@@ -208,11 +232,15 @@ class DoctoraliaScraper:
             doctor_name = self.retry_on_failure(_extract_name)
             return str(doctor_name) if doctor_name is not None else None
         except (TimeoutException, NoSuchElementException):
-            self.logger.warning("Nome do médico não encontrado com o seletor principal. Tentando fallback.")
+            self.logger.warning(
+                "Nome do médico não encontrado com o seletor principal. Tentando fallback."
+            )
             try:
                 if self.driver is None:
                     return None
-                name_element = self.driver.find_element(By.CSS_SELECTOR, 'span[itemprop="name"]')
+                name_element = self.driver.find_element(
+                    By.CSS_SELECTOR, 'span[itemprop="name"]'
+                )
                 text_content = name_element.get_attribute("textContent")
                 if text_content:
                     return self.clean_text(text_content.strip())
@@ -234,7 +262,7 @@ class DoctoraliaScraper:
         max_clicks = 50
         button_selectors = [
             "button[data-id='load-more-opinions']",
-            "a[data-test-id='load-more-opinions']",  # More specific than the #id selector
+            "a[data-test-id='load-more-opinions']",
             "#profile-reviews > div > div.card-footer.text-center > button",
             ".text-center button",
         ]
@@ -247,11 +275,15 @@ class DoctoraliaScraper:
 
         while clicks_realizados < max_clicks:
             if time.time() - method_start_time > method_timeout:
-                self.logger.warning(f"Timeout de {method_timeout}s atingido para carregamento de comentários")
+                self.logger.warning(
+                    f"Timeout de {method_timeout}s atingido para carregamento de comentários"
+                )
                 break
 
             try:
-                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+                self.driver.execute_script(
+                    "window.scrollTo(0, document.body.scrollHeight);"
+                )
                 self.add_human_delay(1.0, 2.0)
 
                 veja_mais_button = None
@@ -261,7 +293,9 @@ class DoctoraliaScraper:
                         for element in elements:
                             if element.is_displayed() and element.is_enabled():
                                 veja_mais_button = element
-                                self.logger.info(f"Botão 'Veja Mais' encontrado com seletor: {selector}")
+                                self.logger.info(
+                                    f"Botão 'Veja Mais' encontrado com seletor: {selector}"
+                                )
                                 break
                         if veja_mais_button:
                             break
@@ -277,18 +311,24 @@ class DoctoraliaScraper:
 
                 reviews_before = self._count_current_reviews()
 
-                self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", veja_mais_button)
+                self.driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'});", veja_mais_button
+                )
                 self.add_human_delay(0.5, 1.0)
                 self.driver.execute_script("arguments[0].click();", veja_mais_button)
                 clicks_realizados += 1
-                self.logger.info(f"✅ Clique {clicks_realizados} realizado no botão 'Veja Mais'")
+                self.logger.info(
+                    f"✅ Clique {clicks_realizados} realizado no botão 'Veja Mais'"
+                )
 
                 # Wait for new reviews to load using a reliable explicit wait
                 wait = WebDriverWait(self.driver, 15)
                 wait.until(lambda d: self._count_current_reviews() > reviews_before)
 
                 reviews_after = self._count_current_reviews()
-                self.logger.info(f"Novos comentários carregados: {reviews_before} → {reviews_after}")
+                self.logger.info(
+                    f"Novos comentários carregados: {reviews_before} → {reviews_after}"
+                )
 
                 # Wait for page to stabilize after loading new content
                 self.add_human_delay(2.0, 4.0)
@@ -323,7 +363,11 @@ class DoctoraliaScraper:
             return None
         try:
             rating_container = review_element.find("div", {"data-score": True})
-            if rating_container and isinstance(rating_container, Tag) and rating_container.has_attr("data-score"):
+            if (
+                rating_container
+                and isinstance(rating_container, Tag)
+                and rating_container.has_attr("data-score")
+            ):
                 data_score = rating_container.get("data-score")
                 if isinstance(data_score, str) and data_score.isdigit():
                     return int(data_score)
@@ -338,7 +382,11 @@ class DoctoraliaScraper:
             return None
         try:
             date_element = review_element.find("time", {"itemprop": "datePublished"})
-            if date_element and isinstance(date_element, Tag) and date_element.has_attr("datetime"):
+            if (
+                date_element
+                and isinstance(date_element, Tag)
+                and date_element.has_attr("datetime")
+            ):
                 datetime_attr = date_element.get("datetime")
                 if isinstance(datetime_attr, str):
                     return datetime_attr
@@ -396,11 +444,15 @@ class DoctoraliaScraper:
                 )
                 if not self.setup_driver():
                     if attempt < self.config.scraping.max_retries - 1:
-                        self.logger.warning("Falha na inicialização do driver, tentando novamente em 5s...")
+                        self.logger.warning(
+                            "Falha na inicialização do driver, tentando novamente em 5s..."
+                        )
                         time.sleep(5)
                         continue
                     else:
-                        self.logger.error("❌ Falha definitiva na inicialização do navegador")
+                        self.logger.error(
+                            "❌ Falha definitiva na inicialização do navegador"
+                        )
                         return None
 
                 try:
@@ -413,9 +465,9 @@ class DoctoraliaScraper:
 
                     self.logger.info(f"🌐 Acessando página: {url}")
                     self.driver.get(url)
-                    WebDriverWait(self.driver, self.config.scraping.explicit_wait).until(
-                        EC.presence_of_element_located((By.ID, "profile-reviews"))
-                    )
+                    WebDriverWait(
+                        self.driver, self.config.scraping.explicit_wait
+                    ).until(EC.presence_of_element_located((By.ID, "profile-reviews")))
                     self.add_human_delay()
 
                     self.logger.info("👨‍⚕️ Extraindo nome do médico...")
@@ -423,7 +475,9 @@ class DoctoraliaScraper:
                     if doctor_name:
                         self.logger.info(f"Médico identificado: {doctor_name}")
                     else:
-                        self.logger.warning("Não foi possível identificar o nome do médico.")
+                        self.logger.warning(
+                            "Não foi possível identificar o nome do médico."
+                        )
 
                     self.logger.info("📚 Carregando todos os comentários...")
                     self.click_load_more_button()
@@ -439,7 +493,9 @@ class DoctoraliaScraper:
                         "total_reviews": len(reviews_data),
                     }
 
-                    self.logger.info(f"✅ Extração concluída: {len(reviews_data)} comentários encontrados.")
+                    self.logger.info(
+                        f"✅ Extração concluída: {len(reviews_data)} comentários encontrados."
+                    )
                     return result
 
                 except WebDriverException as e:
@@ -457,7 +513,9 @@ class DoctoraliaScraper:
                     self.safe_driver_quit()
 
             except WebDriverException as e:
-                self.logger.error(f"❌ Erro crítico na tentativa {attempt + 1}: {e}", exc_info=True)
+                self.logger.error(
+                    f"❌ Erro crítico na tentativa {attempt + 1}: {e}", exc_info=True
+                )
                 if attempt < self.config.scraping.max_retries - 1:
                     time.sleep(10)
                 else:
@@ -474,14 +532,18 @@ class DoctoraliaScraper:
         soup = BeautifulSoup(page_source, "html.parser")
 
         review_elements = soup.find_all("div", {"data-test-id": "opinion-block"})
-        self.logger.info(f"Encontrados {len(review_elements)} elementos de review com o seletor principal.")
+        self.logger.info(
+            f"Encontrados {len(review_elements)} elementos de review com o seletor principal."
+        )
 
         for i, review_element in enumerate(review_elements):
             try:
                 comment = self.extract_comment(review_element)
 
                 if not comment:
-                    self.logger.warning(f"Comentário {i + 1} ignorado por falta de texto.")
+                    self.logger.warning(
+                        f"Comentário {i + 1} ignorado por falta de texto."
+                    )
                     continue
 
                 # <--- REFACTOR: Pass the Tag object directly for consistency
@@ -519,7 +581,9 @@ class DoctoraliaScraper:
             self.config.data_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             doctor_name = data.get("doctor_name", "unknown_doctor")
-            clean_name = re.sub(r"[^\w\s-]", "", doctor_name).strip().replace(" ", "_").lower()
+            clean_name = (
+                re.sub(r"[^\w\s-]", "", doctor_name).strip().replace(" ", "_").lower()
+            )
             file_name = f"{timestamp}_{clean_name}.json"
             file_path = self.config.data_dir / file_name
 
@@ -537,7 +601,9 @@ class DoctoraliaScraper:
         if self.driver is None:
             return 0
         try:
-            review_elements = self.driver.find_elements(By.CSS_SELECTOR, "[data-test-id='opinion-block']")
+            review_elements = self.driver.find_elements(
+                By.CSS_SELECTOR, "[data-test-id='opinion-block']"
+            )
             return len(review_elements)
         except WebDriverException as e:
             self.logger.debug(f"Erro ao contar comentários: {e}")
@@ -546,7 +612,9 @@ class DoctoraliaScraper:
 
 if __name__ == "__main__":
     # URL do perfil do médico para extrair as avaliações
-    target_url = "https://www.doctoralia.com.br/bruna-pinto-gomes/ginecologista/belo-horizonte"
+    target_url = (
+        "https://www.doctoralia.com.br/bruna-pinto-gomes/ginecologista/belo-horizonte"
+    )
 
     # Inicializa a configuração e o scraper
     config = MockConfig()
@@ -558,7 +626,9 @@ if __name__ == "__main__":
     if scraped_data:
         logger.info("\n--- RESUMO DA EXTRAÇÃO ---")
         logger.info(f"Médico: {scraped_data.get('doctor_name')}")
-        logger.info(f"Total de Avaliações Extraídas: {scraped_data.get('total_reviews')}")
+        logger.info(
+            f"Total de Avaliações Extraídas: {scraped_data.get('total_reviews')}"
+        )
 
         # Salva os dados
         saved_file = scraper.save_data(scraped_data)
@@ -573,7 +643,9 @@ if __name__ == "__main__":
                 logger.info(f"  Data: {review.get('date', 'N/A')}")
                 logger.info(f"  Comentário: {review.get('comment', '')[:100]}...")
                 if review.get("doctor_reply"):
-                    logger.info(f"  Resposta: {review.get('doctor_reply', '')[:100]}...")
+                    logger.info(
+                        f"  Resposta: {review.get('doctor_reply', '')[:100]}..."
+                    )
     else:
         logger.error("A extração de dados falhou após todas as tentativas.")
 
@@ -587,11 +659,15 @@ if __name__ == "__main__":
 
                 if not self.setup_driver():
                     if attempt < self.config.scraping.max_retries - 1:
-                        self.logger.warning("Falha na inicialização do driver, tentando novamente em 5s...")
+                        self.logger.warning(
+                            "Falha na inicialização do driver, tentando novamente em 5s..."
+                        )
                         time.sleep(5)
                         continue
                     else:
-                        self.logger.error("❌ Falha definitiva na inicialização do navegador")
+                        self.logger.error(
+                            "❌ Falha definitiva na inicialização do navegador"
+                        )
                         return None
 
                 try:
@@ -606,9 +682,9 @@ if __name__ == "__main__":
                             raise RuntimeError("Driver não inicializado")
                         self.driver.get(url)
                         # Verificar se a página carregou corretamente
-                        WebDriverWait(self.driver, self.config.scraping.explicit_wait).until(
-                            EC.presence_of_element_located((By.TAG_NAME, "body"))
-                        )
+                        WebDriverWait(
+                            self.driver, self.config.scraping.explicit_wait
+                        ).until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
                     self.retry_on_failure(_load_page)
                     self.add_human_delay(3.0, 5.0)
@@ -623,7 +699,9 @@ if __name__ == "__main__":
                     def _find_reviews() -> Any:
                         if self.driver is None:
                             raise RuntimeError("Driver não inicializado")
-                        wait = WebDriverWait(self.driver, self.config.scraping.explicit_wait)
+                        wait = WebDriverWait(
+                            self.driver, self.config.scraping.explicit_wait
+                        )
                         return wait.until(
                             EC.presence_of_element_located(
                                 (
@@ -637,13 +715,17 @@ if __name__ == "__main__":
 
                     if self.driver is None:
                         raise RuntimeError("Driver não inicializado")
-                    self.driver.execute_script("arguments[0].scrollIntoView(true);", reviews_element)
+                    self.driver.execute_script(
+                        "arguments[0].scrollIntoView(true);", reviews_element
+                    )
                     time.sleep(3)
 
                     self.logger.info("📚 Carregando todos os comentários...")
                     clicks = self.click_load_more_button()
                     if clicks > 0:
-                        self.logger.info(f"Carregados comentários adicionais com {clicks} cliques")
+                        self.logger.info(
+                            f"Carregados comentários adicionais com {clicks} cliques"
+                        )
 
                     # Atualizar elemento após carregar mais comentários
                     if self.driver is None:
@@ -664,11 +746,15 @@ if __name__ == "__main__":
                         "total_reviews": len(reviews_data),
                     }
 
-                    self.logger.info(f"✅ Extração concluída: {len(reviews_data)} comentários")
+                    self.logger.info(
+                        f"✅ Extração concluída: {len(reviews_data)} comentários"
+                    )
                     return result
 
                 except WebDriverException as e:
-                    self.logger.error(f"❌ Erro durante scraping (tentativa {attempt + 1}): {e}")
+                    self.logger.error(
+                        f"❌ Erro durante scraping (tentativa {attempt + 1}): {e}"
+                    )
                     if attempt < self.config.scraping.max_retries - 1:
                         self.logger.info("🔄 Tentando novamente...")
                         self.safe_driver_quit()
@@ -716,7 +802,9 @@ if __name__ == "__main__":
                 for element in elements:
                     try:
                         text = element.text.strip()
-                        if len(text) > 50:  # Comentários válidos devem ter texto substancial
+                        if (
+                            len(text) > 50
+                        ):  # Comentários válidos devem ter texto substancial
                             valid_elements.append(element)
                     except WebDriverException:  # nosec B112
                         continue
@@ -730,7 +818,9 @@ if __name__ == "__main__":
                     break
 
         if not review_items:
-            self.logger.warning("❌ Nenhum comentário encontrado com os seletores padrão")
+            self.logger.warning(
+                "❌ Nenhum comentário encontrado com os seletores padrão"
+            )
             # Tentar seletores alternativos mais genéricos
             fallback_selectors = [
                 "div[class*='opinion']",
@@ -774,10 +864,14 @@ if __name__ == "__main__":
                         break
 
             if not review_items:
-                self.logger.error("❌ Nenhum comentário encontrado mesmo com seletores fallback")
+                self.logger.error(
+                    "❌ Nenhum comentário encontrado mesmo com seletores fallback"
+                )
                 return reviews_data
 
-        self.logger.info(f"🔍 Processando {len(review_items)} comentários encontrados...")
+        self.logger.info(
+            f"🔍 Processando {len(review_items)} comentários encontrados..."
+        )
         self.logger.info(f"📋 Seletor utilizado: {selector_used}")
         successful_extractions = 0
 
@@ -786,7 +880,9 @@ if __name__ == "__main__":
                 html = review.get_attribute("outerHTML")
                 text = review.text.strip()
 
-                self.logger.debug(f"Processando comentário {i + 1}/{len(review_items)}...")
+                self.logger.debug(
+                    f"Processando comentário {i + 1}/{len(review_items)}..."
+                )
                 comment = self.extract_comment(text, html or "")
 
                 if comment and len(comment) > 10:
@@ -795,18 +891,28 @@ if __name__ == "__main__":
                     date = self.extract_date_from_html(html or "")
 
                     # Log detalhado para debug da resposta
-                    self.logger.debug(f"Comentário {i + 1} - Autor: {author}, Data: {date}")
-                    self.logger.debug(f"Comentário {i + 1} - Buscando resposta do médico...")
+                    self.logger.debug(
+                        f"Comentário {i + 1} - Autor: {author}, Data: {date}"
+                    )
+                    self.logger.debug(
+                        f"Comentário {i + 1} - Buscando resposta do médico..."
+                    )
 
                     reply = self.extract_reply_from_html(html or "")
 
                     if reply:
-                        self.logger.debug(f"Comentário {i + 1} - Resposta encontrada: {reply[:50]}...")
+                        self.logger.debug(
+                            f"Comentário {i + 1} - Resposta encontrada: {reply[:50]}..."
+                        )
                     else:
-                        self.logger.debug(f"Comentário {i + 1} - Nenhuma resposta encontrada")
+                        self.logger.debug(
+                            f"Comentário {i + 1} - Nenhuma resposta encontrada"
+                        )
                         # Log adicional do HTML para debug (apenas primeiros 500 chars)
                         if html:
-                            self.logger.debug(f"HTML do comentário {i + 1}: {html[:500]}...")
+                            self.logger.debug(
+                                f"HTML do comentário {i + 1}: {html[:500]}..."
+                            )
 
                     review_data = {
                         "id": i + 1,
@@ -818,7 +924,9 @@ if __name__ == "__main__":
                     }
 
                     # Remove campos None
-                    review_data = {k: v for k, v in review_data.items() if v is not None}
+                    review_data = {
+                        k: v for k, v in review_data.items() if v is not None
+                    }
                     reviews_data.append(review_data)
                     successful_extractions += 1
 
@@ -826,7 +934,9 @@ if __name__ == "__main__":
                         f"✅ Comentário {i + 1} processado - Autor: {author}, Tem resposta: {'Sim' if reply else 'Não'}"
                     )
                 else:
-                    self.logger.debug(f"❌ Comentário {i + 1} ignorado - conteúdo insuficiente")
+                    self.logger.debug(
+                        f"❌ Comentário {i + 1} ignorado - conteúdo insuficiente"
+                    )
 
             except ValueError as e:
                 self.logger.warning(f"Erro ao processar avaliação {i + 1}: {e}")
@@ -939,7 +1049,9 @@ if __name__ == "__main__":
                     for element in elements:
                         try:
                             text = element.text.strip()
-                            if len(text) > 50:  # Comentários válidos devem ter texto substancial
+                            if (
+                                len(text) > 50
+                            ):  # Comentários válidos devem ter texto substancial
                                 valid_reviews.append(element)
                         except WebDriverException:  # nosec B112
                             continue

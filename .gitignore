@@ -1,4 +1,3 @@
-eggs/
 ###########################
 # Python project ignores  #
 ###########################
@@ -69,7 +68,7 @@ profile_default/
 ipython_config.py
 
 # Environments
-.env*
+.env
 .venv*
 env*/
 venv*/
