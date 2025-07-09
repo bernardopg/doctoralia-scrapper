@@ -121,5 +121,5 @@ jobs:
 
       - name: 🔍 Run linting
         run: |
-          poetry run flake8 src/ --ignore=E501
+          poetry run flake8 src/ --ignore=E501,W503
           poetry run pylint src/
