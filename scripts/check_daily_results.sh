@@ -1,7 +1,3 @@
-#!/bin/bash
-
-# Script to check recent daily scraping results
-
 PROJECT_DIR="/home/hostinger/doctoralia-scrapper"
 DATA_DIR="$PROJECT_DIR/data/extractions"
 LOGS_DIR="$PROJECT_DIR/logs"

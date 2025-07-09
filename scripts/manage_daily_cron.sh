@@ -1,7 +1,3 @@
-#!/bin/bash
-
-# Script to manage daily scraping cron job
-
 PROJECT_DIR="/home/hostinger/doctoralia-scrapper"
 SCRIPT_PATH="$PROJECT_DIR/scripts/daily_scrape.sh"
 LOG_PATH="$PROJECT_DIR/logs/cron.log"

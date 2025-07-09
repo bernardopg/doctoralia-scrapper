@@ -1,9 +1,3 @@
-#!/usr/bin/env python3
-"""
-Doctoralia Bot - Interface Principal
-Sistema completo para scraping e geração de respostas
-"""
-
 import argparse
 
 from config.settings import AppConfig
