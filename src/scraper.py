@@ -25,18 +25,19 @@ from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
 
+# pylint: disable=too-few-public-methods
 class MockConfig:
-
-    def __init__(self) -> None:
-        self.scraping = self._ScrapingConfig()
-        # Adjust this path to your desired data directory
-        self.data_dir = Path("./doctoralia_data")
-
-    def get_data_path(self) -> Path:
-        """Return the configured data directory path."""
-        return self.data_dir
+    """
+    Mock configuration class for DoctoraliaScraper.
+    Contains scraping and data directory settings.
+    """
 
     class _ScrapingConfig:
+        """
+        Scraping configuration settings.
+        """
+
+        # pylint: disable=too-few-public-methods
 
         def __init__(self) -> None:
             self.headless = True
@@ -54,6 +55,15 @@ class MockConfig:
                 "implicit": self.implicit_wait,
                 "explicit": self.explicit_wait,
             }
+
+    def __init__(self) -> None:
+        self.scraping = self._ScrapingConfig()
+        # Adjust this path to your desired data directory
+        self.data_dir = Path("./doctoralia_data")
+
+    def get_data_path(self) -> Path:
+        """Return the configured data directory path."""
+        return self.data_dir
 
 
 logging.basicConfig(
