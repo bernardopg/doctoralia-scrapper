@@ -31,7 +31,9 @@ class SystemDiagnostic:
         for cmd in chrome_commands:
             if shutil.which(cmd):
                 try:
-                    result = subprocess.run([cmd, "--version"], capture_output=True, text=True, timeout=10)
+                    result = subprocess.run(
+                        [cmd, "--version"], capture_output=True, text=True, timeout=10
+                    )
                     if result.returncode == 0:
                         print(f"✅ Chrome encontrado: {result.stdout.strip()}")
                         chrome_found = True
@@ -58,9 +60,13 @@ class SystemDiagnostic:
         for path in chromedriver_paths:
             if path and os.path.exists(path) and os.access(path, os.X_OK):
                 try:
-                    result = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=10)
+                    result = subprocess.run(
+                        [path, "--version"], capture_output=True, text=True, timeout=10
+                    )
                     if result.returncode == 0:
-                        print(f"✅ ChromeDriver encontrado: " f"{result.stdout.strip()}")
+                        print(
+                            f"✅ ChromeDriver encontrado: " f"{result.stdout.strip()}"
+                        )
                         print(f"   Localização: {path}")
                         driver_found = True
                         break
@@ -85,7 +91,10 @@ class SystemDiagnostic:
             available_gb = memory.available / (1024**3)
 
             print(f"💾 Memória total: {memory_gb:.1f}GB")
-            print(f"💾 Memória disponível: {available_gb:.1f}GB " f"({memory.percent}% usado)")
+            print(
+                f"💾 Memória disponível: {available_gb:.1f}GB "
+                f"({memory.percent}% usado)"
+            )
 
             if available_gb < 1:
                 self.warnings.append(f"Pouca memória disponível: {available_gb:.1f}GB")
@@ -210,7 +219,10 @@ class SystemDiagnostic:
         print(f"   Implicit Wait: {self.config.scraping.implicit_wait}s")
         print(f"   Explicit Wait: {self.config.scraping.explicit_wait}s")
         print(f"   Max Retries: {self.config.scraping.max_retries}")
-        print(f"   Delay: {self.config.scraping.delay_min}-" f"{self.config.scraping.delay_max}s")
+        print(
+            f"   Delay: {self.config.scraping.delay_min}-"
+            f"{self.config.scraping.delay_max}s"
+        )
         print(f"   Headless: {self.config.scraping.headless}")
 
     def run_full_diagnostic(self) -> None:
@@ -249,7 +261,10 @@ class SystemDiagnostic:
             print("   2. Execute o diagnóstico novamente")
         else:
             print("   1. Tente executar o scraping normalmente")
-            print("   2. Use 'python scripts/monitor_scraping.py monitor' " "para monitorar recursos")
+            print(
+                "   2. Use 'python scripts/monitor_scraping.py monitor' "
+                "para monitorar recursos"
+            )
 
 
 def main() -> None:

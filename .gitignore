@@ -6,6 +6,7 @@
 __pycache__/
 *.py[cod]
 *.so
+*.ruff_cache/
 
 # Distribution / packaging
 build/
@@ -96,3 +97,6 @@ data/
 
 # Arquivos de configuração sensíveis
 config/config.json
+
+.pytest_cache/
+.mypy_cache/

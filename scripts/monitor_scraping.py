@@ -31,7 +31,8 @@ class ScrapingMonitor:
         for proc in psutil.process_iter(["pid", "name", "memory_info", "cpu_percent"]):
             try:
                 if proc.info["name"] and any(
-                    name in proc.info["name"].lower() for name in ["chrome", "chromium", "chromedriver"]
+                    name in proc.info["name"].lower()
+                    for name in ["chrome", "chromium", "chromedriver"]
                 ):
                     chrome_processes.append(proc)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -51,13 +52,19 @@ class ScrapingMonitor:
         # Processos do Chrome
         chrome_procs = self.get_chrome_processes()
         if chrome_procs:
-            total_memory = sum(proc.info["memory_info"].rss for proc in chrome_procs) / (1024**2)
-            self.logger.info(f"🌐 Chrome - {len(chrome_procs)} processos | Memória total: {total_memory:.1f}MB")
+            total_memory = sum(
+                proc.info["memory_info"].rss for proc in chrome_procs
+            ) / (1024**2)
+            self.logger.info(
+                f"🌐 Chrome - {len(chrome_procs)} processos | Memória total: {total_memory:.1f}MB"
+            )
 
             for proc in chrome_procs[:3]:  # Mostrar só os 3 primeiros
                 try:
                     mem_mb = proc.info["memory_info"].rss / (1024**2)
-                    self.logger.info(f"   PID {proc.info['pid']}: {proc.info['name']} - {mem_mb:.1f}MB")
+                    self.logger.info(
+                        f"   PID {proc.info['pid']}: {proc.info['name']} - {mem_mb:.1f}MB"
+                    )
                 except Exception:
                     continue
 
@@ -118,14 +125,20 @@ class ScrapingMonitor:
 
         for proc in chrome_procs:
             try:
-                self.logger.info(f"🔄 Terminando processo {proc.info['pid']}: {proc.info['name']}")
+                self.logger.info(
+                    f"🔄 Terminando processo {proc.info['pid']}: {proc.info['name']}"
+                )
                 proc.terminate()
                 proc.wait(timeout=10)
             except psutil.TimeoutExpired:
-                self.logger.warning(f"⚠️ Forçando encerramento do processo {proc.info['pid']}")
+                self.logger.warning(
+                    f"⚠️ Forçando encerramento do processo {proc.info['pid']}"
+                )
                 proc.kill()
             except Exception as e:
-                self.logger.error(f"❌ Erro ao encerrar processo {proc.info['pid']}: {e}")
+                self.logger.error(
+                    f"❌ Erro ao encerrar processo {proc.info['pid']}: {e}"
+                )
 
         self.logger.info("✅ Limpeza concluída")
 

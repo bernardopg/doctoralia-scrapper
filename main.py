@@ -83,7 +83,9 @@ def scrape_command(config: AppConfig, args: argparse.Namespace) -> bool:
 
     # Estatísticas
     total = data.get("total_reviews", 0)
-    without_replies = len([r for r in data.get("reviews", []) if not r.get("doctor_reply")])
+    without_replies = len(
+        [r for r in data.get("reviews", []) if not r.get("doctor_reply")]
+    )
 
     logger.info(f"📊 Resumo: {total} comentários, {without_replies} sem resposta")
 
@@ -125,7 +127,9 @@ def status_command(config: AppConfig, args: argparse.Namespace) -> None:
     print("=" * 50)
 
     # Status das configurações
-    telegram_status = "✅ Configurado" if config.telegram.enabled else "❌ Não configurado"
+    telegram_status = (
+        "✅ Configurado" if config.telegram.enabled else "❌ Não configurado"
+    )
     print(f"� Telegram: {telegram_status}")
 
     scraping_mode = "Headless" if config.scraping.headless else "Com interface"

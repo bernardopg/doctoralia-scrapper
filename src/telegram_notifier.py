@@ -62,7 +62,9 @@ class TelegramNotifier:
 
                 response = requests.post(url, files=files, data=data, timeout=60)
                 if response.status_code == 200:
-                    self.logger.info(f"Documento enviado via Telegram: {file_path.name}")
+                    self.logger.info(
+                        f"Documento enviado via Telegram: {file_path.name}"
+                    )
                     return True
                 self.logger.error(f"Erro ao enviar documento: {response.status_code}")
                 return False
@@ -80,7 +82,9 @@ class TelegramNotifier:
         message = TelegramTemplates.responses_generated(responses)
         return self.send_message(message)
 
-    def send_responses_with_file(self, responses: List[Dict[str, Any]], file_path: Path) -> bool:
+    def send_responses_with_file(
+        self, responses: List[Dict[str, Any]], file_path: Path
+    ) -> bool:
         """Envia notificação de respostas geradas com arquivo anexado"""
         caption = TelegramTemplates.responses_generated_with_file(responses, file_path)
         return self.send_document(file_path, caption)
@@ -110,7 +114,9 @@ class TelegramNotifier:
         message = TelegramTemplates.generation_cycle_no_responses()
         return self.send_message(message)
 
-    def send_daemon_error(self, error_message: str, context: str = "Daemon de geração automática") -> bool:
+    def send_daemon_error(
+        self, error_message: str, context: str = "Daemon de geração automática"
+    ) -> bool:
         """Envia notificação de erro do daemon"""
         message = TelegramTemplates.daemon_error(error_message, context)
         return self.send_message(message)
