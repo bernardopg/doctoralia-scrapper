@@ -4,8 +4,8 @@
 .PHONY: help install setup test lint run daemon monitor clean
 
 # Variáveis
-PYTHON := python3
-PIP := pip3
+PYTHON := poetry run python
+PIP := poetry run pip
 SRC_DIR := src
 TEST_DIR := tests
 
@@ -14,8 +14,7 @@ BLUE := \033[0;34m
 GREEN := \033[0;32m
 YELLOW := \033[1;33m
 RED := \033[0;31m
-NC := \033[0m # No Color
-
+NC := \033[0m
 # Help
 help: ## Mostra esta mensagem de ajuda
 	@echo "$(BLUE)Doctoralia Scrapper - Comandos Disponíveis$(NC)"
@@ -34,7 +33,7 @@ install-dev: ## Instala dependências completas + setup do ambiente
 	@if [ ! -f .env ]; then \
 		echo "$(YELLOW)Criando arquivo .env...$(NC)"; \
 		cp .env.example .env; \
-		echo "$(GREEN)Arquivo .env criado! Edite-o com suas configurações.$(NC)"; \
+		echo "$(GREEN)Arquivo .env criado! Edite-o com suas configurações.${NC}"; \
 	fi
 	$(PYTHON) main.py setup
 	@echo "$(GREEN)Configuração de desenvolvimento concluída!$(NC)"
@@ -119,7 +118,7 @@ stop: ## Para daemon em execução
 # Limpeza
 clean: ## Remove dados/arquivos temporários/cache
 	@echo "$(BLUE)Limpando arquivos temporários...$(NC)"
-	@read -p "Tem certeza? Esta ação não pode ser desfeita [y/N]: " confirm && [ "$$confirm" = "y" ]
+	@read -p "Tem certeza? Esta ação não pode ser desfeita [S/N]: " confirm && [ "$$confirm" = "S" ]
 	find . -type f -name "*.pyc" -delete
 	find . -type d -name "__pycache__" -delete
 	rm -rf .pytest_cache
@@ -130,6 +129,8 @@ clean: ## Remove dados/arquivos temporários/cache
 	rm -rf dist
 	rm -rf *.egg-info
 	rm -rf data/
+	rm -rf .ruff_cache
+
 
 # Comandos Úteis
 dev: install-dev ## Configuração completa para desenvolvimento
