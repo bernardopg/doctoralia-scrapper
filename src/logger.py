@@ -1,3 +1,4 @@
+import json
 import logging
 import sys
 from datetime import datetime
@@ -27,7 +28,34 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
-def setup_logger(name: str, config: Any, verbose: bool = False) -> logging.Logger:
+class JSONFormatter(logging.Formatter):
+    """Formatter para logs estruturados em JSON"""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry = {
+            "timestamp": datetime.fromtimestamp(record.created).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+
+        # Adicionar contexto extra se disponível
+        if hasattr(record, "context") and record.context:  # type: ignore
+            log_entry["context"] = record.context  # type: ignore
+
+        # Adicionar informações de exceção se disponível
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+
+        return json.dumps(log_entry, ensure_ascii=False)
+
+
+def setup_logger(
+    name: str, config: Any, verbose: bool = False, structured: bool = False
+) -> logging.Logger:
     """Configura logger com saída colorida e arquivo"""
 
     logger = logging.getLogger(name)
@@ -35,6 +63,23 @@ def setup_logger(name: str, config: Any, verbose: bool = False) -> logging.Logge
 
     # Limpar handlers existentes
     logger.handlers.clear()
+
+    # Handler para arquivo (log completo)
+    config.logs_dir.mkdir(parents=True, exist_ok=True)
+    log_file = config.logs_dir / f"{name}_{datetime.now().strftime('%Y%m')}.log"
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+
+    if structured:
+        # Log estruturado em JSON para produção
+        file_handler.setFormatter(JSONFormatter())
+    else:
+        # Log tradicional para desenvolvimento
+        file_format = "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
+        file_handler.setFormatter(logging.Formatter(file_format))
+
+    file_handler.setLevel(logging.DEBUG)
+    logger.addHandler(file_handler)
 
     # Handler para console (saída colorida e limpa)
     console_handler = logging.StreamHandler(sys.stdout)

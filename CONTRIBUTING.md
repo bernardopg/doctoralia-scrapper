@@ -1,153 +1,368 @@
-# 🤝 Contribuindo para o Doctoralia Scrapper
+# 🤝 Contribuindo para o Doctoralia Scraper
 
-Obrigado por considerar contribuir para o projeto! Este guia ajudará você a entender como contribuir de forma efetiva.
+Obrigado por considerar contribuir para o projeto! Este guia ajudará você a entender como contribuir de forma efetiva e manter a qualidade do código.
 
 ## 📋 Índice
 
 - [Código de Conduta](#código-de-conduta)
-- [Como Contribuir](#como-contribuir)
-- [Processo de Development](#processo-de-development)
+- [Como Começar](#como-começar)
+- [Processo de Desenvolvimento](#processo-de-desenvolvimento)
 - [Padrões de Código](#padrões-de-código)
 - [Testes](#testes)
 - [Documentação](#documentação)
+- [Code Review](#code-review)
+- [Debugging](#debugging)
+- [Suporte](#suporte)
 
 ## 📜 Código de Conduta
 
-Este projeto segue um código de conduta. Ao participar, você concorda em manter um ambiente respeitoso e colaborativo.
+Este projeto segue um código de conduta profissional. Ao participar, você concorda em manter um ambiente colaborativo e respeitoso para todos os contribuidores.
 
-## 🚀 Como Contribuir
+### 🎯 **Compromissos**
 
-### Reportando Bugs
+- **Respeito**: Tratar todos com cortesia e respeito
+- **Inclusividade**: Valorizar diferentes perspectivas e experiências
+- **Profissionalismo**: Manter comunicação profissional
+- **Qualidade**: Priorizar código de alta qualidade e bem testado
 
-1. Verifique se o bug já foi reportado nas [Issues](../../issues)
-2. Use o template de bug report
-3. Inclua informações detalhadas:
-   - Versão do Python
-   - Sistema operacional
-   - Logs relevantes
-   - Passos para reproduzir
+## 🚀 Como Começar
 
-### Sugerindo Melhorias
+### 📋 **Pré-requisitos**
 
-1. Abra uma issue com o label "enhancement"
-2. Descreva claramente a melhoria proposta
-3. Explique por que seria útil
-4. Considere implementações alternativas
+Antes de contribuir, certifique-se de ter:
 
-### Pull Requests
+- **Python 3.10+** instalado
+- **Git** configurado
+- **Google Chrome** para Selenium
+- Familiaridade com desenvolvimento Python
 
-1. Fork o repositório
-2. Crie uma branch a partir da `main`
-3. Faça suas mudanças
-4. Adicione testes se necessário
-5. Atualize a documentação
-6. Faça commit com mensagens descritivas
-7. Abra um Pull Request
-
-## 🔧 Processo de Development
-
-### Setup do Ambiente
+### 🛠️ **Setup Inicial**
 
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/doctoralia-scrapper.git
-cd doctoralia-scrapper
+# 1. Fork o repositório
+# 2. Clone seu fork
+git clone https://github.com/SEU_USERNAME/doctoralia-scraper.git
+cd doctoralia-scraper
 
-# Instale dependências
-pip install -r requirements.txt
+# 3. Configure ambiente de desenvolvimento
+make install-dev
 
-# Configure o ambiente
-python main.py setup
+# 4. Configure pre-commit hooks
+pip install pre-commit
+pre-commit install
+
+# 5. Execute testes para verificar setup
+make test
 ```
 
-### Estrutura de Branches
+### 📝 **Encontrando Tarefas**
 
-- `main`: Branch principal (protegida)
-- `develop`: Branch de desenvolvimento
-- `feature/nome-da-feature`: Features novas
-- `bugfix/nome-do-bug`: Correções de bugs
-- `hotfix/nome-do-hotfix`: Correções urgentes
+- **Issues**: Verifique [Issues](../../issues) para tarefas abertas
+- **Labels**: Use labels para filtrar por tipo de tarefa
+  - `good first issue`: Ideal para iniciantes
+  - `enhancement`: Melhorias e novas funcionalidades
+  - `bug`: Correções de bugs
+  - `documentation`: Melhorias na documentação
 
-### Workflow
+## 🔧 Processo de Desenvolvimento
 
-1. **Crie uma branch**:
+### 📋 **Fluxo de Trabalho**
 
-   ```bash
-   git checkout -b feature/nova-funcionalidade
-   ```
+1. **Escolha uma tarefa** no GitHub Issues
+2. **Crie uma branch** descritiva
+3. **Desenvolva** seguindo os padrões
+4. **Teste** suas mudanças
+5. **Commit** com mensagens convencionais
+6. **Push** e crie um Pull Request
+7. **Code Review** e ajustes
+8. **Merge** após aprovação
 
-2. **Desenvolva e teste**:
+### 🌿 **Branches**
 
-   ```bash
-   # Faça suas mudanças
-   python main.py test  # Execute testes
-   ```
+```bash
+# Para features
+git checkout -b feature/nome-da-funcionalidade
 
-3. **Commit suas mudanças**:
+# Para correções
+git checkout -b fix/nome-do-bug
 
-   ```bash
-   git add .
-   git commit -m "feat: adiciona nova funcionalidade"
-   ```
+# Para documentação
+git checkout -b docs/melhoria-na-documentacao
 
-4. **Push e PR**:
+# Para manutenção
+git checkout -b chore/atualizacao-dependencias
+```
 
-   ```bash
-   git push origin feature/nova-funcionalidade
-   # Abra PR via GitHub
-   ```
-
-## 📝 Padrões de Código
-
-### Python Style Guide
-
-- Siga a [PEP 8](https://www.python.org/dev/peps/pep-0008/)
-- Use type hints quando possível
-- Docstrings para funções e classes
-- Máximo de 88 caracteres por linha (Black formatter)
-
-### Convenções de Commit
+### 📝 **Commits**
 
 Use [Conventional Commits](https://www.conventionalcommits.org/):
 
-- `feat:` Nova funcionalidade
-- `fix:` Correção de bug
-- `docs:` Documentação
-- `style:` Formatação
-- `refactor:` Refatoração
-- `test:` Testes
-- `chore:` Manutenção
+```bash
+# Features
+git commit -m "feat: adiciona suporte a múltiplas plataformas de scraping"
 
-Exemplos:
+# Fixes
+git commit -m "fix: corrige timeout no scraping de páginas grandes"
 
-```text
-feat: adiciona suporte a novos templates de resposta
-fix: corrige timeout no scraping de páginas
-docs: atualiza README com instruções de instalação
+# Documentation
+git commit -m "docs: atualiza guia de instalação no README"
+
+# Tests
+git commit -m "test: adiciona testes para response generator"
+
+# Maintenance
+git commit -m "chore: atualiza dependências de desenvolvimento"
 ```
 
-### Estrutura de Código
+### 🔄 **Pull Requests**
+
+**Template de PR** deve incluir:
+
+- ✅ **Descrição clara** do que foi implementado
+- ✅ **Motivação** para as mudanças
+- ✅ **Como testar** as alterações
+- ✅ **Screenshots** se aplicável
+- ✅ **Checklist** completo
+
+**Exemplo de PR bem escrito:**
+
+```markdown
+## 📋 Descrição
+Adiciona suporte a análise de sentimento usando NLTK VADER para melhorar a qualidade das respostas automáticas.
+
+## 🎯 Problema Resolvido
+As respostas automáticas não consideravam o sentimento da avaliação original, resultando em respostas genéricas.
+
+## ✅ Como Testar
+1. Execute `make test` para verificar testes existentes
+2. Teste manual: `python -c "from src.response_quality_analyzer import ResponseQualityAnalyzer; print('OK')"`
+3. Verifique análise: `make analyze`
+
+## 📸 Screenshots
+[Adicionar screenshots da interface ou resultados]
+
+## ☑️ Checklist
+- [x] Testes passando
+- [x] Documentação atualizada
+- [x] Linting aprovado
+- [x] Funcionalidade testada manualmente
+```
+
+## 📝 Padrões de Código
+
+### 🎯 **Princípios Gerais**
+
+- **Legibilidade**: Código deve ser claro e autoexplicativo
+- **Consistência**: Seguir padrões estabelecidos no projeto
+- **Simplicidade**: Soluções simples são preferidas
+- **Testabilidade**: Código deve ser facilmente testável
+- **Manutenibilidade**: Facilitar futuras modificações
+
+### 🐍 **Python Style Guide**
+
+#### **PEP 8 Compliance**
 
 ```python
-"""
-Módulo de exemplo
-Descrição do que o módulo faz
-"""
+# ✅ Correto
+def calculate_quality_score(response_text, original_review):
+    """Calcula pontuação de qualidade da resposta."""
+    if not response_text or not original_review:
+        return 0.0
 
-import logging
-from typing import Optional, Dict, Any
+    # Implementação
+    score = analyze_sentiment(response_text)
+    return round(score, 2)
 
-logger = logging.getLogger(__name__)
+# ❌ Incorreto
+def calcQualScr(resp,orig): # Sem docstring, nomes ruins
+    if not resp or not orig: return 0
+    scr=analizeSentiment(resp) # Erro de digitação
+    return scr
+```
 
+#### **Type Hints Obrigatórios**
 
-class ExampleClass:
+```python
+# ✅ Com type hints
+from typing import Optional, Dict, List, Any
+
+def process_reviews(reviews: List[Dict[str, Any]],
+                   doctor_name: str,
+                   max_reviews: Optional[int] = None) -> Dict[str, Any]:
+    """Processa lista de avaliações médicas."""
+    pass
+
+# ❌ Sem type hints
+def process_reviews(reviews, doctor_name, max_reviews=None):
+    pass
+```
+
+#### **Docstrings Completas**
+
+```python
+def scrape_doctor_page(url: str,
+                      wait_time: float = 2.0,
+                      headless: bool = True) -> Optional[Dict[str, Any]]:
     """
-    Classe de exemplo com documentação
+    Realiza scraping de página de médico no Doctoralia.
 
     Args:
-        param1: Descrição do parâmetro
-        param2: Outro parâmetro
+        url: URL completa da página do médico
+        wait_time: Tempo de espera entre ações (segundos)
+        headless: Executar navegador em modo headless
+
+    Returns:
+        Dicionário com dados extraídos ou None se falhar
+
+    Raises:
+        ScrapingError: Quando ocorre erro no scraping
+        RateLimitError: Quando atingido limite de requisições
+
+    Example:
+        >>> data = scrape_doctor_page(
+        ...     "https://www.doctoralia.com.br/medico",
+        ...     wait_time=3.0
+        ... )
+        >>> print(data['doctor_name'])
+        'Dr. João Silva'
     """
+```
+
+### 🏗️ **Estrutura de Código**
+
+#### **Organização de Imports**
+
+```python
+# 1. Imports padrão da biblioteca
+import json
+import logging
+from pathlib import Path
+from typing import Dict, List, Optional
+
+# 2. Imports de terceiros
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+
+# 3. Imports locais
+from .config import settings
+from .errors import ScrapingError
+from .utils import setup_logger
+```
+
+#### **Classes e Métodos**
+
+```python
+class DoctoraliaScraper:
+    """Scraper para plataforma Doctoralia."""
+
+    def __init__(self, config: Dict[str, Any], logger: logging.Logger):
+        self.config = config
+        self.logger = logger
+        self.driver = None
+        self._setup_driver()
+
+    def __del__(self):
+        """Cleanup do webdriver."""
+        if self.driver:
+            self.driver.quit()
+
+    def scrape_reviews(self, doctor_url: str) -> Dict[str, Any]:
+        """Método principal para scraping de avaliações."""
+        try:
+            self.logger.info(f"Iniciando scraping: {doctor_url}")
+            return self._perform_scraping(doctor_url)
+        except Exception as e:
+            self.logger.error(f"Erro no scraping: {e}")
+            raise ScrapingError(f"Falha no scraping: {e}") from e
+```
+
+### 🛡️ **Tratamento de Erros**
+
+#### **Hierarquia de Exceções**
+
+```python
+class ScrapingError(Exception):
+    """Erro base para operações de scraping."""
+    pass
+
+class RateLimitError(ScrapingError):
+    """Erro quando atingido limite de requisições."""
+    pass
+
+class PageNotFoundError(ScrapingError):
+    """Erro quando página não é encontrada."""
+    pass
+
+class NetworkError(ScrapingError):
+    """Erro de conectividade de rede."""
+    pass
+```
+
+#### **Padrões de Tratamento**
+
+```python
+def safe_scraping_operation(url: str) -> Dict[str, Any]:
+    """Operação de scraping com tratamento robusto."""
+    try:
+        # Tentativa principal
+        return perform_scraping(url)
+    except RateLimitError:
+        # Backoff específico para rate limit
+        time.sleep(60)
+        return perform_scraping(url)
+    except NetworkError as e:
+        # Retry com exponential backoff
+        for attempt in range(3):
+            try:
+                time.sleep(2 ** attempt)
+                return perform_scraping(url)
+            except NetworkError:
+                continue
+        raise ScrapingError(f"Falha de rede após 3 tentativas: {e}")
+    except Exception as e:
+        # Log detalhado para debugging
+        logger.error(f"Erro inesperado: {e}", exc_info=True)
+        raise ScrapingError(f"Erro inesperado: {e}") from e
+```
+
+### 📊 **Logging**
+
+#### **Níveis Apropriados**
+
+```python
+logger = logging.getLogger(__name__)
+
+def scrape_with_logging(url: str) -> Dict[str, Any]:
+    """Scraping com logging apropriado."""
+    logger.info(f"🚀 Iniciando scraping: {url}")
+
+    try:
+        # Operação normal
+        data = perform_scraping(url)
+        logger.info(f"✅ Scraping concluído: {len(data.get('reviews', []))} avaliações")
+        return data
+
+    except RateLimitError as e:
+        logger.warning(f"⚠️ Rate limit atingido, tentando novamente: {e}")
+        raise
+
+    except Exception as e:
+        logger.error(f"❌ Erro crítico no scraping: {e}", exc_info=True)
+        raise
+```
+
+#### **Logs Estruturados**
+
+```python
+# Para produção, use logs estruturados
+logger.info("Scraping completed", extra={
+    "url": doctor_url,
+    "reviews_count": len(reviews),
+    "duration_ms": duration,
+    "status": "success"
+})
+```
 
     def __init__(self, param1: str, param2: Optional[int] = None):
         self.param1 = param1
@@ -162,6 +377,7 @@ class ExampleClass:
         """
         logger.info(f"Executando método com {self.param1}")
         return {"status": "success"}
+
 ```
 
 ## 🧪 Testes

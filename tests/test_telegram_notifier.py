@@ -12,7 +12,7 @@ def telegram_notifier():
     mock_config.telegram.token = "dummy_token"
     mock_config.telegram.chat_id = "dummy_chat_id"
     mock_logger = MagicMock()
-    return TelegramNotifier(config=mock_config, logger=mock_logger)
+    return TelegramNotifier(mock_config, mock_logger)
 
 
 def test_send_message(telegram_notifier):

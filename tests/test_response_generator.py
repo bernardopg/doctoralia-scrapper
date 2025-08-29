@@ -10,7 +10,7 @@ from src.response_generator import ResponseGenerator
 def response_generator():
     mock_config = MagicMock()
     mock_config.data_dir = Path("/tmp")
-    return ResponseGenerator(config=mock_config, logger=None)
+    return ResponseGenerator(mock_config, None)
 
 
 def test_generate_response(response_generator):

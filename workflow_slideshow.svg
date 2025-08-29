@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="800" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1976d2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#42a5f5;stop-opacity:1" />
+    </linearGradient>
+
+    <linearGradient id="cardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5f5f5;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.1"/>
+    </filter>
+
+    <!-- Arrow markers -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="#f8f9fa"/>
+
+  <!-- Header -->
+  <rect x="0" y="0" width="1200" height="80" fill="url(#headerGradient)"/>
+  <text x="600" y="45" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="28" font-weight="bold">
+    🏥 Doctoralia Scraper Workflow
+  </text>
+
+  <!-- Slide 1: Overview -->
+  <g id="slide1" transform="translate(50, 100)">
+    <rect x="0" y="0" width="1100" height="600" fill="url(#cardGradient)" stroke="#ddd" stroke-width="2" rx="10" filter="url(#shadow)"/>
+
+    <!-- Slide Title -->
+    <text x="550" y="40" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
+      📊 Project Overview
+    </text>
+
+    <!-- Main Workflow Boxes -->
+    <g transform="translate(50, 80)">
+      <!-- Setup -->
+      <rect x="0" y="0" width="200" height="120" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="8"/>
+      <text x="100" y="30" text-anchor="middle" fill="#1976d2" font-family="Arial, sans-serif" font-size="16" font-weight="bold">🔧 Setup</text>
+      <text x="100" y="55" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Configure system</text>
+      <text x="100" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Telegram & scraping</text>
+      <text x="100" y="95" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">settings</text>
+
+      <!-- Arrow -->
+      <path d="M200 60 L250 60" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Scrape -->
+      <rect x="260" y="0" width="200" height="120" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2" rx="8"/>
+      <text x="360" y="30" text-anchor="middle" fill="#7b1fa2" font-family="Arial, sans-serif" font-size="16" font-weight="bold">🕷️ Scrape</text>
+      <text x="360" y="55" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Extract reviews from</text>
+      <text x="360" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Doctoralia website</text>
+      <text x="360" y="95" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">using Selenium</text>
+
+      <!-- Arrow -->
+      <path d="M460 60 L510 60" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Generate -->
+      <rect x="520" y="0" width="200" height="120" fill="#e8f5e8" stroke="#388e3c" stroke-width="2" rx="8"/>
+      <text x="620" y="30" text-anchor="middle" fill="#388e3c" font-family="Arial, sans-serif" font-size="16" font-weight="bold">🤖 Generate</text>
+      <text x="620" y="55" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Create automated</text>
+      <text x="620" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">responses using AI</text>
+      <text x="620" y="95" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">templates</text>
+
+      <!-- Arrow -->
+      <path d="M720 60 L770 60" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Notify -->
+      <rect x="780" y="0" width="200" height="120" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="8"/>
+      <text x="880" y="30" text-anchor="middle" fill="#f57c00" font-family="Arial, sans-serif" font-size="16" font-weight="bold">📱 Notify</text>
+      <text x="880" y="55" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Send notifications</text>
+      <text x="880" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">via Telegram Bot</text>
+      <text x="880" y="95" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">API</text>
+    </g>
+
+    <!-- Daily Automation -->
+    <g transform="translate(50, 220)">
+      <rect x="0" y="0" width="1000" height="80" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="8"/>
+      <text x="500" y="30" text-anchor="middle" fill="#c2185b" font-family="Arial, sans-serif" font-size="18" font-weight="bold">
+        ⏰ Daily Automation (9:00 AM)
+      </text>
+      <text x="500" y="55" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="14">
+        Automated cron job executes complete workflow daily
+      </text>
+    </g>
+
+    <!-- Slide Navigation -->
+    <text x="550" y="580" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="14">
+      Slide 1 of 4 • Press arrow keys to navigate
+    </text>
+  </g>
+
+  <!-- Slide 2: Setup Process -->
+  <g id="slide2" transform="translate(50, 100)" style="display:none;">
+    <rect x="0" y="0" width="1100" height="600" fill="url(#cardGradient)" stroke="#ddd" stroke-width="2" rx="10" filter="url(#shadow)"/>
+
+    <text x="550" y="40" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
+      🔧 Setup Process
+    </text>
+
+    <g transform="translate(100, 80)">
+      <!-- Step 1 -->
+      <circle cx="50" cy="50" r="30" fill="#1976d2"/>
+      <text x="50" y="58" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">1</text>
+      <text x="120" y="45" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Configure Telegram Bot</text>
+      <text x="120" y="65" fill="#666" font-family="Arial, sans-serif" font-size="12">• Create bot with @BotFather</text>
+      <text x="120" y="80" fill="#666" font-family="Arial, sans-serif" font-size="12">• Get bot token</text>
+      <text x="120" y="95" fill="#666" font-family="Arial, sans-serif" font-size="12">• Get chat ID with @userinfobot</text>
+
+      <!-- Arrow -->
+      <path d="M50 80 L50 130" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 2 -->
+      <circle cx="50" cy="160" r="30" fill="#1976d2"/>
+      <text x="50" y="168" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">2</text>
+      <text x="120" y="155" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Configure Scraping Mode</text>
+      <text x="120" y="175" fill="#666" font-family="Arial, sans-serif" font-size="12">• Choose headless or visible mode</text>
+      <text x="120" y="190" fill="#666" font-family="Arial, sans-serif" font-size="12">• Set rate limiting preferences</text>
+
+      <!-- Arrow -->
+      <path d="M50 190 L50 240" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 3 -->
+      <circle cx="50" cy="270" r="30" fill="#1976d2"/>
+      <text x="50" y="278" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">3</text>
+      <text x="120" y="265" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Save Configuration</text>
+      <text x="120" y="285" fill="#666" font-family="Arial, sans-serif" font-size="12">• Store settings in config.json</text>
+      <text x="120" y="300" fill="#666" font-family="Arial, sans-serif" font-size="12">• Test Telegram connection</text>
+    </g>
+
+    <!-- Configuration File -->
+    <g transform="translate(600, 80)">
+      <rect x="0" y="0" width="300" height="200" fill="#f5f5f5" stroke="#333" stroke-width="1" rx="5"/>
+      <text x="150" y="25" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">📄 config.json</text>
+      <text x="20" y="50" fill="#666" font-family="monospace" font-size="11">{
+  "telegram": {
+    "enabled": true,
+    "token": "your_bot_token",
+    "chat_id": "your_chat_id"
+  },
+  "scraping": {
+    "headless": true
+  }
+}</text>
+    </g>
+
+    <text x="550" y="580" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="14">
+      Slide 2 of 4 • Press arrow keys to navigate
+    </text>
+  </g>
+
+  <!-- Slide 3: Scraping Process -->
+  <g id="slide3" transform="translate(50, 100)" style="display:none;">
+    <rect x="0" y="0" width="1100" height="600" fill="url(#cardGradient)" stroke="#ddd" stroke-width="2" rx="10" filter="url(#shadow)"/>
+
+    <text x="550" y="40" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
+      🕷️ Scraping Process
+    </text>
+
+    <g transform="translate(100, 80)">
+      <!-- Step 1 -->
+      <circle cx="50" cy="50" r="30" fill="#7b1fa2"/>
+      <text x="50" y="58" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">1</text>
+      <text x="120" y="45" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Validate URL</text>
+      <text x="120" y="65" fill="#666" font-family="Arial, sans-serif" font-size="12">• Check Doctoralia domain</text>
+      <text x="120" y="80" fill="#666" font-family="Arial, sans-serif" font-size="12">• Validate URL format</text>
+
+      <!-- Arrow -->
+      <path d="M50 80 L50 130" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 2 -->
+      <circle cx="50" cy="160" r="30" fill="#7b1fa2"/>
+      <text x="50" y="168" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">2</text>
+      <text x="120" y="155" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Initialize WebDriver</text>
+      <text x="120" y="175" fill="#666" font-family="Arial, sans-serif" font-size="12">• Setup Chrome with Selenium</text>
+      <text x="120" y="190" fill="#666" font-family="Arial, sans-serif" font-size="12">• Configure headless mode</text>
+
+      <!-- Arrow -->
+      <path d="M50 190 L50 240" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 3 -->
+      <circle cx="50" cy="270" r="30" fill="#7b1fa2"/>
+      <text x="50" y="278" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">3</text>
+      <text x="120" y="265" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Extract Reviews</text>
+      <text x="120" y="285" fill="#666" font-family="Arial, sans-serif" font-size="12">• Load doctor page</text>
+      <text x="120" y="300" fill="#666" font-family="Arial, sans-serif" font-size="12">• Parse HTML with BeautifulSoup</text>
+      <text x="120" y="315" fill="#666" font-family="Arial, sans-serif" font-size="12">• Extract review data</text>
+
+      <!-- Arrow -->
+      <path d="M50 320 L50 370" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 4 -->
+      <circle cx="50" cy="400" r="30" fill="#7b1fa2"/>
+      <text x="50" y="408" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">4</text>
+      <text x="120" y="395" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Save & Notify</text>
+      <text x="120" y="415" fill="#666" font-family="Arial, sans-serif" font-size="12">• Save data to JSON</text>
+      <text x="120" y="430" fill="#666" font-family="Arial, sans-serif" font-size="12">• Send Telegram notification</text>
+    </g>
+
+    <!-- Data Flow -->
+    <g transform="translate(600, 80)">
+      <rect x="0" y="0" width="300" height="250" fill="#f5f5f5" stroke="#333" stroke-width="1" rx="5"/>
+      <text x="150" y="25" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">📊 Data Structure</text>
+      <text x="20" y="50" fill="#666" font-family="monospace" font-size="10">{
+  "doctor_name": "Dr. Bruna Pinto",
+  "total_reviews": 150,
+  "reviews": [
+    {
+      "author": "João Silva",
+      "rating": 5,
+      "comment": "Excelente atendimento",
+      "date": "2025-08-29",
+      "doctor_reply": null
+    }
+  ]
+}</text>
+    </g>
+
+    <text x="550" y="580" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="14">
+      Slide 3 of 4 • Press arrow keys to navigate
+    </text>
+  </g>
+
+  <!-- Slide 4: Response Generation & Automation -->
+  <g id="slide4" transform="translate(50, 100)" style="display:none;">
+    <rect x="0" y="0" width="1100" height="600" fill="url(#cardGradient)" stroke="#ddd" stroke-width="2" rx="10" filter="url(#shadow)"/>
+
+    <text x="550" y="40" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
+      🤖 Response Generation & Automation
+    </text>
+
+    <!-- Response Generation Process -->
+    <g transform="translate(50, 80)">
+      <text x="250" y="20" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="18" font-weight="bold">
+        Response Generation Process
+      </text>
+
+      <!-- Step 1 -->
+      <circle cx="50" cy="50" r="25" fill="#388e3c"/>
+      <text x="50" y="57" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">1</text>
+      <text x="100" y="45" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Load Data</text>
+      <text x="100" y="60" fill="#666" font-family="Arial, sans-serif" font-size="11">• Read latest JSON</text>
+
+      <!-- Arrow -->
+      <path d="M75 50 L125 50" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 2 -->
+      <circle cx="135" cy="50" r="25" fill="#388e3c"/>
+      <text x="135" y="57" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">2</text>
+      <text x="185" y="45" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Filter Reviews</text>
+      <text x="185" y="60" fill="#666" font-family="Arial, sans-serif" font-size="11">• Find unanswered</text>
+
+      <!-- Arrow -->
+      <path d="M160 50 L210 50" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 3 -->
+      <circle cx="220" cy="50" r="25" fill="#388e3c"/>
+      <text x="220" y="57" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">3</text>
+      <text x="270" y="45" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Generate</text>
+      <text x="270" y="60" fill="#666" font-family="Arial, sans-serif" font-size="11">• Use AI templates</text>
+
+      <!-- Arrow -->
+      <path d="M245 50 L295 50" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Step 4 -->
+      <circle cx="305" cy="50" r="25" fill="#388e3c"/>
+      <text x="305" y="57" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">4</text>
+      <text x="355" y="45" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Save & Notify</text>
+      <text x="355" y="60" fill="#666" font-family="Arial, sans-serif" font-size="11">• Store responses</text>
+    </g>
+
+    <!-- Daily Automation -->
+    <g transform="translate(50, 150)">
+      <text x="250" y="20" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="18" font-weight="bold">
+        Daily Automation System
+      </text>
+
+      <!-- Cron Job -->
+      <rect x="0" y="30" width="500" height="80" fill="#fce4ec" stroke="#c2185b" stroke-width="2" rx="8"/>
+      <text x="250" y="55" text-anchor="middle" fill="#c2185b" font-family="Arial, sans-serif" font-size="16" font-weight="bold">
+        ⏰ Cron Job (9:00 AM Daily)
+      </text>
+      <text x="250" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">
+        Executes complete workflow automatically
+      </text>
+
+      <!-- Scripts -->
+      <g transform="translate(0, 120)">
+        <rect x="0" y="0" width="150" height="60" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="5"/>
+        <text x="75" y="20" text-anchor="middle" fill="#1976d2" font-family="Arial, sans-serif" font-size="12" font-weight="bold">📜 daily_scrape.sh</text>
+        <text x="75" y="40" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="10">Main automation</text>
+
+        <rect x="170" y="0" width="150" height="60" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="5"/>
+        <text x="245" y="20" text-anchor="middle" fill="#1976d2" font-family="Arial, sans-serif" font-size="12" font-weight="bold">⚙️ manage_cron.sh</text>
+        <text x="245" y="40" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="10">Cron management</text>
+
+        <rect x="340" y="0" width="150" height="60" fill="#e3f2fd" stroke="#1976d2" stroke-width="1" rx="5"/>
+        <text x="415" y="20" text-anchor="middle" fill="#1976d2" font-family="Arial, sans-serif" font-size="12" font-weight="bold">📊 check_results.sh</text>
+        <text x="415" y="40" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="10">Results checker</text>
+      </g>
+    </g>
+
+    <!-- Error Handling -->
+    <g transform="translate(600, 80)">
+      <rect x="0" y="0" width="300" height="150" fill="#fff3e0" stroke="#f57c00" stroke-width="2" rx="8"/>
+      <text x="150" y="25" text-anchor="middle" fill="#f57c00" font-family="Arial, sans-serif" font-size="16" font-weight="bold">
+        🛡️ Error Handling
+      </text>
+      <text x="20" y="50" fill="#666" font-family="Arial, sans-serif" font-size="12">• Circuit Breaker Pattern</text>
+      <text x="20" y="70" fill="#666" font-family="Arial, sans-serif" font-size="12">• Retry with Exponential Backoff</text>
+      <text x="20" y="90" fill="#666" font-family="Arial, sans-serif" font-size="12">• Rate Limiting Protection</text>
+      <text x="20" y="110" fill="#666" font-family="Arial, sans-serif" font-size="12">• Comprehensive Logging</text>
+      <text x="20" y="130" fill="#666" font-family="Arial, sans-serif" font-size="12">• Performance Monitoring</text>
+    </g>
+
+    <text x="550" y="580" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="14">
+      Slide 4 of 4 • Press arrow keys to navigate
+    </text>
+  </g>
+
+  <!-- Navigation Controls -->
+  <g id="nav-controls" transform="translate(50, 720)">
+    <rect x="450" y="0" width="300" height="40" fill="#f5f5f5" stroke="#ddd" stroke-width="1" rx="5"/>
+    <text x="500" y="15" fill="#666" font-family="Arial, sans-serif" font-size="12">← Previous</text>
+    <text x="550" y="15" fill="#333" font-family="Arial, sans-serif" font-size="12">Space: Next Slide</text>
+    <text x="650" y="15" fill="#666" font-family="Arial, sans-serif" font-size="12">Next →</text>
+  </g>
+
+  <!-- JavaScript for interactivity (embedded in SVG) -->
+  <script type="text/javascript">
+    <![CDATA[
+      let currentSlide = 1;
+      const totalSlides = 4;
+
+      function showSlide(slideNum) {
+        // Hide all slides
+        for (let i = 1; i <= totalSlides; i++) {
+          const slide = document.getElementById('slide' + i);
+          if (slide) {
+            slide.style.display = 'none';
+          }
+        }
+
+        // Show current slide
+        const currentSlideEl = document.getElementById('slide' + slideNum);
+        if (currentSlideEl) {
+          currentSlideEl.style.display = 'block';
+        }
+
+        currentSlide = slideNum;
+      }
+
+      function nextSlide() {
+        if (currentSlide < totalSlides) {
+          showSlide(currentSlide + 1);
+        }
+      }
+
+      function prevSlide() {
+        if (currentSlide > 1) {
+          showSlide(currentSlide - 1);
+        }
+      }
+
+      // Keyboard navigation
+      document.addEventListener('keydown', function(event) {
+        switch(event.key) {
+          case 'ArrowRight':
+          case ' ':
+            nextSlide();
+            break;
+          case 'ArrowLeft':
+            prevSlide();
+            break;
+          case 'Home':
+            showSlide(1);
+            break;
+          case 'End':
+            showSlide(totalSlides);
+            break;
+        }
+      });
+
+      // Initialize first slide
+      showSlide(1);
+    ]]>
+  </script>
+</svg>

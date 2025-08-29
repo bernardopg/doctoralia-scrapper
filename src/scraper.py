@@ -5,7 +5,7 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from bs4 import BeautifulSoup, Tag
 from selenium import webdriver
@@ -24,46 +24,45 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
+# Import performance monitoring
+try:
+    from .performance_monitor import EnhancedErrorHandler, PerformanceMonitor
+except ImportError:
+    from performance_monitor import EnhancedErrorHandler, PerformanceMonitor
 
-# pylint: disable=too-few-public-methods
-class MockConfig:
+
+class RateLimiter:
     """
-    Mock configuration class for DoctoraliaScraper.
-    Contains scraping and data directory settings.
+    Rate limiter to prevent being detected as a bot by limiting request frequency.
     """
 
-    class _ScrapingConfig:
-        """
-        Scraping configuration settings.
-        """
+    def __init__(self, requests_per_minute: int = 10) -> None:
+        self.requests_per_minute = requests_per_minute
+        self.requests: List[float] = []
+        self.min_interval = 60.0 / requests_per_minute
 
-        # pylint: disable=too-few-public-methods
+    def wait_if_needed(self) -> None:
+        """Wait if necessary to respect rate limits."""
+        current_time = time.time()
 
-        def __init__(self) -> None:
-            self.headless = True
-            self.page_load_timeout = 60
-            self.implicit_wait = 10
-            self.explicit_wait = 20
-            self.delay_min = 1.5
-            self.delay_max = 3.5
-            self.max_retries = 3
+        # Remove old requests outside the time window
+        self.requests = [t for t in self.requests if current_time - t < 60]
 
-        def get_wait_times(self) -> Dict[str, int]:
-            """Return a dictionary of wait time configurations."""
-            return {
-                "page_load": self.page_load_timeout,
-                "implicit": self.implicit_wait,
-                "explicit": self.explicit_wait,
-            }
+        if len(self.requests) >= self.requests_per_minute:
+            # Wait until we can make another request
+            oldest_request = min(self.requests)
+            wait_time = 60 - (current_time - oldest_request)
+            if wait_time > 0:
+                time.sleep(wait_time)
+                current_time = time.time()
+                self.requests = [t for t in self.requests if current_time - t < 60]
 
-    def __init__(self) -> None:
-        self.scraping = self._ScrapingConfig()
-        # Adjust this path to your desired data directory
-        self.data_dir = Path("./doctoralia_data")
+        self.requests.append(current_time)
 
-    def get_data_path(self) -> Path:
-        """Return the configured data directory path."""
-        return self.data_dir
+    def add_delay(self, base_delay: float = 1.0) -> None:
+        """Add a random delay to make requests more human-like."""
+        delay = base_delay + random.uniform(0.5, 2.0)
+        time.sleep(delay)
 
 
 logging.basicConfig(
@@ -74,11 +73,26 @@ default_logger = logging.getLogger(__name__)
 
 class DoctoraliaScraper:
     def __init__(
-        self, config_obj: Any, logger_instance: Optional[logging.Logger] = None
+        self,
+        config: Any,
+        logger: Optional[logging.Logger] = None,
+        performance_monitor: Optional[Any] = None,
+        error_handler: Optional[Any] = None,
     ) -> None:
-        self.config = config_obj
-        self.logger = logger_instance or default_logger
+        self.config = config
+        self.logger = logger or default_logger
         self.driver: Optional[webdriver.Chrome] = None
+        self.rate_limiter = RateLimiter(
+            requests_per_minute=6
+        )  # Conservative rate limiting
+
+        # Injeção de dependências
+        self.performance_monitor = performance_monitor or PerformanceMonitor(
+            self.logger
+        )
+        self.error_handler = error_handler or EnhancedErrorHandler(
+            self.logger, max_retries=self.config.scraping.max_retries
+        )
 
     def get_random_user_agent(self) -> str:
         user_agents = [
@@ -152,7 +166,7 @@ class DoctoraliaScraper:
                     "Erro de sessão na tentativa %d: %s", attempt + 1, e
                 )
                 if attempt < max_attempts - 1:
-                    time.sleep(2)
+                    time.sleep(self.config.delays.retry_base)
                 else:
                     self.logger.error(
                         "Falha ao criar sessão do navegador após todas as tentativas"
@@ -166,7 +180,7 @@ class DoctoraliaScraper:
                     e,
                 )
                 if attempt < max_attempts - 1:
-                    time.sleep(2)
+                    time.sleep(self.config.delays.retry_base)
                 else:
                     return False
 
@@ -186,8 +200,8 @@ class DoctoraliaScraper:
     def add_human_delay(
         self, min_delay: Optional[float] = None, max_delay: Optional[float] = None
     ) -> None:
-        min_d = min_delay or self.config.scraping.delay_min
-        max_d = max_delay or self.config.scraping.delay_max
+        min_d = min_delay or self.config.delays.human_like_min
+        max_d = max_delay or self.config.delays.human_like_max
         delay = random.uniform(min_d, max_d)  # nosec B311
         time.sleep(delay)
 
@@ -210,7 +224,7 @@ class DoctoraliaScraper:
                     f"Tentativa {attempt + 1}/{max_retries_value} falhou: {type(e).__name__}"
                 )
                 if attempt < max_retries_value - 1:
-                    wait_time = (attempt + 1) * 2
+                    wait_time = (attempt + 1) * self.config.delays.retry_base
                     self.logger.info(
                         "Aguardando %ds antes da próxima tentativa...", wait_time
                     )
@@ -287,10 +301,11 @@ class DoctoraliaScraper:
                 continue
         return None
 
-    def click_load_more_button(self) -> int:
+    def click_load_more_button(self) -> Tuple[int, List[Dict]]:
+        """Load more reviews and return both click count and extracted reviews to avoid redirect issues."""
         if self.driver is None:
             self.logger.error("Driver não inicializado")
-            return 0
+            return 0, []
 
         clicks_realizados = 0
         max_clicks = 50
@@ -306,6 +321,7 @@ class DoctoraliaScraper:
 
         method_start_time = time.time()
         method_timeout = 180  # 3 minutes
+        last_successful_reviews = []  # Store reviews to avoid losing data on redirect
 
         while clicks_realizados < max_clicks:
             if time.time() - method_start_time > method_timeout:
@@ -319,7 +335,8 @@ class DoctoraliaScraper:
                 self.driver.execute_script(
                     "window.scrollTo(0, document.body.scrollHeight);"
                 )
-                self.add_human_delay(1.0, 2.0)
+                self.rate_limiter.wait_if_needed()
+                self.rate_limiter.add_delay(1.5)
 
                 veja_mais_button = self._find_load_more_button(button_selectors)
 
@@ -353,6 +370,17 @@ class DoctoraliaScraper:
                     reviews_after,
                 )
 
+                # Extract reviews periodically to avoid losing data on redirect
+                # Every 3 clicks or when we have >50 reviews, get current data
+                if clicks_realizados % 3 == 0 or reviews_after > 50:
+                    current_url = self.driver.current_url
+                    if current_url.startswith("https://www.doctoralia.com.br/") and "/booking/" not in current_url:
+                        try:
+                            last_successful_reviews = self._extract_all_reviews()
+                            self.logger.debug(f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})")
+                        except Exception as e:
+                            self.logger.debug(f"Erro ao fazer backup dos comentários: {e}")
+
                 # Wait for page to stabilize after loading new content
                 self.add_human_delay(2.0, 4.0)
 
@@ -361,6 +389,12 @@ class DoctoraliaScraper:
                     "Timeout esperando por novos comentários após clique %d. Parando.",
                     clicks_realizados,
                 )
+                # Check if we're still on the correct page after timeout
+                current_url = self.driver.current_url if self.driver else ""
+                if not current_url.startswith("https://www.doctoralia.com.br/") or "/booking/" in current_url:
+                    self.logger.error("❌ Página redirecionada durante scraping! URL atual: %s", current_url)
+                    # Even though redirected, we might have loaded reviews successfully before
+                    self.logger.info("⚠️ Tentando salvar dados extraídos antes do redirecionamento...")
                 break
             except WebDriverException as e:
                 self.logger.warning(
@@ -373,14 +407,13 @@ class DoctoraliaScraper:
             f"📊 Carregamento concluído: Cliques: {clicks_realizados}, "
             f"Inicial: {initial_reviews_count}, Final: {final_count}"
         )
-        self.logger.info(
-            load_summary
-        )  # Este log já é feito acima, remover linha duplicada
+        self.logger.info(load_summary)
 
-        # Wait a bit before finishing to ensure all background processes are complete
-        self.add_human_delay(2.0, 3.0)
+        # REMOVED: Problematic delay that triggers redirect
+        # self.add_human_delay(2.0, 3.0)
 
-        return clicks_realizados
+        # Return both click count and any extracted reviews
+        return clicks_realizados, last_successful_reviews
 
     def clean_text(self, text: str) -> str:
         if not text:
@@ -388,10 +421,18 @@ class DoctoraliaScraper:
         cleaned = re.sub(r"\s+", " ", text).strip()
         return cleaned
 
-    def extract_rating(self, review_element: Any) -> Optional[int]:
-        soup = self._ensure_soup(review_element)
+    def extract_rating(self, review_element) -> Optional[int]:
+        """Extract rating from review element (works with both WebElement and Tag)."""
+        # If it's already a BeautifulSoup Tag, use it directly
+        if isinstance(review_element, Tag):
+            soup = review_element
+        else:
+            # Convert WebElement to Tag
+            soup = self._ensure_soup(review_element)
+
         if not soup or not isinstance(soup, Tag):
             return None
+
         try:
             rating_container = soup.find("div", {"data-score": True})
             if (
@@ -406,10 +447,18 @@ class DoctoraliaScraper:
             self.logger.debug("Não foi possível extrair nota: %s", e)
         return None
 
-    def extract_date(self, review_element: WebElement) -> Optional[str]:
-        soup = self._ensure_soup(review_element)
+    def extract_date(self, review_element) -> Optional[str]:
+        """Extract date from review element (works with both WebElement and Tag)."""
+        # If it's already a BeautifulSoup Tag, use it directly
+        if isinstance(review_element, Tag):
+            soup = review_element
+        else:
+            # Convert WebElement to Tag
+            soup = self._ensure_soup(review_element)
+
         if not soup or not isinstance(soup, Tag):
             return None
+
         try:
             date_element = soup.find("time", {"itemprop": "datePublished"})
             if (
@@ -424,26 +473,54 @@ class DoctoraliaScraper:
             self.logger.debug("Erro ao parsear data: %s", e)
         return None
 
-    def extract_author_name(self, review_element: WebElement) -> Optional[str]:
-        soup = self._ensure_soup(review_element)
+    def extract_author_name(self, review_element) -> Optional[str]:
+        """Extract author name from review element (works with both WebElement and Tag)."""
+        # If it's already a BeautifulSoup Tag, use it directly
+        if isinstance(review_element, Tag):
+            soup = review_element
+        else:
+            # Convert WebElement to Tag
+            soup = self._ensure_soup(review_element)
+
         if not soup or not isinstance(soup, Tag):
             return None
+
         try:
-            header = soup.find("div", class_="opinion-header")
-            if header and isinstance(header, Tag):
-                author_element = header.select_one('span[itemprop="name"]')
+            # Try multiple selectors for author name
+            author_selectors = [
+                "h4 span",  # Common structure
+                "[data-test-id*='author']",
+                ".author",
+                "h4",
+                ".name",
+            ]
+
+            for selector in author_selectors:
+                author_element = soup.select_one(selector)
                 if author_element and isinstance(author_element, Tag):
                     author_name = self.clean_text(author_element.get_text(strip=True))
-                    if "Dra." not in author_name and "Dr." not in author_name:
+                    if (
+                        author_name
+                        and "Dra." not in author_name
+                        and "Dr." not in author_name
+                    ):
                         return author_name
         except (ValueError, TypeError, AttributeError) as e:
             self.logger.debug("Erro ao parsear autor: %s", e)
         return None
 
-    def extract_comment(self, review_element: WebElement) -> Optional[str]:
-        soup = self._ensure_soup(review_element)
+    def extract_comment(self, review_element) -> Optional[str]:
+        """Extract comment from review element (works with both WebElement and Tag)."""
+        # If it's already a BeautifulSoup Tag, use it directly
+        if isinstance(review_element, Tag):
+            soup = review_element
+        else:
+            # Convert WebElement to Tag
+            soup = self._ensure_soup(review_element)
+
         if not soup or not isinstance(soup, Tag):
             return None
+
         try:
             comment_element = soup.find("p", {"data-test-id": "opinion-comment"})
             if comment_element and isinstance(comment_element, Tag):
@@ -452,24 +529,30 @@ class DoctoraliaScraper:
             self.logger.debug("Erro ao extrair comentário: %s", e)
         return None
 
-    def extract_reply(self, review_element: WebElement) -> Optional[str]:
-        """Extract doctor's reply from a review element."""
-        result = None
-        soup = self._ensure_soup(review_element)
+    def extract_reply(self, review_element) -> Optional[str]:
+        """Extract doctor's reply from a review element (works with both WebElement and Tag)."""
+        # If it's already a BeautifulSoup Tag, use it directly
+        if isinstance(review_element, Tag):
+            soup = review_element
+        else:
+            # Convert WebElement to Tag
+            soup = self._ensure_soup(review_element)
 
-        if soup and isinstance(soup, Tag):
-            try:
-                reply_element = soup.find("div", {"data-id": "doctor-answer-content"})
-                if reply_element and isinstance(reply_element, Tag):
-                    paragraphs = reply_element.find_all("p")
-                    if len(paragraphs) > 1:
-                        result = self.clean_text(paragraphs[1].get_text(strip=True))
-                    else:
-                        result = self.clean_text(reply_element.get_text(strip=True))
-            except (ValueError, TypeError, AttributeError) as e:
-                self.logger.debug("Erro ao extrair resposta: %s", e)
+        if not soup or not isinstance(soup, Tag):
+            return None
 
-        return result
+        try:
+            reply_element = soup.find("div", {"data-id": "doctor-answer-content"})
+            if reply_element and isinstance(reply_element, Tag):
+                paragraphs = reply_element.find_all("p")
+                if len(paragraphs) > 1:
+                    return self.clean_text(paragraphs[1].get_text(strip=True))
+                else:
+                    return self.clean_text(reply_element.get_text(strip=True))
+        except (ValueError, TypeError, AttributeError) as e:
+            self.logger.debug("Erro ao extrair resposta: %s", e)
+
+        return None
 
     def _ensure_soup(self, element: WebElement) -> Optional[Tag]:
         """Convert an element to BeautifulSoup Tag if possible."""
@@ -534,13 +617,14 @@ class DoctoraliaScraper:
             if self.driver is None:
                 raise RuntimeError("Driver not available after setup")
 
-            # Load page
+            # Load page with rate limiting
             self.logger.info("🌐 Acessando página: %s", url)
+            self.rate_limiter.wait_if_needed()
             self.driver.get(url)
             WebDriverWait(self.driver, self.config.scraping.explicit_wait).until(
                 EC.presence_of_element_located((By.ID, "profile-reviews"))
             )
-            self.add_human_delay()
+            self.rate_limiter.add_delay(2.0)  # Extra delay after page load
 
             # Extract doctor information
             self.logger.info("👨‍⚕️ Extraindo nome do médico...")
@@ -552,10 +636,16 @@ class DoctoraliaScraper:
 
             # Load and process reviews
             self.logger.info("📚 Carregando todos os comentários...")
-            self.click_load_more_button()
+            clicks_realizados, backup_reviews = self.click_load_more_button()
 
+            # CRITICAL: Extract reviews immediately to avoid redirect
             self.logger.info("🔍 Processando comentários com BeautifulSoup...")
             reviews_data = self._extract_all_reviews()
+
+            # If extraction failed due to redirect but we have backup data, use it
+            if not reviews_data and backup_reviews:
+                self.logger.info("✅ Usando dados de backup devido ao redirecionamento")
+                reviews_data = backup_reviews
 
             # Create result
             result = {
@@ -585,34 +675,47 @@ class DoctoraliaScraper:
         return result
 
     def scrape_reviews(self, url: str) -> Optional[Dict[str, Any]]:
-        """Main method to scrape doctor reviews with retry logic."""
-        result = None
-        max_retries = self.config.scraping.max_retries
+        """Main method to scrape doctor reviews with retry logic and performance monitoring."""
+        with self.performance_monitor.track_operation("scrape_reviews") as metrics:
+            result = None
+            max_retries = self.config.scraping.max_retries
 
-        for attempt in range(max_retries):
-            try:
-                # Try to scrape
-                result = self._process_single_scrape_attempt(url, attempt)
-                if result:
-                    break
+            for attempt in range(max_retries):
+                try:
+                    # Try to scrape
+                    result = self._process_single_scrape_attempt(url, attempt)
+                    if result:
+                        metrics.reviews_processed = len(result.get("reviews", []))
+                        break
 
-                # If we failed but have more attempts, wait and try again
-                if attempt < max_retries - 1:
-                    wait_time = 5 + (attempt * 2)  # Increasing backoff
-                    self.logger.info("🔄 Tentando novamente em %ds...", wait_time)
-                    time.sleep(wait_time)
+                    # If we failed but have more attempts, wait and try again
+                    if attempt < max_retries - 1:
+                        wait_time = self.config.delays.page_load_retry + (
+                            attempt * self.config.delays.retry_base
+                        )
+                        self.logger.info("🔄 Tentando novamente em %ds...", wait_time)
+                        time.sleep(wait_time)
 
-            except WebDriverException as e:
-                self.logger.error(
-                    "❌ Erro crítico na tentativa %d: %s", attempt + 1, e, exc_info=True
-                )
-                if attempt < max_retries - 1:
-                    time.sleep(10)
+                except WebDriverException as e:
+                    self.logger.error(
+                        "❌ Erro crítico na tentativa %d: %s",
+                        attempt + 1,
+                        e,
+                        exc_info=True,
+                    )
+                    if attempt < max_retries - 1:
+                        time.sleep(self.config.delays.error_recovery)
 
-        return result
+            return result
 
     def _extract_all_reviews(self) -> List[Dict]:
         if not self.driver:
+            return []
+
+        # Check if we're still on the correct page (avoid booking redirects)
+        current_url = self.driver.current_url
+        if not current_url.startswith("https://www.doctoralia.com.br/") or "/booking/" in current_url:
+            self.logger.error("❌ Extração cancelada: página redirecionada para %s", current_url)
             return []
 
         reviews_data: List[Dict[str, Any]] = []
@@ -704,10 +807,11 @@ if __name__ == "__main__":
     TARGET_URL = (
         "https://www.doctoralia.com.br/bruna-pinto-gomes/ginecologista/belo-horizonte"
     )
-    config_instance = MockConfig()
-    scraper = DoctoraliaScraper(
-        config_obj=config_instance, logger_instance=default_logger
-    )
+    # Import config for testing
+    from config.settings import AppConfig
+
+    config_instance = AppConfig.load()
+    scraper = DoctoraliaScraper(config_instance, default_logger)
     scraped_data = scraper.scrape_reviews(TARGET_URL)
     if scraped_data:
         default_logger.info("\n--- RESUMO DA EXTRAÇÃO ---")

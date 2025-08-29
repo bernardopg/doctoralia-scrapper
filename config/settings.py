@@ -13,6 +13,18 @@ class TelegramConfig:
 
 
 @dataclass
+class DelayConfig:
+    """Configurações de delays para evitar detecção"""
+
+    human_like_min: float = 1.0
+    human_like_max: float = 3.0
+    retry_base: float = 2.0
+    error_recovery: float = 10.0
+    rate_limit_retry: float = 60.0
+    page_load_retry: float = 5.0
+
+
+@dataclass
 class ScrapingConfig:
     headless: bool = True
     timeout: int = 60
@@ -28,6 +40,7 @@ class ScrapingConfig:
 class AppConfig:
     telegram: TelegramConfig
     scraping: ScrapingConfig
+    delays: DelayConfig
     base_dir: Path
     data_dir: Path
     logs_dir: Path
@@ -40,6 +53,7 @@ class AppConfig:
         # Valores padrão
         telegram = TelegramConfig()
         scraping = ScrapingConfig()
+        delays = DelayConfig()
 
         # Carregar configurações se existir
         if config_file.exists():
@@ -70,6 +84,7 @@ class AppConfig:
         return cls(
             telegram=telegram,
             scraping=scraping,
+            delays=delays,
             base_dir=base_dir,
             data_dir=base_dir / "data",
             logs_dir=base_dir / "data" / "logs",
