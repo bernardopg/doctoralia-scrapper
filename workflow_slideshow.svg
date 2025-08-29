@@ -47,7 +47,7 @@
       <rect x="0" y="0" width="200" height="120" fill="#e3f2fd" stroke="#1976d2" stroke-width="2" rx="8"/>
       <text x="100" y="30" text-anchor="middle" fill="#1976d2" font-family="Arial, sans-serif" font-size="16" font-weight="bold">🔧 Setup</text>
       <text x="100" y="55" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Configure system</text>
-      <text x="100" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Telegram & scraping</text>
+      <text x="100" y="75" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">Telegram &amp; scraping</text>
       <text x="100" y="95" text-anchor="middle" fill="#666" font-family="Arial, sans-serif" font-size="12">settings</text>
 
       <!-- Arrow -->
@@ -200,7 +200,7 @@
       <!-- Step 4 -->
       <circle cx="50" cy="400" r="30" fill="#7b1fa2"/>
       <text x="50" y="408" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="18" font-weight="bold">4</text>
-      <text x="120" y="395" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Save & Notify</text>
+      <text x="120" y="395" fill="#333" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Save &amp; Notify</text>
       <text x="120" y="415" fill="#666" font-family="Arial, sans-serif" font-size="12">• Save data to JSON</text>
       <text x="120" y="430" fill="#666" font-family="Arial, sans-serif" font-size="12">• Send Telegram notification</text>
     </g>
@@ -229,12 +229,12 @@
     </text>
   </g>
 
-  <!-- Slide 4: Response Generation & Automation -->
+  <!-- Slide 4: Response Generation &amp; Automation -->
   <g id="slide4" transform="translate(50, 100)" style="display:none;">
     <rect x="0" y="0" width="1100" height="600" fill="url(#cardGradient)" stroke="#ddd" stroke-width="2" rx="10" filter="url(#shadow)"/>
 
     <text x="550" y="40" text-anchor="middle" fill="#333" font-family="Arial, sans-serif" font-size="24" font-weight="bold">
-      🤖 Response Generation & Automation
+      🤖 Response Generation &amp; Automation
     </text>
 
     <!-- Response Generation Process -->
@@ -273,7 +273,7 @@
       <!-- Step 4 -->
       <circle cx="305" cy="50" r="25" fill="#388e3c"/>
       <text x="305" y="57" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">4</text>
-      <text x="355" y="45" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Save & Notify</text>
+      <text x="355" y="45" fill="#333" font-family="Arial, sans-serif" font-size="14" font-weight="bold">Save &amp; Notify</text>
       <text x="355" y="60" fill="#666" font-family="Arial, sans-serif" font-size="11">• Store responses</text>
     </g>
 

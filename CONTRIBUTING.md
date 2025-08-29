@@ -364,20 +364,20 @@ logger.info("Scraping completed", extra={
 })
 ```
 
-    def __init__(self, param1: str, param2: Optional[int] = None):
-        self.param1 = param1
-        self.param2 = param2
+```python
+def __init__(self, param1: str, param2: Optional[int] = None):
+    self.param1 = param1
+    self.param2 = param2
 
-    def example_method(self) -> Dict[str, Any]:
-        """
-        Método de exemplo
+def example_method(self) -> Dict[str, Any]:
+    """
+    Método de exemplo
 
-        Returns:
-            Dicionário com resultado
-        """
-        logger.info(f"Executando método com {self.param1}")
-        return {"status": "success"}
-
+    Returns:
+        Dicionário com resultado
+    """
+    logger.info(f"Executando método com {self.param1}")
+    return {"status": "success"}
 ```
 
 ## 🧪 Testes

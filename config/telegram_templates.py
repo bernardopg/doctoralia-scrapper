@@ -96,7 +96,17 @@ class TelegramTemplates:
     @staticmethod
     def scraping_complete(data: Dict[str, Any], save_path: Path) -> str:
         """Template para scraping concluído"""
+        # Sanitizar nome do médico para evitar problemas com Markdown
         doctor_name = data.get("doctor_name", "Médico")
+        if doctor_name:
+            doctor_name = (
+                doctor_name.replace("*", "")
+                .replace("_", "")
+                .replace("`", "")
+                .replace("[", "")
+                .replace("]", "")
+            )
+
         total_reviews = data.get("total_reviews", 0)
 
         with_replies = len(
@@ -133,7 +143,28 @@ class TelegramTemplates:
         for i, response in enumerate(responses[:5], 1):
             author = response.get("author", "Anônimo")
             comment = response.get("comment", "")
-            comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
+
+            # Sanitizar autor e comentário
+            if author:
+                author = (
+                    author.replace("*", "")
+                    .replace("_", "")
+                    .replace("`", "")
+                    .replace("[", "")
+                    .replace("]", "")
+                )
+            if comment:
+                comment = (
+                    comment.replace("*", "")
+                    .replace("_", "")
+                    .replace("`", "")
+                    .replace("[", "")
+                    .replace("]", "")
+                )
+                comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
+            else:
+                comment_preview = "Comentário vazio"
+
             message += f"\n{i}. *{author}*: {comment_preview}"
 
         if total > 5:

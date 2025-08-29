@@ -59,17 +59,33 @@ def setup_telegram(config: AppConfig) -> None:
         config.telegram.enabled = True
         print("✅ Telegram configurado com sucesso!")
 
-        # Testar configuração
+        # Testar configuração do Telegram
         from src.logger import setup_logger  # noqa: E402
         from src.telegram_notifier import TelegramNotifier  # noqa: E402
 
         logger = setup_logger("setup", config)
         notifier = TelegramNotifier(config, logger)
 
-        if notifier.send_message("🎉 Doctoralia Bot configurado com sucesso!"):
-            print("✅ Teste de notificação enviado!")
+        print("\n🔧 Validando configuração do Telegram...")
+        validation = notifier.validate_config()
+
+        if validation["valid"]:
+            print("✅ Configuração válida!")
+            print("🔗 Testando conexão...")
+            if notifier.test_connection():
+                print("✅ Conexão estabelecida com sucesso!")
+                if notifier.send_message("🎉 Doctoralia Bot configurado com sucesso!"):
+                    print("✅ Teste de notificação enviado!")
+                else:
+                    print("⚠️ Erro no envio de teste - verifique permissões do bot")
+            else:
+                print("❌ Erro na conexão - verifique token e chat_id")
+                config.telegram.enabled = False
         else:
-            print("⚠️ Erro no teste - verifique token e chat_id")
+            print("❌ Problemas na configuração:")
+            for issue in validation["issues"]:
+                print(f"   - {issue}")
+            config.telegram.enabled = False
     else:
         print("⚠️ Telegram não configurado - notificações desabilitadas")
 

@@ -110,8 +110,11 @@ def debug_clicking_phase():
 
         if len(reviews_section) > 0:
             reviews_section_html = reviews_section[0].get_attribute("outerHTML")
-            print(f"Reviews section HTML length: {len(reviews_section_html)}")
-            print(f"Reviews section snippet: {reviews_section_html[:200]}...")
+            if reviews_section_html:
+                print(f"Reviews section HTML length: {len(reviews_section_html)}")
+                print(f"Reviews section snippet: {reviews_section_html[:200]}...")
+            else:
+                print("Reviews section HTML is None")
 
     except Exception as e:
         print(f"Error during debugging: {e}")
