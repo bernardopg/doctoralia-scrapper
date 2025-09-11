@@ -99,4 +99,5 @@ data/
 config/config.json
 
 .pytest_cache/
-.mypy_cache/
+.mypy_cache/*.bak
+*.tmp
