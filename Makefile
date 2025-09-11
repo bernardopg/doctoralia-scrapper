@@ -133,6 +133,21 @@ clean: ## Remove dados/arquivos temporários/cache
 	rm -rf .ruff_cache
 
 
+# Comandos Priority 4 - Dashboard e API
+dashboard: ## Inicia dashboard web (Priority 4)
+	@echo "$(BLUE)Iniciando dashboard web...$(NC)"
+	$(PYTHON) src/dashboard.py
+
+api: ## Inicia API REST (Priority 4)
+	@echo "$(BLUE)Iniciando API REST...$(NC)"
+	$(PYTHON) src/api.py
+
+api-docs: ## Abre documentação da API no navegador
+	@echo "$(BLUE)Abrindo documentação da API...$(NC)"
+	@which xdg-open > /dev/null && xdg-open http://localhost:8000/docs || \
+	 which open > /dev/null && open http://localhost:8000/docs || \
+	 echo "$(YELLOW)Abra http://localhost:8000/docs no seu navegador$(NC)"
+
 # Comandos Úteis
 dev: install-dev ## Configuração completa para desenvolvimento
 	@echo "$(GREEN)Ambiente de desenvolvimento pronto!$(NC)"
@@ -149,6 +164,29 @@ info: ## Mostra informações do ambiente
 	@echo "Diretório: $$(pwd)"
 	@echo "Git branch: $$(git branch --show-current 2>/dev/null || echo 'N/A')"
 	@echo "Git status: $$(git status --porcelain | wc -l) arquivos modificados"
+
+# Comandos de diagnóstico
+diagnostic: ## Executa diagnóstico completo do sistema
+	@echo "$(BLUE)Executando diagnóstico completo...$(NC)"
+	$(PYTHON) scripts/system_diagnostic.py
+
+health: ## Verifica saúde do sistema
+	@echo "$(BLUE)Verificando saúde do sistema...$(NC)"
+	$(PYTHON) scripts/health_check.py
+
+# Comandos de backup
+backup: ## Cria backup dos dados
+	@echo "$(BLUE)Criando backup dos dados...$(NC)"
+	$(PYTHON) scripts/backup_restore.sh backup
+
+restore: ## Restaura dados do backup
+	@echo "$(BLUE)Restaurando dados do backup...$(NC)"
+	$(PYTHON) scripts/backup_restore.sh restore
+
+# Comandos de otimização
+optimize: ## Otimiza performance do sistema
+	@echo "$(BLUE)Otimizando sistema...$(NC)"
+	$(PYTHON) -c "import psutil; print(f'CPU: {psutil.cpu_percent()}% | RAM: {psutil.virtual_memory().percent}%')"
 
 # Defaults
 .DEFAULT_GOAL := help

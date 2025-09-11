@@ -38,3 +38,7 @@ trio-websocket==0.12.2
 urllib3==2.5.0
 websocket-client==1.8.0
 wsproto==1.2.0
+
+# n8n Integration Dependencies
+redis==5.0.1
+rq==1.16.1

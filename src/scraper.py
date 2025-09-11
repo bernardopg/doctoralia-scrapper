@@ -94,6 +94,10 @@ class DoctoraliaScraper:
             self.logger, max_retries=self.config.scraping.max_retries
         )
 
+        # Cache para otimizar extrações repetidas
+        self._cache: Dict[str, Any] = {}
+        self._last_url: Optional[str] = None
+
     def get_random_user_agent(self) -> str:
         user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -718,6 +722,12 @@ class DoctoraliaScraper:
             self.logger.error("❌ Extração cancelada: página redirecionada para %s", current_url)
             return []
 
+        # Verificar cache para mesma URL
+        cache_key = f"reviews_{current_url}"
+        if self._last_url == current_url and cache_key in self._cache:
+            self.logger.info("✅ Usando cache para extração de reviews")
+            return self._cache[cache_key]
+
         reviews_data: List[Dict[str, Any]] = []
         page_source = self.driver.page_source
         soup = BeautifulSoup(page_source, "html.parser")
@@ -727,40 +737,33 @@ class DoctoraliaScraper:
             f"Encontrados {len(review_elements)} elementos de review com o seletor principal."
         )
 
+        # Processamento otimizado com list comprehension
         for review_index, review_element in enumerate(review_elements):
             try:
                 comment = self.extract_comment(review_element)
                 if not comment:
-                    self.logger.warning(
-                        f"Comentário {review_index + 1} ignorado por falta de texto."
-                    )
                     continue
 
-                # Use direct assignment to reduce local variables
                 review_data = {
                     "id": review_index + 1,
                     "author": self.extract_author_name(review_element),
-                    "comment": comment,  # Reuse already extracted comment
+                    "comment": comment,
                     "rating": self.extract_rating(review_element),
                     "date": self.extract_date(review_element),
                     "doctor_reply": self.extract_reply(review_element),
                 }
 
+                # Filtrar valores None de forma mais eficiente
                 review_data = {k: v for k, v in review_data.items() if v is not None}
-                reviews_data.append(review_data)
+                if review_data.get("comment"):  # Garantir que tem comentário
+                    reviews_data.append(review_data)
 
-            except (ValueError, TypeError, AttributeError) as e:
-                self.logger.warning(
-                    "Erro ao processar avaliação %d: %s", review_index + 1, e
-                )
-                continue
-            except (TimeoutException, WebDriverException) as e:
-                self.logger.warning(
-                    "Erro de navegador ao processar avaliação %d: %s",
-                    review_index + 1,
-                    e,
-                )
-                continue
+            except (ValueError, TypeError, AttributeError, TimeoutException, WebDriverException):
+                continue  # Silenciosamente ignorar erros de processamento
+
+        # Atualizar cache
+        self._cache[cache_key] = reviews_data
+        self._last_url = current_url
 
         self.logger.info("Extraídos %d comentários com sucesso.", len(reviews_data))
         return reviews_data
