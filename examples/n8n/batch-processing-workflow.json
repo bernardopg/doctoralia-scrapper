@@ -1,0 +1,241 @@
+{
+  "name": "📦 Doctoralia Batch Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "sheetId": "={{$credentials.googleSheets.doctorsListId}}",
+        "range": "A2:B",
+        "options": {
+          "returnAllMatches": true
+        }
+      },
+      "id": "read-doctors-list",
+      "name": "Read Doctors List",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [250, 300],
+      "notes": "Lê lista de médicos do Google Sheets"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process doctors list from sheet\nconst doctors = items.map(item => ({\n  json: {\n    doctor_url: item.json.doctor_url || item.json.URL,\n    doctor_name: item.json.doctor_name || item.json.Name,\n    priority: item.json.priority || 'normal',\n    last_checked: item.json.last_checked || null\n  }\n}));\n\n// Filter doctors that haven't been checked in 24 hours\nconst now = new Date();\nconst oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);\n\nconst doctorsToCheck = doctors.filter(doc => {\n  if (!doc.json.last_checked) return true;\n  const lastChecked = new Date(doc.json.last_checked);\n  return lastChecked < oneDayAgo;\n});\n\n// Sort by priority\ndoctorsToCheck.sort((a, b) => {\n  const priorityOrder = { 'high': 0, 'normal': 1, 'low': 2 };\n  return priorityOrder[a.json.priority] - priorityOrder[b.json.priority];\n});\n\nreturn doctorsToCheck;"
+      },
+      "id": "filter-doctors",
+      "name": "Filter & Sort Doctors",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "batch-processor",
+      "name": "Batch Processor",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "notes": "Processa 5 médicos por vez"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/v1/scrape:run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$credentials.doctoralia.apiKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"doctor_url\": \"{{$json.doctor_url}}\",\n  \"include_analysis\": true,\n  \"include_generation\": false,\n  \"language\": \"pt\"\n}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "id": "scrape-batch",
+      "name": "Scrape Batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Aggregate batch results\nconst results = items.map(item => {\n  const data = item.json;\n  return {\n    doctor_name: data.doctor?.name || 'Unknown',\n    doctor_url: $node[\"Batch Processor\"].json.doctor_url,\n    rating: data.doctor?.rating || 0,\n    total_reviews: data.metrics?.scraped_count || 0,\n    sentiment_score: data.analysis?.sentiments?.compound || 0,\n    quality_score: data.analysis?.quality_score || 0,\n    status: data.status,\n    timestamp: new Date().toISOString()\n  };\n});\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "sheetId": "={{$credentials.googleSheets.resultsSheetId}}",
+        "range": "A:H",
+        "dataMode": "autoMapInputData",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "id": "update-results",
+      "name": "Update Results Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "rate-limit-wait",
+      "name": "Rate Limit Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1450, 300],
+      "notes": "Aguarda entre batches para evitar rate limit"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate batch summary\nconst allResults = $items(\"Aggregate Results\");\n\nconst summary = {\n  total_processed: allResults.length,\n  average_rating: allResults.reduce((sum, r) => sum + r.json.rating, 0) / allResults.length,\n  average_sentiment: allResults.reduce((sum, r) => sum + r.json.sentiment_score, 0) / allResults.length,\n  total_reviews: allResults.reduce((sum, r) => sum + r.json.total_reviews, 0),\n  successful: allResults.filter(r => r.json.status === 'completed').length,\n  failed: allResults.filter(r => r.json.status === 'failed').length,\n  timestamp: new Date().toISOString()\n};\n\n// Find best and worst performers\nconst sorted = [...allResults].sort((a, b) => b.json.rating - a.json.rating);\nsummary.best_performer = sorted[0]?.json.doctor_name;\nsummary.worst_performer = sorted[sorted.length - 1]?.json.doctor_name;\n\nreturn [{ json: summary }];"
+      },
+      "id": "generate-summary",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$credentials.telegram.batchReportChatId}}",
+        "text": "=📦 *Relatório de Processamento em Lote*\n\n📊 *Resumo:*\n• Total Processado: {{$json.total_processed}}\n• Sucesso: {{$json.successful}}\n• Falhas: {{$json.failed}}\n\n⭐ *Métricas:*\n• Avaliação Média: {{$json.average_rating.toFixed(2)}}/5\n• Sentimento Médio: {{$json.average_sentiment.toFixed(2)}}\n• Total de Reviews: {{$json.total_reviews}}\n\n🏆 *Destaques:*\n• Melhor: {{$json.best_performer}}\n• Pior: {{$json.worst_performer}}\n\n🕒 Processado em: {{$json.timestamp}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "send-batch-report",
+      "name": "Send Batch Report",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    }
+  ],
+  "connections": {
+    "Read Doctors List": {
+      "main": [
+        [
+          {
+            "node": "Filter & Sort Doctors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Sort Doctors": {
+      "main": [
+        [
+          {
+            "node": "Batch Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Batch Processor": {
+      "main": [
+        [
+          {
+            "node": "Scrape Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Batch": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Update Results Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Results Sheet": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Wait": {
+      "main": [
+        [
+          {
+            "node": "Batch Processor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Batch Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["batch", "doctoralia", "sheets"]
+}

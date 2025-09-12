@@ -1,0 +1,157 @@
+{
+  "name": "Doctoralia Sync Scraping",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "d8b6c5e9-9a2f-4e3d-8c1b-7a5f4e3d2c1b",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:8000/v1/scrape:run",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$credentials.apiKey}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"doctor_url\": \"https://www.doctoralia.com.br/medico/example\",\n  \"include_analysis\": true,\n  \"include_generation\": false,\n  \"language\": \"pt\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Scrape Doctor Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract key metrics\nconst result = items[0].json;\n\nreturn [{\n  json: {\n    doctor_name: result.doctor.name,\n    doctor_rating: result.doctor.rating,\n    total_reviews: result.metrics.scraped_count,\n    sentiment_score: result.analysis?.sentiments?.compound || 0,\n    positive_ratio: result.analysis?.sentiments?.positive || 0,\n    processing_time_ms: result.metrics.duration_ms,\n    status: result.status\n  }\n}];"
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+      "name": "Process Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "level": "error",
+        "message": "=Scraping failed: {{$json.error?.message || 'Unknown error'}}"
+      },
+      "id": "d4e5f6a7-b8c9-0123-defa-456789012345",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$credentials.telegramChatId}}",
+        "text": "=📊 *Doctoralia Scraping Result*\n\n👨‍⚕️ Doctor: {{$json.doctor_name}}\n⭐ Rating: {{$json.doctor_rating}}/5\n📝 Total Reviews: {{$json.total_reviews}}\n😊 Sentiment Score: {{$json.sentiment_score}}\n⏱️ Processing Time: {{$json.processing_time_ms}}ms",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "e5f6a7b8-c9d0-1234-efab-567890123456",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1050, 250]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Scrape Doctor Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Doctor Profile": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Process Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Results": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "doctoralia-sync-scraping"
+  },
+  "tags": []
+}

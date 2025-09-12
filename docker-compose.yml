@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: .
+      target: api
+    environment:
+      - API_KEY=${API_KEY}
+      - WEBHOOK_SIGNING_SECRET=${WEBHOOK_SIGNING_SECRET}
+      - REDIS_URL=redis://redis:6379/0
+      - SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - redis
+      - selenium
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - doctoralia-net
+
+  worker:
+    build:
+      context: .
+      target: worker
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+      - API_KEY=${API_KEY}
+      - WEBHOOK_SIGNING_SECRET=${WEBHOOK_SIGNING_SECRET}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - redis
+      - selenium
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - doctoralia-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - doctoralia-net
+
+  selenium:
+    image: selenium/standalone-chrome:latest
+    shm_size: "2g"
+    ports:
+      - "4444:4444"
+      - "7900:7900"  # VNC server for debugging
+    environment:
+      - SE_VNC_NO_PASSWORD=1
+    networks:
+      - doctoralia-net
+
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-false}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - GENERIC_TIMEZONE=America/Sao_Paulo
+    volumes:
+      - n8n-data:/home/node/.n8n
+    depends_on:
+      - api
+    networks:
+      - doctoralia-net
+
+volumes:
+  redis-data:
+  n8n-data:
+
+networks:
+  doctoralia-net:
+    driver: bridge

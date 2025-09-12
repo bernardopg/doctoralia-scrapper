@@ -1,162 +1,309 @@
+#!/usr/bin/env python3
+"""
+Doctoralia Scrapper - CLI Principal
+===================================
+
+Script principal para executar o scraper do Doctoralia via linha de comando.
+"""
+
 import argparse
+import json
+import logging
+import sys
+from pathlib import Path
+from typing import Optional
+
+# Adicionar o diretório src ao path para imports
+project_root = Path(__file__).parent
+src_path = project_root / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 from config.settings import AppConfig
-from src.logger import setup_logger
+from scripts.daemon import DaemonController
+from scripts.health_check import HealthChecker as LegacyHealthChecker
+from scripts.system_diagnostic import SystemDiagnostic
+from src.api.v1.main import start_api
+from src.dashboard import start_dashboard
+from src.health_checker import HealthChecker  # Async health checker
 from src.response_generator import ResponseGenerator
 from src.scraper import DoctoraliaScraper
 from src.telegram_notifier import TelegramNotifier
 
-
-def print_banner() -> None:
-    """Exibe banner do aplicativo"""
-    print(
-        """
-╔══════════════════════════════════════════════════════════════╗
-║                    🏥 DOCTORALIA BOT                         ║
-║              Sistema de Respostas Automáticas                ║
-╚══════════════════════════════════════════════════════════════╝
-    """
-    )
-
-
-def setup_command(config: AppConfig) -> None:
-    """Comando de configuração inicial"""
-    print("🔧 Configuração Inicial")
-    print("=" * 50)
-
-    # Configurar Telegram
-    print("\n📱 Configuração do Telegram (opcional)")
-    print("Para receber notificações, você precisa:")
-    print("1. Criar um bot com @BotFather")
-    print("2. Obter o token do bot")
-    print("3. Obter seu chat_id com @userinfobot")
-
-    token = input("\n🤖 Token do bot (Enter para pular): ").strip()
-    chat_id = input("💬 Chat ID (Enter para pular): ").strip()
-
-    if token and chat_id:
-        config.telegram.token = token
-        config.telegram.chat_id = chat_id
-        config.telegram.enabled = True
-        print("✅ Telegram configurado!")
-
-        # Testar configuração
-        logger = setup_logger("setup", config)
-        notifier = TelegramNotifier(config, logger)
-        if notifier.send_message("🎉 Doctoralia Bot configurado!"):
-            print("✅ Teste de notificação enviado!")
-    else:
-        print("⚠️ Telegram não configurado - notificações desabilitadas")
-
-    # Configurar scraping
-    print("\n🕷️ Configuração do Scraping")
-    headless = input("Executar em modo headless? (S/n): ").strip().lower()
-    config.scraping.headless = headless != "n"
-
-    config.save()
-    print("\n✅ Configuração salva!")
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("logs/main.log", encoding="utf-8"),
+    ],
+)
+logger = logging.getLogger(__name__)
 
 
-def scrape_command(config: AppConfig, args: argparse.Namespace) -> bool:
-    """Comando de scraping"""
-    logger = setup_logger("scraper", config, args.verbose)
+class DoctoraliaCLI:
+    """Interface de linha de comando para o Doctoralia Scrapper."""
 
-    if not args.url:
-        url = input("🔗 URL do médico no Doctoralia: ").strip()
-    else:
-        url = args.url
+    def __init__(self):
+        self.config = AppConfig.load()
 
-    if not url.startswith("https://www.doctoralia.com.br/"):
-        logger.error("❌ URL deve ser do Doctoralia")
-        return False
+    def setup(self):
+        """Configuração inicial do projeto."""
+        logger.info("🔧 Iniciando configuração inicial...")
 
-    logger.info("🚀 Iniciando scraping...")
+        # Criar diretórios necessários
+        directories = [
+            self.config.data_dir,
+            Path("logs"),
+            Path("backups"),
+            Path("temp"),
+        ]
 
-    scraper = DoctoraliaScraper(config, logger)
-    data = scraper.scrape_reviews(url)
+        for directory in directories:
+            directory.mkdir(parents=True, exist_ok=True)
+            logger.info(f"✅ Diretório criado: {directory}")
 
-    if not data:
-        logger.error("❌ Falha no scraping")
-        return False
+        # Verificar configuração
+        # Validate configuration (method added in AppConfig)
+        if not self.config.validate():
+            logger.error("❌ Configuração inválida. Verifique o arquivo .env")
+            sys.exit(1)
 
-    save_path = scraper.save_data(data)
+        logger.info("✅ Configuração inicial concluída!")
 
-    # Estatísticas
-    total = data.get("total_reviews", 0)
-    without_replies = len(
-        [r for r in data.get("reviews", []) if not r.get("doctor_reply")]
-    )
+    def scrape(self, url: Optional[str] = None):
+        """Executa scraping de avaliações."""
+        if not url:
+            logger.error("URL não fornecida. Use: --url <url>")
+            sys.exit(1)
 
-    logger.info(f"📊 Resumo: {total} comentários, {without_replies} sem resposta")
+        logger.info(f"🚀 Iniciando scraping para: {url}")
 
-    # Notificar via Telegram se configurado
-    if config.telegram.enabled:
-        notifier = TelegramNotifier(config, logger)
-        if save_path is not None:
-            notifier.send_scraping_complete(data, save_path)
+        scraper = DoctoraliaScraper(self.config, logger)
+        data = scraper.scrape_reviews(url)
 
-    return True
+        if data:
+            logger.info(
+                f"✅ Scraping concluído! {data.get('total_reviews', 0)} avaliações extraídas"
+            )
 
+            # Salvar dados
+            file_path = scraper.save_data(data)
+            if file_path:
+                logger.info(f"💾 Dados salvos em: {file_path}")
 
-def generate_command(config: AppConfig, args: argparse.Namespace) -> None:
-    """Comando de geração de respostas"""
-    logger = setup_logger("generator", config, args.verbose)
+            # Exibir resumo
+            self._show_summary(data)
+        else:
+            logger.error("❌ Falha no scraping")
+            sys.exit(1)
 
-    logger.info("🤖 Gerando respostas automáticas...")
+    def run(self, url: Optional[str] = None):
+        """Executa workflow completo: scraping + geração de respostas."""
+        if not url:
+            logger.error("URL não fornecida. Use: --url <url>")
+            sys.exit(1)
 
-    generator = ResponseGenerator(config, logger)
-    responses, consolidated_file = generator.generate_for_latest()
+        logger.info(f"🚀 Executando workflow completo para: {url}")
 
-    if responses:
-        logger.info(f"✅ {len(responses)} respostas geradas")
+        # 1. Scraping
+        scraper = DoctoraliaScraper(self.config, logger)
+        data = scraper.scrape_reviews(url)
 
-        # Notificar via Telegram
-        if config.telegram.enabled:
-            notifier = TelegramNotifier(config, logger)
-            if consolidated_file:
-                notifier.send_responses_with_file(responses, consolidated_file)
+        if not data:
+            logger.error("❌ Falha no scraping")
+            sys.exit(1)
+
+        # 2. Geração de respostas
+        if data.get("reviews"):
+            logger.info("🤖 Gerando respostas para avaliações...")
+            generator = ResponseGenerator(self.config, logger)
+
+            # Filtrar avaliações sem resposta
+            reviews_to_process = [
+                review for review in data["reviews"] if not review.get("doctor_reply")
+            ]
+
+            if reviews_to_process:
+                # The current ResponseGenerator supports batch processing through generate_for_latest.
+                # For direct list processing, fall back to per-review generation.
+                responses = [generator.generate_response(r) for r in reviews_to_process]
+
+                # Adicionar respostas aos dados
+                for review, response in zip(reviews_to_process, responses):
+                    review["generated_response"] = response
+
+                logger.info(f"✅ {len(responses)} respostas geradas")
+
+                # Salvar dados atualizados
+                file_path = scraper.save_data(data)
+                if file_path:
+                    logger.info(f"💾 Dados com respostas salvos em: {file_path}")
             else:
-                notifier.send_responses_generated(responses)
-    else:
-        logger.info("ℹ️ Nenhuma nova resposta necessária")
+                logger.info("ℹ️ Todas as avaliações já possuem respostas")
+
+        self._show_summary(data, show_responses=True)
+
+    def generate(self):
+        """Gera respostas para avaliações existentes."""
+        logger.info("🤖 Iniciando geração de respostas...")
+
+        # Buscar arquivos de dados recentes
+        data_files = list(self.config.data_dir.glob("*.json"))
+        if not data_files:
+            logger.error("❌ Nenhum arquivo de dados encontrado")
+            sys.exit(1)
+
+        # Usar arquivo mais recente
+        latest_file = max(data_files, key=lambda f: f.stat().st_mtime)
+        logger.info(f"📁 Processando arquivo: {latest_file}")
+
+        with open(latest_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        if not data.get("reviews"):
+            logger.info("ℹ️ Nenhuma avaliação para processar")
+            return
+
+        # Filtrar avaliações sem resposta
+        reviews_to_process = [
+            review for review in data["reviews"] if not review.get("doctor_reply")
+        ]
+
+        if not reviews_to_process:
+            logger.info("ℹ️ Todas as avaliações já possuem respostas")
+            return
+
+        generator = ResponseGenerator(self.config, logger)
+        responses = [generator.generate_response(r) for r in reviews_to_process]
+
+        # Adicionar respostas
+        for review, response in zip(reviews_to_process, responses):
+            review["generated_response"] = response
+
+        # Salvar arquivo atualizado
+        output_file = latest_file.parent / f"{latest_file.stem}_with_responses.json"
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        logger.info(f"✅ {len(responses)} respostas geradas e salvas em: {output_file}")
+
+    def daemon(self, interval: int = 30, debug: bool = False):
+        """Inicia o daemon de monitoramento."""
+        logger.info(f"🔄 Iniciando daemon (intervalo: {interval}s, debug: {debug})")
+
+        # Use existing DaemonController implementation
+        controller = DaemonController()
+        controller.start(interval_minutes=interval)
+
+    def notify(self):
+        """Envia notificações via Telegram."""
+        logger.info("📱 Enviando notificações...")
+
+        notifier = TelegramNotifier(self.config, logger)
+        # Use existing generation cycle notification as a placeholder daily summary
+        success = notifier.send_custom_message(
+            title="Resumo Diário",
+            content="Execução de notificação manual realizada.",
+            emoji="📱",
+        )
+
+        if success:
+            logger.info("✅ Notificações enviadas com sucesso")
+        else:
+            logger.error("❌ Falha ao enviar notificações")
+
+    def health(self):
+        """Verifica saúde do sistema."""
+        logger.info("🏥 Verificando saúde do sistema...")
+
+        # Prefer the async HealthChecker (src) if available
+        try:
+            import asyncio
+
+            async_checker = HealthChecker(self.config)
+
+            async def run_checks():
+                results = await async_checker.check_all()
+                # Summarize
+                unhealthy = [k for k, v in results.items() if v.status != "healthy"]
+                if not unhealthy:
+                    logger.info("✅ Todos os componentes saudáveis")
+                else:
+                    logger.error("❌ Componentes com problemas:")
+                    for name in unhealthy:
+                        comp = results[name]
+                        logger.error(
+                            f"  - {name}: {comp.status} ({comp.details or 'sem detalhes'})"
+                        )
+
+            asyncio.run(run_checks())
+        except Exception:
+            # Fallback to legacy synchronous checker script
+            legacy = LegacyHealthChecker()
+            legacy.run_full_check()
+
+    def diagnostic(self):
+        """Executa diagnóstico completo."""
+        logger.info("🔍 Executando diagnóstico completo...")
+
+        diagnostic = SystemDiagnostic()
+        report = diagnostic.run_full_diagnostic()
+
+        logger.info("📊 Relatório de diagnóstico:")
+        logger.info(json.dumps(report, indent=2, ensure_ascii=False))
+
+    def dashboard(self):
+        """Inicia dashboard web."""
+        logger.info("🌐 Iniciando dashboard...")
+        start_dashboard()
+
+    def api(self):
+        """Inicia API REST."""
+        logger.info("🔌 Iniciando API REST...")
+        start_api()
+
+    def _show_summary(self, data: dict, show_responses: bool = False):
+        """Exibe resumo dos dados extraídos."""
+        logger.info("\n" + "=" * 50)
+        logger.info("📊 RESUMO DA EXTRAÇÃO")
+        logger.info("=" * 50)
+        logger.info(f"👨‍⚕️ Médico: {data.get('doctor_name', 'N/A')}")
+        logger.info(f"🔗 URL: {data.get('url', 'N/A')}")
+        logger.info(f"📅 Extração: {data.get('extraction_timestamp', 'N/A')}")
+        logger.info(f"💬 Total de avaliações: {data.get('total_reviews', 0)}")
+
+        if show_responses and data.get("reviews"):
+            with_responses = sum(
+                1 for r in data["reviews"] if r.get("generated_response")
+            )
+            logger.info(f"🤖 Respostas geradas: {with_responses}")
+
+        logger.info("=" * 50)
+
+        # Mostrar amostra de avaliações
+        if data.get("reviews"):
+            logger.info("\n📋 Amostra de avaliações:")
+            for i, review in enumerate(data["reviews"][:3]):
+                logger.info(f"\n--- Avaliação {i + 1} ---")
+                logger.info(f"Autor: {review.get('author', 'Anônimo')}")
+                logger.info(f"Nota: {review.get('rating', 'N/A')}/5")
+                logger.info(f"Data: {review.get('date', 'N/A')}")
+                logger.info(f"Comentário: {review.get('comment', '')[:100]}...")
+                if review.get("doctor_reply"):
+                    logger.info(f"Resposta: {review.get('doctor_reply')[:100]}...")
+                if show_responses and review.get("generated_response"):
+                    logger.info(
+                        f"Resposta gerada: {review.get('generated_response')[:100]}..."
+                    )
 
 
-def status_command(config: AppConfig, args: argparse.Namespace) -> None:
-    """Mostra status do sistema"""
-    print("📊 STATUS DO SISTEMA")
-    print("=" * 50)
-
-    # Status das configurações
-    telegram_status = (
-        "✅ Configurado" if config.telegram.enabled else "❌ Não configurado"
+def main():
+    """Função principal."""
+    parser = argparse.ArgumentParser(
+        description="Doctoralia Scrapper - Ferramenta de scraping de avaliações médicas"
     )
-    print(f"� Telegram: {telegram_status}")
-
-    scraping_mode = "Headless" if config.scraping.headless else "Com interface"
-    print(f"🕷️ Scraping: {scraping_mode}")
-
-    # Status dos dados
-    extractions_dir = config.data_dir / "extractions"
-    if extractions_dir.exists():
-        extractions = list(extractions_dir.iterdir())
-        print(f"📁 Extrações: {len(extractions)} pasta(s)")
-        if extractions:
-            latest = sorted(extractions, key=lambda x: x.name)[-1]
-            print(f"📅 Última extração: {latest.name}")
-    else:
-        print("📁 Extrações: Nenhuma")
-
-    responses_dir = config.data_dir / "responses"
-    if responses_dir.exists():
-        responses = list(responses_dir.glob("*.txt"))
-        print(f"💬 Respostas geradas: {len(responses)} arquivo(s)")
-    else:
-        print("💬 Respostas geradas: Nenhuma")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Doctoralia Bot")
-    parser.add_argument("-v", "--verbose", action="store_true", help="Modo verbose")
 
     subparsers = parser.add_subparsers(dest="command", help="Comandos disponíveis")
 
@@ -164,49 +311,73 @@ def main() -> None:
     subparsers.add_parser("setup", help="Configuração inicial")
 
     # Comando scrape
-    scrape_parser = subparsers.add_parser("scrape", help="Fazer scraping")
-    scrape_parser.add_argument("--url", help="URL do médico")
+    scrape_parser = subparsers.add_parser("scrape", help="Executa scraping")
+    scrape_parser.add_argument("--url", help="URL do perfil do médico")
+
+    # Comando run
+    run_parser = subparsers.add_parser("run", help="Executa workflow completo")
+    run_parser.add_argument("--url", required=True, help="URL do perfil do médico")
 
     # Comando generate
-    subparsers.add_parser("generate", help="Gerar respostas")
+    subparsers.add_parser("generate", help="Gera respostas para avaliações")
 
-    # Comando run (scrape + generate)
-    run_parser = subparsers.add_parser("run", help="Executar workflow completo")
-    run_parser.add_argument("--url", help="URL do médico")
+    # Comando daemon
+    daemon_parser = subparsers.add_parser("daemon", help="Inicia daemon")
+    daemon_parser.add_argument(
+        "--interval", type=int, default=30, help="Intervalo em segundos"
+    )
+    daemon_parser.add_argument("--debug", action="store_true", help="Modo debug")
 
-    # Comando status
-    subparsers.add_parser("status", help="Mostrar status do sistema")
+    # Comando notify
+    subparsers.add_parser("notify", help="Envia notificações")
+
+    # Comando health
+    subparsers.add_parser("health", help="Verifica saúde do sistema")
+
+    # Comando diagnostic
+    subparsers.add_parser("diagnostic", help="Executa diagnóstico")
+
+    # Comando dashboard
+    subparsers.add_parser("dashboard", help="Inicia dashboard web")
+
+    # Comando api
+    subparsers.add_parser("api", help="Inicia API REST")
 
     args = parser.parse_args()
 
-    # Carregar configurações
-    config = AppConfig.load()
-
     if not args.command:
-        print_banner()
-        print("Uso: python main.py <comando>")
-        print("\nComandos disponíveis:")
-        print("  setup     - Configuração inicial")
-        print("  scrape    - Fazer scraping de comentários")
-        print("  generate  - Gerar respostas automáticas")
-        print("  run       - Executar workflow completo")
-        print("  status    - Mostrar status do sistema")
-        print("\nUse --help para mais informações")
+        parser.print_help()
         return
 
-    if args.command == "setup":
-        setup_command(config)
-    elif args.command == "scrape":
-        scrape_command(config, args)
-    elif args.command == "generate":
-        generate_command(config, args)
-    elif args.command == "status":
-        status_command(config, args)
-    elif args.command == "run":
-        print_banner()
-        print("🚀 Executando workflow completo...")
-        if scrape_command(config, args):
-            generate_command(config, args)
+    cli = DoctoraliaCLI()
+
+    try:
+        if args.command == "setup":
+            cli.setup()
+        elif args.command == "scrape":
+            cli.scrape(args.url)
+        elif args.command == "run":
+            cli.run(args.url)
+        elif args.command == "generate":
+            cli.generate()
+        elif args.command == "daemon":
+            cli.daemon(args.interval, args.debug)
+        elif args.command == "notify":
+            cli.notify()
+        elif args.command == "health":
+            cli.health()
+        elif args.command == "diagnostic":
+            cli.diagnostic()
+        elif args.command == "dashboard":
+            cli.dashboard()
+        elif args.command == "api":
+            cli.api()
+    except KeyboardInterrupt:
+        logger.info("\n⚠️ Operação cancelada pelo usuário")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"❌ Erro inesperado: {e}", exc_info=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

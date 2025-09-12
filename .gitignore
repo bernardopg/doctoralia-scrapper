@@ -92,6 +92,10 @@ venv.bak/
 # Data files (ajuste conforme necessário)
 data/
 
+# Logs (mantemos diretório com .gitkeep)
+logs/
+!logs/.gitkeep
+
 # macOS
 .DS_Store
 
@@ -99,4 +103,28 @@ data/
 config/config.json
 
 .pytest_cache/
-.mypy_cache/
+.mypy_cache/*.bak
+*.tmp
+
+# Backups and editor artifacts (as per user rules)
+*.bak
+*.tmp
+*~
+*.swp
+*.swo
+*.orig
+*.old
+*.backup
+.DS_Store
+
+# Additional security patterns
+secrets/
+*.key
+*.pem
+*.cert
+*.crt
+
+# n8n integration specific
+n8n-data/
+n8n-workflows/
+.n8n/

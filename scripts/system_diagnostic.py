@@ -14,6 +14,12 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from config.settings import AppConfig  # noqa: E402
 
+# Try importing Remote conditionally to avoid Pylance error
+try:
+    from selenium.webdriver import Remote
+except ImportError:
+    Remote = None
+
 
 class SystemDiagnostic:
     def __init__(self) -> None:
@@ -49,6 +55,13 @@ class SystemDiagnostic:
     def check_chromedriver(self) -> None:
         """Verifica ChromeDriver"""
         print("\n🔍 Verificando ChromeDriver...")
+
+        # Check if remote Selenium is configured
+        selenium_url = os.environ.get("SELENIUM_REMOTE_URL")
+        if selenium_url:
+            print("✅ Usando Selenium remoto - ChromeDriver local não necessário")
+            print(f"   URL remoto: {selenium_url}")
+            return
 
         chromedriver_paths = [
             "/usr/bin/chromedriver",
@@ -167,6 +180,31 @@ class SystemDiagnostic:
     def test_simple_scraping(self) -> None:
         """Teste simples de scraping"""
         print("\n🔍 Testando configuração básica do Selenium...")
+
+        # Check if remote Selenium is configured
+        selenium_url = os.environ.get("SELENIUM_REMOTE_URL")
+        if selenium_url:
+            print("✅ Usando Selenium remoto - teste local pulado")
+            print(f"   URL remoto: {selenium_url}")
+            try:
+                from selenium.webdriver import Remote
+                from selenium.webdriver.chrome.options import Options
+
+                options = Options()
+                options.add_argument("--headless=new")
+                options.add_argument("--no-sandbox")
+                options.add_argument("--disable-dev-shm-usage")
+                options.add_argument("--disable-gpu")
+
+                driver = Remote(command_executor=selenium_url, options=options)
+                driver.get("https://www.google.com")
+                print("✅ Teste básico do Selenium remoto OK")
+                driver.quit()
+                print("✅ Encerramento do driver remoto OK")
+            except Exception as e:
+                self.issues.append(f"Erro no teste do Selenium remoto: {e}")
+                print(f"❌ Erro no teste do Selenium remoto: {e}")
+            return
 
         try:
             from selenium import webdriver
