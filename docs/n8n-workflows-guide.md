@@ -1,6 +1,7 @@
 # 📚 Guia Completo de Workflows n8n para Doctoralia Scrapper
 
 ## Índice
+
 1. [Visão Geral](#visão-geral)
 2. [Workflows Disponíveis](#workflows-disponíveis)
 3. [Configuração Inicial](#configuração-inicial)
@@ -17,9 +18,11 @@ O Doctoralia Scrapper oferece um conjunto completo de workflows n8n para automat
 ## Workflows Disponíveis
 
 ### 1. 🏥 Complete Doctoralia Workflow
+
 **Arquivo:** `complete-doctoralia-workflow.json`
 
 O workflow principal e mais completo, oferecendo:
+
 - **3 tipos de triggers:** Manual, Webhook, Schedule (6h)
 - **Processamento assíncrono** com retry automático
 - **Análise de sentimento** com VADER
@@ -29,14 +32,17 @@ O workflow principal e mais completo, oferecendo:
 - **Tratamento de erros** robusto
 
 **Casos de Uso:**
+
 - Monitoramento contínuo de múltiplos médicos
 - Análise detalhada de reputação
 - Alertas em tempo real para problemas
 
 ### 2. 📦 Batch Processing Workflow
+
 **Arquivo:** `batch-processing-workflow.json`
 
 Workflow otimizado para processamento em lote:
+
 - **Leitura de lista** do Google Sheets
 - **Filtragem inteligente** por última verificação
 - **Priorização** de médicos (high/normal/low)
@@ -44,32 +50,39 @@ Workflow otimizado para processamento em lote:
 - **Relatório consolidado** ao final
 
 **Casos de Uso:**
+
 - Processamento diário de grandes listas
 - Atualização periódica de banco de dados
 - Relatórios gerenciais
 
 ### 3. 🔄 Sync Scraping Workflow
+
 **Arquivo:** `sync-scraping-workflow.json`
 
 Workflow simples e direto:
+
 - **Processamento síncrono** rápido
 - **Resposta imediata**
 - **Ideal para testes**
 
 **Casos de Uso:**
+
 - Verificações pontuais
 - Testes de integração
 - Demonstrações
 
 ### 4. 🪝 Async Webhook Workflow
+
 **Arquivo:** `async-webhook-workflow.json`
 
 Workflow avançado com callbacks:
+
 - **Processamento assíncrono**
 - **Callbacks com assinatura HMAC**
 - **Verificação de segurança**
 
 **Casos de Uso:**
+
 - Integração com sistemas externos
 - APIs de terceiros
 - Processamento em background
@@ -99,6 +112,7 @@ docker-compose ps
 Abra seu navegador e acesse: `http://localhost:5678`
 
 Se configurou autenticação:
+
 - **Usuário:** definido em N8N_BASIC_AUTH_USER
 - **Senha:** definida em N8N_BASIC_AUTH_PASSWORD
 
@@ -137,6 +151,7 @@ No n8n, vá para **Settings > Credentials** e crie:
 
 **Nome:** Doctoralia API
 **Tipo:** Header Auth
+
 ```json
 {
   "name": "X-API-Key",
@@ -148,10 +163,12 @@ No n8n, vá para **Settings > Credentials** e crie:
 
 **Nome:** Google Sheets
 **Tipo:** Google Sheets OAuth2
+
 - Siga o processo de autenticação OAuth2
 - Ou use Service Account (recomendado para produção)
 
 **IDs necessários:**
+
 - `doctorsListId`: ID da planilha com lista de médicos
 - `resultsSheetId`: ID da planilha para resultados
 
@@ -159,6 +176,7 @@ No n8n, vá para **Settings > Credentials** e crie:
 
 **Nome:** Telegram Bot
 **Tipo:** Telegram
+
 ```json
 {
   "accessToken": "seu-bot-token",
@@ -171,6 +189,7 @@ No n8n, vá para **Settings > Credentials** e crie:
 
 **Nome:** Email SMTP
 **Tipo:** SMTP
+
 ```json
 {
   "host": "smtp.gmail.com",
@@ -186,6 +205,7 @@ No n8n, vá para **Settings > Credentials** e crie:
 
 **Nome:** Notion Integration
 **Tipo:** Notion
+
 - Crie uma integração no Notion
 - Copie o token de integração
 - Configure o `databaseId` do banco de dados
@@ -194,6 +214,7 @@ No n8n, vá para **Settings > Credentials** e crie:
 
 **Nome:** Slack Workspace
 **Tipo:** Slack OAuth2
+
 - Configure OAuth2 ou use Webhook URL
 - Defina o `channel` padrão
 
@@ -202,6 +223,7 @@ No n8n, vá para **Settings > Credentials** e crie:
 ### Ajustar Frequência de Execução
 
 No node **"Schedule 6h"**:
+
 ```javascript
 // Alterar para executar a cada 1 hora
 "interval": [
@@ -218,6 +240,7 @@ No node **"Schedule 6h"**:
 ### Modificar Lista de URLs
 
 No node **"Configuration"**:
+
 ```javascript
 "doctor_urls": [
   "https://www.doctoralia.com.br/medico/seu-medico-1",
@@ -228,6 +251,7 @@ No node **"Configuration"**:
 ### Personalizar Mensagens
 
 No node **"Format Telegram Report"**:
+
 ```javascript
 // Adicione emojis e formatação personalizada
 let report = `🏥 *Clínica XYZ - Relatório*\n`;
@@ -238,6 +262,7 @@ report += `📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n`;
 ### Ajustar Condições de Alerta
 
 No node **"Check Alert Condition"**:
+
 ```javascript
 // Modificar limites de alerta
 "conditions": {
@@ -266,6 +291,7 @@ Para adicionar um novo destino de dados:
 3. Conecte ao node **"Continue"**
 
 Exemplo para Airtable:
+
 ```javascript
 {
   "type": "n8n-nodes-base.airtable",
@@ -343,6 +369,7 @@ Para alertas críticos, adicione integração:
 
 **Causa:** Serviços não estão rodando
 **Solução:**
+
 ```bash
 docker-compose up -d
 docker-compose ps
@@ -353,6 +380,7 @@ docker-compose logs api
 
 **Causa:** Muitas requisições em pouco tempo
 **Solução:**
+
 - Aumente o delay no node **"Wait"**
 - Reduza o `batchSize` no **"Split in Batches"**
 - Configure rate limiting no API
@@ -361,6 +389,7 @@ docker-compose logs api
 
 **Causa:** Processamento demorado
 **Solução:**
+
 ```javascript
 // Aumente o timeout no HTTP Request
 "options": {
@@ -372,6 +401,7 @@ docker-compose logs api
 
 **Causa:** Credenciais incorretas
 **Solução:**
+
 1. Verifique o valor em `.env`
 2. Recrie a credencial no n8n
 3. Teste com `curl` direto
@@ -379,6 +409,7 @@ docker-compose logs api
 ### Workflow Não Executa
 
 **Checklist:**
+
 - [ ] Workflow está ativo (toggle no canto superior direito)
 - [ ] Triggers estão configurados corretamente
 - [ ] Credenciais estão válidas
@@ -456,8 +487,8 @@ if (prediction.churn_risk > 0.7) {
 
 ## Recursos Adicionais
 
-- **Documentação n8n:** https://docs.n8n.io
-- **API Doctoralia Scrapper:** http://localhost:8000/docs
+- **Documentação n8n:** <https://docs.n8n.io>
+- **API Doctoralia Scrapper:** <http://localhost:8000/docs>
 - **Suporte:** Crie uma issue no GitHub
 - **Comunidade:** Discord do n8n
 
@@ -466,6 +497,7 @@ if (prediction.churn_risk > 0.7) {
 Os workflows fornecidos cobrem a maioria dos casos de uso para monitoramento de perfis no Doctoralia. Personalize conforme suas necessidades específicas e não hesite em criar novos workflows combinando os nodes existentes.
 
 **Dicas Finais:**
+
 - Sempre teste em ambiente de desenvolvimento primeiro
 - Mantenha backups dos workflows importantes
 - Documente suas personalizações

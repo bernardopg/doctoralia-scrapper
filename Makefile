@@ -1,7 +1,7 @@
 # Makefile para Doctoralia Scrapper
 # ===================================
 
-.PHONY: help install setup test lint run daemon monitor clean
+.PHONY: help install setup test lint run daemon monitor clean venv format security deps-sync analyze run-full-url
 
 # Variáveis
 PYTHON := python3
@@ -21,16 +21,35 @@ help: ## Mostra esta mensagem de ajuda
 	@echo "$(BLUE)Doctoralia Scrapper - Comandos Disponíveis$(NC)"
 	@echo "========================================="
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "$(GREEN)%-20s$(NC) %s\n", $$1, $$2}'
+	@echo "\nUse 'make venv' para criar/atualizar o ambiente virtual (.venv) com Poetry para melhor integração com a IDE."
 
 # Instalação e Configuração
 install: ## Instala dependências de produção
 	@echo "$(BLUE)Instalando dependências...$(NC)"
-	$(PIP) install -r requirements.txt
+	@if command -v poetry >/dev/null 2>&1; then \
+		echo "$(YELLOW)Poetry encontrado. Use 'make venv' para instalar dependências.$(NC)"; \
+		exit 1; \
+	else \
+		$(PIP) install -r requirements.txt --break-system-packages || $(PIP) install -r requirements.txt; \
+	fi
 
 install-dev: ## Instala dependências completas + setup do ambiente
 	@echo "$(BLUE)Instalando dependências de desenvolvimento...$(NC)"
 	$(PIP) install -r requirements.txt
 	$(PIP) install pytest pytest-cov pytest-mock black isort mypy flake8 pylint bandit safety pre-commit
+venv: ## Cria ambiente virtual local (.venv) usando Poetry e instala deps
+	@echo "$(BLUE)Configurando ambiente virtual com Poetry...$(NC)"
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry config virtualenvs.in-project true >/dev/null 2>&1; \
+		poetry install --no-root; \
+		echo "$(GREEN)Ambiente virtual criado em .venv. Aponte sua IDE para .venv/bin/python$(NC)"; \
+	else \
+		echo "$(YELLOW)Poetry não encontrado. Instalando com pip...$(NC)"; \
+		$(PIP) install poetry && poetry config virtualenvs.in-project true && poetry install --no-root; \
+	fi
+	@echo "$(BLUE)Exportando requirements atualizados (production)...$(NC)"
+	@poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main 2>/dev/null || true
+	@echo "$(GREEN)Ambiente virtual pronto!$(NC)"
 	@if [ ! -f .env ]; then \
 		echo "$(YELLOW)Criando arquivo .env...$(NC)"; \
 		cp .env.example .env; \
@@ -65,6 +84,19 @@ lint: ## Executa linting, formatação e verificação de segurança
 	bandit -r $(SRC_DIR)
 	safety check --file requirements.txt
 
+format: ## Apenas formata o código (black + isort)
+	@echo "$(BLUE)Formatando código (black + isort)...$(NC)"
+	black .
+	isort .
+	@echo "$(GREEN)Formatação concluída!$(NC)"
+
+security: ## Executa apenas verificações de segurança (bandit + safety)
+	@echo "$(BLUE)Executando bandit...$(NC)"
+	bandit -r $(SRC_DIR)
+	@echo "$(BLUE)Executando safety...$(NC)"
+	safety check --file requirements.txt || true
+	@echo "$(GREEN)Verificações de segurança concluídas!$(NC)"
+
 check: ## Verifica formatação sem alterar arquivos
 	@echo "$(BLUE)Verificando formatação...$(NC)"
 	black --check .
@@ -91,9 +123,16 @@ run-full: ## Executa workflow completo com URL específica (uso: make run-full U
 	fi
 	$(PYTHON) main.py run --url "$(URL)"
 
+run-full-url: run-full ## Alias compatível com README antigo
+	@true
+
 generate: ## Gera respostas para avaliações
 	@echo "$(BLUE)Gerando respostas...$(NC)"
 	$(PYTHON) main.py generate
+
+analyze: ## Analisa qualidade de respostas (smoke test do analisador)
+	@echo "$(BLUE)Executando análise de qualidade (smoke test)...$(NC)"
+	$(PYTHON) -c "from src.response_quality_analyzer import ResponseQualityAnalyzer;print('Analyzer OK:', bool(ResponseQualityAnalyzer()))"
 
 # Daemon e Monitoramento
 daemon: ## Inicia daemon em background
@@ -147,6 +186,16 @@ api-docs: ## Abre documentação da API no navegador
 	@which xdg-open > /dev/null && xdg-open http://localhost:8000/docs || \
 	 which open > /dev/null && open http://localhost:8000/docs || \
 	 echo "$(YELLOW)Abra http://localhost:8000/docs no seu navegador$(NC)"
+
+# Sincronização de dependências
+deps-sync: ## Sincroniza requirements.txt a partir do pyproject.toml (Poetry necessário)
+	@echo "$(BLUE)Exportando dependências do Poetry...$(NC)"
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main; \
+		echo "$(GREEN)requirements.txt atualizado a partir do pyproject.toml$(NC)"; \
+	else \
+		echo "$(YELLOW)Poetry não encontrado. Instale para usar deps-sync.$(NC)"; \
+	fi
 
 # Comandos Úteis
 dev: install-dev ## Configuração completa para desenvolvimento

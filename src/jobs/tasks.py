@@ -32,27 +32,27 @@ def post_callback(url: str, payload: Dict, job_id: Optional[str] = None) -> bool
     adapter = HTTPAdapter(max_retries=retry_strategy)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
-    
+
     # Prepare payload
     payload_json = json.dumps(payload)
-    
+
     # Create signature
     timestamp = time.time()
     ts_str, signature = create_webhook_signature(payload_json, timestamp)
-    
+
     # Prepare headers
     headers = {
         "Content-Type": "application/json",
         "X-Timestamp": ts_str,
         "X-Source": "doctoralia-scrapper",
     }
-    
+
     if signature:
         headers["X-Signature"] = signature
-    
+
     if job_id:
         headers["X-Job-Id"] = job_id
-    
+
     try:
         # Send request
         response = session.post(url, data=payload_json, headers=headers, timeout=30)
@@ -72,76 +72,79 @@ def scrape_and_process(
     Main job function for async scraping and processing.
     """
     start_time = datetime.now()
-    
+
     try:
         # Import scraper
         from src.scraper import DoctoraliaScraper
-        
+
         # Initialize scraper
         scraper = DoctoraliaScraper()
-        
+
         # Run scraping
         scraper_result = scraper.scrape_doctor_reviews(request_data["doctor_url"])
-        
+
         # Extract data
         doctor_data, reviews_data = extract_scraper_result(scraper_result)
-        
+
         # Run analysis if requested
         analysis_data = None
         if request_data.get("include_analysis"):
             from src.response_quality_analyzer import ResponseQualityAnalyzer
-            
+
             analyzer = ResponseQualityAnalyzer()
             sentiments = []
-            
+
             for review in reviews_data:
                 sentiment = analyzer.analyze_sentiment(review.get("comment", ""))
                 sentiments.append(sentiment)
-            
+
             # Aggregate sentiment
             if sentiments:
                 avg_sentiment = {
-                    "compound": sum(s["compound"] for s in sentiments) / len(sentiments),
+                    "compound": sum(s["compound"] for s in sentiments)
+                    / len(sentiments),
                     "pos": sum(s["pos"] for s in sentiments) / len(sentiments),
                     "neu": sum(s["neu"] for s in sentiments) / len(sentiments),
                     "neg": sum(s["neg"] for s in sentiments) / len(sentiments),
                 }
             else:
                 avg_sentiment = {"compound": 0, "pos": 0, "neu": 0, "neg": 0}
-            
+
             analysis_data = {
                 "summary": f"Analyzed {len(reviews_data)} reviews",
                 "sentiment": avg_sentiment,
                 "quality_score": avg_sentiment["compound"] * 100,
                 "flags": [],
             }
-        
+
         # Run generation if requested
         generation_data = None
         if request_data.get("include_generation"):
             from src.response_generator import ResponseGenerator
-            
+
             generator = ResponseGenerator()
             responses = []
-            
+
             for idx, review in enumerate(reviews_data):
                 response_text = generator.generate_response(
                     review.get("comment", ""),
                     template_id=request_data.get("response_template_id"),
                     language=request_data.get("language", "pt"),
                 )
-                responses.append({
-                    "review_id": str(idx),
-                    "text": response_text,
-                    "language": request_data.get("language", "pt"),
-                })
-            
+                responses.append(
+                    {
+                        "review_id": str(idx),
+                        "text": response_text,
+                        "language": request_data.get("language", "pt"),
+                    }
+                )
+
             generation_data = {
                 "template_id": request_data.get("response_template_id"),
                 "responses": responses,
                 "model": {"type": "template"},
             }
-        
+
         # Create unified result
         result = make_unified_result(
             doctor_data=doctor_data,
@@ -153,13 +156,13 @@ def scrape_and_process(
             start_time=start_time,
             end_time=datetime.now(),
         )
-        
+
         # Send callback if URL provided
         if callback_url:
             post_callback(callback_url, result.dict(), job_id)
-        
+
         return result.dict()
-        
+
     except Exception as e:
         # Create error result
         error_result = make_unified_result(
@@ -170,9 +173,9 @@ def scrape_and_process(
             start_time=start_time,
             end_time=datetime.now(),
         )
-        
+
         # Send error callback if URL provided
         if callback_url:
             post_callback(callback_url, error_result.dict(), job_id)
-        
+
         return error_result.dict()

@@ -1,6 +1,6 @@
-import os
 import json
 import logging
+import os
 import random
 import re
 import time
@@ -17,13 +17,14 @@ from selenium.common.exceptions import (
     TimeoutException,
     WebDriverException,
 )
+from selenium.webdriver import Remote
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver import Remote
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Import performance monitoring
@@ -83,7 +84,7 @@ class DoctoraliaScraper:
     ) -> None:
         self.config = config
         self.logger = logger or default_logger
-        self.driver: Optional[webdriver.Chrome] = None
+        self.driver: Optional[WebDriver] = None
         self.rate_limiter = RateLimiter(
             requests_per_minute=6
         )  # Conservative rate limiting
@@ -121,9 +122,9 @@ class DoctoraliaScraper:
                 )
 
                 options = Options()
-                
+
                 # Check if we should use remote Selenium
-                selenium_url = os.environ.get('SELENIUM_REMOTE_URL')
+                selenium_url = os.environ.get("SELENIUM_REMOTE_URL")
                 if selenium_url:
                     self.logger.info(f"Using remote Selenium at {selenium_url}")
                     # Remote Selenium setup
@@ -161,10 +162,7 @@ class DoctoraliaScraper:
 
                 if selenium_url:
                     # Use remote Selenium
-                    self.driver = Remote(
-                        command_executor=selenium_url,
-                        options=options
-                    )
+                    self.driver = Remote(command_executor=selenium_url, options=options)
                 else:
                     # Use local Chrome
                     service = Service(chromedriver_binary)
@@ -395,12 +393,19 @@ class DoctoraliaScraper:
                 # Every 3 clicks or when we have >50 reviews, get current data
                 if clicks_realizados % 3 == 0 or reviews_after > 50:
                     current_url = self.driver.current_url
-                    if current_url.startswith("https://www.doctoralia.com.br/") and "/booking/" not in current_url:
+                    if (
+                        current_url.startswith("https://www.doctoralia.com.br/")
+                        and "/booking/" not in current_url
+                    ):
                         try:
                             last_successful_reviews = self._extract_all_reviews()
-                            self.logger.debug(f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})")
+                            self.logger.debug(
+                                f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})"
+                            )
                         except Exception as e:
-                            self.logger.debug(f"Erro ao fazer backup dos comentários: {e}")
+                            self.logger.debug(
+                                f"Erro ao fazer backup dos comentários: {e}"
+                            )
 
                 # Wait for page to stabilize after loading new content
                 self.add_human_delay(2.0, 4.0)
@@ -412,10 +417,18 @@ class DoctoraliaScraper:
                 )
                 # Check if we're still on the correct page after timeout
                 current_url = self.driver.current_url if self.driver else ""
-                if not current_url.startswith("https://www.doctoralia.com.br/") or "/booking/" in current_url:
-                    self.logger.error("❌ Página redirecionada durante scraping! URL atual: %s", current_url)
+                if (
+                    not current_url.startswith("https://www.doctoralia.com.br/")
+                    or "/booking/" in current_url
+                ):
+                    self.logger.error(
+                        "❌ Página redirecionada durante scraping! URL atual: %s",
+                        current_url,
+                    )
                     # Even though redirected, we might have loaded reviews successfully before
-                    self.logger.info("⚠️ Tentando salvar dados extraídos antes do redirecionamento...")
+                    self.logger.info(
+                        "⚠️ Tentando salvar dados extraídos antes do redirecionamento..."
+                    )
                 break
             except WebDriverException as e:
                 self.logger.warning(
@@ -735,8 +748,13 @@ class DoctoraliaScraper:
 
         # Check if we're still on the correct page (avoid booking redirects)
         current_url = self.driver.current_url
-        if not current_url.startswith("https://www.doctoralia.com.br/") or "/booking/" in current_url:
-            self.logger.error("❌ Extração cancelada: página redirecionada para %s", current_url)
+        if (
+            not current_url.startswith("https://www.doctoralia.com.br/")
+            or "/booking/" in current_url
+        ):
+            self.logger.error(
+                "❌ Extração cancelada: página redirecionada para %s", current_url
+            )
             return []
 
         # Verificar cache para mesma URL
@@ -775,7 +793,13 @@ class DoctoraliaScraper:
                 if review_data.get("comment"):  # Garantir que tem comentário
                     reviews_data.append(review_data)
 
-            except (ValueError, TypeError, AttributeError, TimeoutException, WebDriverException):
+            except (
+                ValueError,
+                TypeError,
+                AttributeError,
+                TimeoutException,
+                WebDriverException,
+            ):
                 continue  # Silenciosamente ignorar erros de processamento
 
         # Atualizar cache

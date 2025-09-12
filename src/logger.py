@@ -67,17 +67,12 @@ def setup_logger(
     # Handler para arquivo (log completo)
     config.logs_dir.mkdir(parents=True, exist_ok=True)
     log_file = config.logs_dir / f"{name}_{datetime.now().strftime('%Y%m')}.log"
-
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
-
     if structured:
-        # Log estruturado em JSON para produção
         file_handler.setFormatter(JSONFormatter())
     else:
-        # Log tradicional para desenvolvimento
         file_format = "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
         file_handler.setFormatter(logging.Formatter(file_format))
-
     file_handler.setLevel(logging.DEBUG)
     logger.addHandler(file_handler)
 
@@ -91,17 +86,5 @@ def setup_logger(
     console_handler.setFormatter(ColoredFormatter(console_format))
     console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
     logger.addHandler(console_handler)
-
-    # Handler para arquivo (log completo)
-    config.logs_dir.mkdir(parents=True, exist_ok=True)
-    log_file = config.logs_dir / f"{name}_{datetime.now().strftime('%Y%m')}.log"
-
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_format = (
-        "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
-    )
-    file_handler.setFormatter(logging.Formatter(file_format))
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
 
     return logger
