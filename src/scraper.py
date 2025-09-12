@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 import random
@@ -22,6 +23,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver import Remote
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Import performance monitoring
@@ -118,9 +120,16 @@ class DoctoraliaScraper:
                     f"Tentativa {attempt + 1}/{max_attempts} de inicializar navegador..."
                 )
 
-                chromedriver_binary = ChromeDriverManager().install()
-
                 options = Options()
+                
+                # Check if we should use remote Selenium
+                selenium_url = os.environ.get('SELENIUM_REMOTE_URL')
+                if selenium_url:
+                    self.logger.info(f"Using remote Selenium at {selenium_url}")
+                    # Remote Selenium setup
+                else:
+                    # Local ChromeDriver setup
+                    chromedriver_binary = ChromeDriverManager().install()
 
                 if self.config.scraping.headless:
                     options.add_argument("--headless=new")
@@ -150,8 +159,16 @@ class DoctoraliaScraper:
                 options.add_argument("--aggressive-cache-discard")
                 options.add_argument("--disable-background-networking")
 
-                service = Service(chromedriver_binary)
-                self.driver = webdriver.Chrome(service=service, options=options)
+                if selenium_url:
+                    # Use remote Selenium
+                    self.driver = Remote(
+                        command_executor=selenium_url,
+                        options=options
+                    )
+                else:
+                    # Use local Chrome
+                    service = Service(chromedriver_binary)
+                    self.driver = webdriver.Chrome(service=service, options=options)
 
                 self.driver.set_page_load_timeout(
                     self.config.scraping.page_load_timeout

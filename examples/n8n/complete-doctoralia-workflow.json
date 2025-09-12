@@ -1,0 +1,744 @@
+{
+  "name": "🏥 Doctoralia Complete Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "notes": "Inicie o workflow manualmente para teste"
+    },
+    {
+      "parameters": {
+        "path": "doctoralia-monitor",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Monitor",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 500],
+      "webhookId": "doctoralia-monitor-webhook",
+      "notes": "Recebe requisições externas para monitorar médicos"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 700],
+      "notes": "Executa a cada 6 horas automaticamente"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "doctor_urls",
+              "value": "=[\n  \"https://www.doctoralia.com.br/medico/silva-joao/cardiologista/sao-paulo\",\n  \"https://www.doctoralia.com.br/medico/santos-maria/pediatra/rio-de-janeiro\",\n  \"https://www.doctoralia.com.br/medico/oliveira-pedro/ortopedista/belo-horizonte\"\n]"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "include_analysis",
+              "value": true
+            },
+            {
+              "name": "include_generation",
+              "value": true
+            }
+          ],
+          "string": [
+            {
+              "name": "api_key",
+              "value": "={{$credentials.doctoralia.apiKey}}"
+            },
+            {
+              "name": "api_base_url",
+              "value": "http://api:8000"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-node",
+      "name": "Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [450, 500],
+      "notes": "Configurações centralizadas"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse URLs based on trigger type\nconst items = [];\n\nif ($input.context.nodeId === 'webhook-trigger') {\n  // From webhook\n  const urls = $input.first().json.doctor_urls || [$input.first().json.doctor_url];\n  urls.forEach(url => {\n    items.push({\n      json: {\n        doctor_url: url,\n        source: 'webhook'\n      }\n    });\n  });\n} else if ($input.context.nodeId === 'schedule-trigger') {\n  // From schedule - use configured URLs\n  const urls = JSON.parse($node[\"Configuration\"].json[\"doctor_urls\"]);\n  urls.forEach(url => {\n    items.push({\n      json: {\n        doctor_url: url,\n        source: 'scheduled'\n      }\n    });\n  });\n} else {\n  // Manual trigger - use test URLs\n  const testUrls = [\n    \"https://www.doctoralia.com.br/medico/teste/clinico-geral/sao-paulo\"\n  ];\n  testUrls.forEach(url => {\n    items.push({\n      json: {\n        doctor_url: url,\n        source: 'manual'\n      }\n    });\n  });\n}\n\nreturn items;"
+      },
+      "id": "prepare-urls",
+      "name": "Prepare URLs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 500],
+      "notes": "Prepara URLs baseado no trigger"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-batch",
+      "name": "Split in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [850, 500],
+      "notes": "Processa um médico por vez"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"api_base_url\"]}}/v1/jobs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$node[\"Configuration\"].json[\"api_key\"]}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"doctor_url\": \"{{$json.doctor_url}}\",\n  \"include_analysis\": {{$node[\"Configuration\"].json[\"include_analysis\"]}},\n  \"include_generation\": {{$node[\"Configuration\"].json[\"include_generation\"]}},\n  \"mode\": \"async\",\n  \"language\": \"pt\"\n}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "create-async-job",
+      "name": "Create Async Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 500],
+      "notes": "Cria job assíncrono"
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-5s",
+      "name": "Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1250, 500],
+      "notes": "Aguarda processamento inicial"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node[\"Configuration\"].json[\"api_base_url\"]}}/v1/jobs/{{$node[\"Create Async Job\"].json[\"job_id\"]}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{$node[\"Configuration\"].json[\"api_key\"]}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "check-job-status",
+      "name": "Check Job Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 500],
+      "notes": "Verifica status do job"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "equals",
+              "value2": "completed"
+            }
+          ]
+        }
+      },
+      "id": "is-completed",
+      "name": "Is Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 500],
+      "notes": "Verifica se completou"
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "wait-retry",
+      "name": "Wait & Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1850, 600],
+      "notes": "Aguarda e tenta novamente"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process completed job results\nconst result = items[0].json;\n\n// Extract key metrics\nconst metrics = {\n  doctor_name: result.doctor.name,\n  doctor_specialty: result.doctor.specialty,\n  doctor_location: result.doctor.location,\n  doctor_rating: result.doctor.rating,\n  total_reviews: result.metrics.scraped_count,\n  processing_time_ms: result.metrics.duration_ms,\n  source: $node[\"Prepare URLs\"].json[\"source\"]\n};\n\n// Analyze sentiment if available\nif (result.analysis) {\n  metrics.sentiment_compound = result.analysis.sentiments.compound;\n  metrics.sentiment_positive = result.analysis.sentiments.positive;\n  metrics.sentiment_negative = result.analysis.sentiments.negative;\n  metrics.quality_score = result.analysis.quality_score;\n  \n  // Determine sentiment category\n  if (metrics.sentiment_compound >= 0.5) {\n    metrics.sentiment_category = 'Muito Positivo 😊';\n  } else if (metrics.sentiment_compound >= 0.1) {\n    metrics.sentiment_category = 'Positivo 🙂';\n  } else if (metrics.sentiment_compound >= -0.1) {\n    metrics.sentiment_category = 'Neutro 😐';\n  } else if (metrics.sentiment_compound >= -0.5) {\n    metrics.sentiment_category = 'Negativo 😕';\n  } else {\n    metrics.sentiment_category = 'Muito Negativo 😔';\n  }\n}\n\n// Extract top reviews\nconst topReviews = result.reviews\n  .sort((a, b) => b.rating - a.rating)\n  .slice(0, 3)\n  .map(r => ({\n    rating: r.rating,\n    date: r.date,\n    text: r.text.substring(0, 200) + (r.text.length > 200 ? '...' : ''),\n    author: r.author.name\n  }));\n\n// Count generated responses\nconst generatedResponses = result.generation?.responses?.length || 0;\n\nreturn [{\n  json: {\n    metrics,\n    topReviews,\n    generatedResponses,\n    fullResult: result,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "process-results",
+      "name": "Process Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1850, 400],
+      "notes": "Processa resultados completos"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "={{$credentials.googleSheets.sheetId}}",
+        "range": "A:Z",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        },
+        "dataMode": "autoMapInputData"
+      },
+      "id": "save-to-sheets",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [2050, 300],
+      "notes": "Salva métricas no Sheets"
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "appendPage",
+        "databaseId": "={{$credentials.notion.databaseId}}",
+        "title": "={{$json.metrics.doctor_name}}",
+        "properties": {
+          "customProperty": [
+            {
+              "key": "Rating",
+              "numberValue": "={{$json.metrics.doctor_rating}}"
+            },
+            {
+              "key": "Reviews",
+              "numberValue": "={{$json.metrics.total_reviews}}"
+            },
+            {
+              "key": "Sentiment",
+              "selectValue": "={{$json.metrics.sentiment_category}}"
+            },
+            {
+              "key": "Specialty",
+              "textValue": "={{$json.metrics.doctor_specialty}}"
+            },
+            {
+              "key": "Location",
+              "textValue": "={{$json.metrics.doctor_location}}"
+            },
+            {
+              "key": "Last Update",
+              "dateValue": "={{$json.timestamp}}"
+            }
+          ]
+        }
+      },
+      "id": "save-to-notion",
+      "name": "Save to Notion",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [2050, 400],
+      "notes": "Salva no banco Notion"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Format report for Telegram\nconst data = items[0].json;\nconst metrics = data.metrics;\n\nlet report = `📊 *Relatório Doctoralia*\\n\\n`;\nreport += `👨‍⚕️ *Médico:* ${metrics.doctor_name}\\n`;\nreport += `🏥 *Especialidade:* ${metrics.doctor_specialty || 'N/A'}\\n`;\nreport += `📍 *Localização:* ${metrics.doctor_location || 'N/A'}\\n`;\nreport += `⭐ *Avaliação:* ${metrics.doctor_rating}/5\\n`;\nreport += `📝 *Total de Reviews:* ${metrics.total_reviews}\\n\\n`;\n\nif (metrics.sentiment_compound !== undefined) {\n  report += `*Análise de Sentimento:*\\n`;\n  report += `${metrics.sentiment_category}\\n`;\n  report += `• Positivo: ${(metrics.sentiment_positive * 100).toFixed(1)}%\\n`;\n  report += `• Negativo: ${(metrics.sentiment_negative * 100).toFixed(1)}%\\n`;\n  report += `• Score de Qualidade: ${metrics.quality_score?.toFixed(1) || 'N/A'}\\n\\n`;\n}\n\nif (data.topReviews && data.topReviews.length > 0) {\n  report += `*Top Reviews:*\\n`;\n  data.topReviews.forEach((review, idx) => {\n    report += `\\n${idx + 1}. ${'⭐'.repeat(review.rating)}\\n`;\n    report += `   _\"${review.text}\"_\\n`;\n    report += `   - ${review.author}, ${review.date}\\n`;\n  });\n}\n\nif (data.generatedResponses > 0) {\n  report += `\\n✍️ *Respostas Geradas:* ${data.generatedResponses}\\n`;\n}\n\nreport += `\\n⏱️ *Tempo de Processamento:* ${(metrics.processing_time_ms/1000).toFixed(2)}s`;\nreport += `\\n🔄 *Fonte:* ${metrics.source}`;\n\nreturn [{\n  json: {\n    telegram_message: report,\n    chat_id: process.env.TELEGRAM_CHAT_ID || '{{$credentials.telegram.chatId}}'\n  }\n}];"
+      },
+      "id": "format-telegram",
+      "name": "Format Telegram Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2050, 500],
+      "notes": "Formata relatório para Telegram"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$json.chat_id}}",
+        "text": "={{$json.telegram_message}}",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "send-telegram",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [2250, 500],
+      "notes": "Envia relatório ao Telegram"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$credentials.email.from}}",
+        "toEmail": "={{$credentials.email.to}}",
+        "subject": "=Relatório Doctoralia - {{$json.metrics.doctor_name}}",
+        "html": "=<h2>📊 Relatório Doctoralia</h2>\n<hr>\n<h3>👨‍⚕️ Informações do Médico</h3>\n<ul>\n  <li><strong>Nome:</strong> {{$json.metrics.doctor_name}}</li>\n  <li><strong>Especialidade:</strong> {{$json.metrics.doctor_specialty}}</li>\n  <li><strong>Localização:</strong> {{$json.metrics.doctor_location}}</li>\n  <li><strong>Avaliação:</strong> {{$json.metrics.doctor_rating}}/5 ⭐</li>\n  <li><strong>Total de Reviews:</strong> {{$json.metrics.total_reviews}}</li>\n</ul>\n\n<h3>📈 Análise de Sentimento</h3>\n<ul>\n  <li><strong>Categoria:</strong> {{$json.metrics.sentiment_category}}</li>\n  <li><strong>Score Positivo:</strong> {{$json.metrics.sentiment_positive}}</li>\n  <li><strong>Score Negativo:</strong> {{$json.metrics.sentiment_negative}}</li>\n  <li><strong>Qualidade:</strong> {{$json.metrics.quality_score}}</li>\n</ul>\n\n<p><small>Processado em {{$json.metrics.processing_time_ms}}ms</small></p>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2250, 600],
+      "notes": "Envia relatório por email"
+    },
+    {
+      "parameters": {
+        "channel": "={{$credentials.slack.channel}}",
+        "text": "=New Doctoralia Report",
+        "blocksUi": "={\"blocks\":[\n  {\n    \"type\": \"header\",\n    \"text\": {\n      \"type\": \"plain_text\",\n      \"text\": \"📊 Doctoralia Report\"\n    }\n  },\n  {\n    \"type\": \"section\",\n    \"fields\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Doctor:*\\n{{$json.metrics.doctor_name}}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Rating:*\\n{{$json.metrics.doctor_rating}}/5 ⭐\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Reviews:*\\n{{$json.metrics.total_reviews}}\"\n      },\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Sentiment:*\\n{{$json.metrics.sentiment_category}}\"\n      }\n    ]\n  },\n  {\n    \"type\": \"context\",\n    \"elements\": [\n      {\n        \"type\": \"mrkdwn\",\n        \"text\": \"Processed in {{$json.metrics.processing_time_ms}}ms | Source: {{$json.metrics.source}}\"\n      }\n    ]\n  }\n]}",
+        "options": {}
+      },
+      "id": "send-slack",
+      "name": "Send to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [2250, 700],
+      "notes": "Envia para Slack"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{$json.metrics.sentiment_compound}}",
+              "operation": "smaller",
+              "value2": -0.3
+            }
+          ],
+          "boolean": [
+            {
+              "value1": "={{$json.metrics.doctor_rating < 3}}",
+              "value2": true
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "check-alert",
+      "name": "Check Alert Condition",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2050, 800],
+      "notes": "Verifica condições de alerta"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$credentials.telegram.alertChatId}}",
+        "text": "=🚨 *ALERTA DOCTORALIA*\\n\\n👨‍⚕️ *Médico:* {{$json.metrics.doctor_name}}\\n⚠️ *Problema Detectado:*\\n{{$json.metrics.doctor_rating < 3 ? '• Avaliação baixa: ' + $json.metrics.doctor_rating + '/5' : ''}}\\n{{$json.metrics.sentiment_compound < -0.3 ? '• Sentimento muito negativo: ' + $json.metrics.sentiment_category : ''}}\\n\\n*Ação Recomendada:* Revisar perfil e respostas urgentemente!",
+        "additionalFields": {
+          "parse_mode": "Markdown",
+          "disable_notification": false
+        }
+      },
+      "id": "send-alert",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [2250, 800],
+      "notes": "Envia alerta urgente"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle errors\nconst error = $input.first().json.error || 'Unknown error';\nconst doctor_url = $node[\"Split in Batches\"].json.doctor_url;\n\nconst errorReport = {\n  timestamp: new Date().toISOString(),\n  doctor_url: doctor_url,\n  error: error,\n  source: $node[\"Prepare URLs\"].json.source,\n  job_id: $node[\"Create Async Job\"].json?.job_id || 'N/A'\n};\n\n// Log error\nconsole.error('Doctoralia Scraping Error:', errorReport);\n\nreturn [{\n  json: errorReport\n}];"
+      },
+      "id": "handle-error",
+      "name": "Handle Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1650, 700],
+      "notes": "Trata erros"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{$credentials.telegram.chatId}}",
+        "text": "=❌ *Erro no Doctoralia Scraper*\\n\\n🔗 URL: {{$json.doctor_url}}\\n📝 Erro: {{$json.error}}\\n🕒 Timestamp: {{$json.timestamp}}\\n🔄 Fonte: {{$json.source}}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "notify-error",
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1850, 700],
+      "notes": "Notifica erro"
+    },
+    {
+      "parameters": {},
+      "id": "no-op",
+      "name": "Continue",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [2450, 400],
+      "notes": "Continua o fluxo"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Monitor": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule 6h": {
+      "main": [
+        [
+          {
+            "node": "Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration": {
+      "main": [
+        [
+          {
+            "node": "Prepare URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare URLs": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split in Batches": {
+      "main": [
+        [
+          {
+            "node": "Create Async Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Async Job": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s": {
+      "main": [
+        [
+          {
+            "node": "Check Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Job Status": {
+      "main": [
+        [
+          {
+            "node": "Is Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Completed?": {
+      "main": [
+        [
+          {
+            "node": "Process Results",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait & Retry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait & Retry": {
+      "main": [
+        [
+          {
+            "node": "Check Job Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Results": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save to Notion",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Telegram Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Alert Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Telegram Report": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Alert Condition": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Handle Error": {
+      "main": [
+        [
+          {
+            "node": "Notify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Notion": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Telegram": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Report": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Slack": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert": {
+      "main": [
+        [
+          {
+            "node": "Continue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Error": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue": {
+      "main": [
+        [
+          {
+            "node": "Split in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler-workflow-id"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "doctoralia-complete-workflow",
+    "templateVersion": 1
+  },
+  "tags": [
+    {
+      "name": "doctoralia",
+      "createdAt": "2024-01-15T10:00:00.000Z"
+    },
+    {
+      "name": "monitoring",
+      "createdAt": "2024-01-15T10:00:00.000Z"
+    },
+    {
+      "name": "automation",
+      "createdAt": "2024-01-15T10:00:00.000Z"
+    }
+  ]
+}

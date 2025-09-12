@@ -38,4 +38,6 @@ CMD ["uvicorn", "src.api.v1.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Worker service
 FROM base AS worker
-CMD ["rq", "worker", "-u", "${REDIS_URL:-redis://redis:6379/0}", "doctoralia"]
+COPY worker-entrypoint.sh /
+RUN chmod +x /worker-entrypoint.sh
+CMD ["/worker-entrypoint.sh"]

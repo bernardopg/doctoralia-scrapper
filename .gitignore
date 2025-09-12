@@ -92,6 +92,10 @@ venv.bak/
 # Data files (ajuste conforme necessário)
 data/
 
+# Logs (mantemos diretório com .gitkeep)
+logs/
+!logs/.gitkeep
+
 # macOS
 .DS_Store
 

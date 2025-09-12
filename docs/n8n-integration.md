@@ -69,6 +69,7 @@ All API endpoints (except health checks) require authentication via API key.
 Perfect for simple workflows where you want immediate results.
 
 **Request Body:**
+
 ```json
 {
   "doctor_url": "https://www.doctoralia.com.br/medico/example",
@@ -79,6 +80,7 @@ Perfect for simple workflows where you want immediate results.
 ```
 
 **Response:**
+
 ```json
 {
   "doctor": {
@@ -108,6 +110,7 @@ Perfect for simple workflows where you want immediate results.
 For long-running scraping tasks with callback support.
 
 **Request Body:**
+
 ```json
 {
   "doctor_url": "https://www.doctoralia.com.br/medico/example",
@@ -398,6 +401,7 @@ return items;
 ### Debug Mode
 
 Enable debug logging:
+
 ```bash
 DEBUG=true docker-compose up api
 ```
