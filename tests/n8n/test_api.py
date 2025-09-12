@@ -69,7 +69,7 @@ class TestAuthentication:
 
     def test_valid_api_key(self, client, mock_env, api_key):
         """Test request with valid API key."""
-        with patch("src.api.v1.main.DoctoraliaScraper") as mock_scraper:
+        with patch("src.scraper.DoctoraliaScraper") as mock_scraper:
             mock_instance = MagicMock()
             mock_instance.scrape_doctor_reviews.return_value = {
                 "doctor_name": "Test Doctor",
@@ -88,7 +88,7 @@ class TestAuthentication:
 class TestScrapeEndpoint:
     """Test synchronous scraping endpoint."""
 
-    @patch("src.api.v1.main.DoctoraliaScraper")
+    @patch("src.scraper.DoctoraliaScraper")
     def test_scrape_run_success(self, mock_scraper, client, mock_env, api_key):
         """Test successful scraping."""
         # Mock scraper
@@ -124,7 +124,7 @@ class TestScrapeEndpoint:
         assert data["metrics"]["scraped_count"] == 1
 
     @patch("src.api.v1.main.ResponseQualityAnalyzer")
-    @patch("src.api.v1.main.DoctoraliaScraper")
+    @patch("src.scraper.DoctoraliaScraper")
     def test_scrape_with_analysis(
         self, mock_scraper, mock_analyzer, client, mock_env, api_key
     ):
@@ -290,7 +290,7 @@ class TestErrorHandling:
         )
         assert response.status_code == 422
 
-    @patch("src.api.v1.main.DoctoraliaScraper")
+    @patch("src.scraper.DoctoraliaScraper")
     def test_scraper_exception(self, mock_scraper, client, mock_env, api_key):
         """Test handling of scraper exceptions."""
         mock_scraper.side_effect = Exception("Scraper failed")
