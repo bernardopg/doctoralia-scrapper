@@ -87,6 +87,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           API_KEY: test-api-key
           WEBHOOK_SIGNING_SECRET: test-secret
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest tests/n8n/ -v --cov=src/api --cov=src/integrations --cov=src/jobs --cov-report=xml
       
