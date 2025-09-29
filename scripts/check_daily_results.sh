@@ -56,11 +56,13 @@ echo ""
 echo "⏰ Cron Job Status:"
 if crontab -l 2>/dev/null | grep -q "daily_scrape.sh"; then
     echo "  ✅ Daily scraping cron job is active"
-    echo "  📅 Next run: Every day at 9:00 AM"
-
-    # Show the actual cron entry
-    echo "  📝 Cron entry:"
+    echo "  📝 Cron entry(ies):"
     crontab -l | grep "daily_scrape.sh" | sed 's/^/    /'
+    # Derive times from cron: prints HH:MM for each entry
+    times=$(crontab -l 2>/dev/null | grep "daily_scrape.sh" | awk '{print $2":"$1}' | paste -sd "," -)
+    if [ -n "$times" ]; then
+        echo "  📅 Configured times: $times (server local time)"
+    fi
 else
     echo "  ❌ Daily scraping cron job is not active"
     echo "  💡 Run: ./scripts/manage_daily_cron.sh start"
@@ -92,8 +94,3 @@ if [ -d "$LOGS_DIR" ]; then
     else
         echo "  ✅ No error files found"
     fi
-else
-    echo "  ❌ Logs directory not found"
-fi
-    echo "  ❌ Daily scraping cron job is not active"
-fi
