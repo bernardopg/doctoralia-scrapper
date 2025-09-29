@@ -27,7 +27,10 @@ def test_extract_first_name(rg, author, expected):
 
 
 def test_identify_mentioned_qualities(rg):
-    comment = "Atendimento muito atenciosa e profissional, explicou todos os detalhes com eficiência."
+    comment = (
+        "Atendimento muito atenciosa e profissional, "
+        "explicou todos os detalhes com eficiência."
+    )
     qualities = rg.identify_mentioned_qualities(comment)
     # Should include mapped categories
     assert any(

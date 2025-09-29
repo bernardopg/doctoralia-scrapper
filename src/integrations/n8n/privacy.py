@@ -5,7 +5,7 @@ Privacy and security utilities for n8n integration.
 import hashlib
 import os
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 def mask_pii(text: str) -> str:

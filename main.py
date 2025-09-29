@@ -19,6 +19,14 @@ src_path = project_root / "src"
 if str(src_path) not in sys.path:
     sys.path.insert(0, str(src_path))
 
+# Ensure logs directory exists before configuring logging to avoid FileNotFoundError
+logs_dir = project_root / "logs"
+try:
+    logs_dir.mkdir(parents=True, exist_ok=True)
+except Exception:
+    # If we cannot create the directory (e.g., permission issues), continue with stdout only
+    pass
+
 from config.settings import AppConfig
 from scripts.daemon import DaemonController
 from scripts.health_check import HealthChecker as LegacyHealthChecker
@@ -36,7 +44,12 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/main.log", encoding="utf-8"),
+        # Use file handler only if directory exists
+        (
+            logging.FileHandler(str(logs_dir / "main.log"), encoding="utf-8")
+            if logs_dir.exists()
+            else logging.StreamHandler(sys.stdout)
+        ),
     ],
 )
 logger = logging.getLogger(__name__)

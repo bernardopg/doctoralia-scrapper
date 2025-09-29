@@ -12,10 +12,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from src.api.v1.deps import create_webhook_signature
-from src.integrations.n8n.normalize import (
-    extract_scraper_result,
-    make_unified_result,
-)
+from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 
 
 def post_callback(url: str, payload: Dict, job_id: Optional[str] = None) -> bool:
@@ -173,6 +170,12 @@ def scrape_and_process(
             start_time=start_time,
             end_time=datetime.now(),
         )
+
+        # Log the exception for observability (avoid unused variable)
+        try:
+            print(f"scrape_and_process failed: {e}")
+        except Exception:
+            pass
 
         # Send error callback if URL provided
         if callback_url:

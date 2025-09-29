@@ -108,7 +108,8 @@ class TelegramNotifier:
                 if attempt < retry_count - 1:
                     wait_time = 2**attempt  # Exponential backoff
                     self.logger.warning(
-                        f"⏳ Timeout, tentando novamente em {wait_time}s (tentativa {attempt + 2}/{retry_count})"
+                        f"⏳ Timeout, tentando novamente em {wait_time}s "
+                        f"(tentativa {attempt + 2}/{retry_count})"
                     )
                     time.sleep(wait_time)
                 else:
@@ -167,7 +168,8 @@ class TelegramNotifier:
                         continue
                     elif response.status_code == 400:
                         self.logger.warning(
-                            "⚠️ Erro de formatação/parse_mode no caption, tentando sem parse_mode"
+                            "⚠️ Erro de formatação/parse_mode no caption, "
+                            "tentando sem parse_mode"
                         )
                         data.pop("parse_mode", None)
                         response = requests.post(
@@ -198,7 +200,8 @@ class TelegramNotifier:
                 if attempt < retry_count - 1:
                     wait_time = 2**attempt
                     self.logger.warning(
-                        f"⏳ Erro de conexão no upload, tentando novamente em {wait_time}s: {e}"
+                        f"⏳ Erro de conexão no upload, tentando "
+                        f"novamente em {wait_time}s: {e}"
                     )
                     time.sleep(wait_time)
                 else:
@@ -409,7 +412,8 @@ class TelegramNotifier:
 
         if not self.config.telegram.token:
             issues.append("Token do bot não configurado")
-        elif len(self.config.telegram.token) < 45:  # Tokens do Telegram têm >= 45 chars
+        elif len(self.config.telegram.token) < 45:
+            # Tokens do Telegram têm >= 45 chars
             issues.append("Token do bot parece inválido (muito curto)")
 
         if not self.config.telegram.chat_id:

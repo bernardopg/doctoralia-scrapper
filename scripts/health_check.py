@@ -11,14 +11,26 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-# Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
+# Try regular import; if it fails (when running the script directly),
+# add the project root to sys.path and import via importlib to avoid E402.
 
-from config.settings import AppConfig
+
+def _load_app_config():
+    """Load AppConfig with a safe fallback when running as a script."""
+    try:
+        from config.settings import AppConfig  # type: ignore
+    except ModuleNotFoundError:  # pragma: no cover
+        # Add project root to path for direct script execution
+        sys.path.append(str(Path(__file__).parent.parent))
+        from importlib import import_module
+
+        AppConfig = import_module("config.settings").AppConfig  # type: ignore[attr-defined]
+    return AppConfig
 
 
 class HealthChecker:
     def __init__(self):
+        AppConfig = _load_app_config()
         self.config = AppConfig.load()
         self.issues: List[str] = []
         self.warnings: List[str] = []

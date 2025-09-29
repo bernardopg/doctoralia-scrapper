@@ -16,7 +16,9 @@ def enhanced_scraper():
 
 def test_scrape_page_with_protection_success(enhanced_scraper):
     # Mock internal scrape_reviews to return dummy data
-    enhanced_scraper.scrape_reviews = MagicMock(return_value={"reviews": [], "total_reviews": 0})  # type: ignore
+    enhanced_scraper.scrape_reviews = MagicMock(
+        return_value={"reviews": [], "total_reviews": 0}
+    )  # type: ignore
     data = enhanced_scraper.scrape_page_with_protection(
         "https://www.doctoralia.com.br/test"
     )

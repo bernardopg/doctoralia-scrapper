@@ -1,6 +1,7 @@
 import pytest
 
 from src import response_quality_analyzer as rqa
+from src.response_quality_analyzer import QualityScore, ResponseQualityAnalyzer
 
 
 @pytest.fixture(autouse=True)
@@ -16,14 +17,15 @@ def stub_nltk_tokenizers(monkeypatch):
     def fake_word_tokenize(text, language=None):  # noqa: D401
         return [w for w in text.replace("\n", " ").split() if w]
 
-    monkeypatch.setattr("nltk.tokenize.sent_tokenize", fake_sent_tokenize, raising=True)
-    monkeypatch.setattr("nltk.tokenize.word_tokenize", fake_word_tokenize, raising=True)
+    monkeypatch.setattr(
+        "nltk.tokenize.sent_tokenize", fake_sent_tokenize, raising=True
+    )
+    monkeypatch.setattr(
+        "nltk.tokenize.word_tokenize", fake_word_tokenize, raising=True
+    )
     # Patch the names imported into the module namespace
     monkeypatch.setattr(rqa, "sent_tokenize", fake_sent_tokenize, raising=True)
     monkeypatch.setattr(rqa, "word_tokenize", fake_word_tokenize, raising=True)
-
-
-from src.response_quality_analyzer import QualityScore, ResponseQualityAnalyzer
 
 
 @pytest.fixture

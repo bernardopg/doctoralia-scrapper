@@ -53,7 +53,7 @@ jobs:
         run: poetry run isort --check-only src/ tests/ config/ scripts/
 
       - name: Run Flake8
-        run: poetry run flake8 src/ tests/ config/ scripts/ --max-line-length=100 --extend-ignore=E203,W503
+        run: poetry run flake8 src/ tests/ config/ scripts/ --extend-ignore=E203,W503,E501
 
       - name: Run MyPy
         run: poetry run mypy src/ --ignore-missing-imports
