@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Doctoralia Scrapper with n8n integration
-FROM python:3.11-slim AS base
+FROM python:3.13-slim AS base
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
