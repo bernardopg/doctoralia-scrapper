@@ -5,7 +5,7 @@ Script simples para examinar seletores de review
 
 import time
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, element
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -39,8 +39,17 @@ def main():
         if reviews_section:
             print("✅ Seção encontrada!")
 
-            # Listar todos os elementos com texto substancial
-            all_divs = reviews_section.find_all("div")
+            # Garantir que reviews_section é um Tag antes de chamar find_all
+            if isinstance(reviews_section, element.Tag):
+                all_divs = reviews_section.find_all("div")
+            else:
+                # Fallback: reparse o HTML do trecho para obter um Tag
+                print(
+                    "⚠️ 'profile-reviews' encontrada, mas não é um Tag. Reparseando para fallback."
+                )
+                reviews_soup = BeautifulSoup(str(reviews_section), "html.parser")
+                all_divs = reviews_soup.find_all("div")
+
             print(f"Total de divs na seção: {len(all_divs)}")
 
             review_candidates = []
@@ -68,7 +77,7 @@ def main():
 
             print(f"\nCandidatos a reviews encontrados: {len(review_candidates)}")
             for i, candidate in enumerate(review_candidates[:5]):
-                print(f"\n{i+1}. Classes: {candidate['classes']}")
+                print(f"\n{i + 1}. Classes: {candidate['classes']}")
                 print(f"   Texto: {candidate['text']}")
 
         else:

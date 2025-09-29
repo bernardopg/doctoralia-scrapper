@@ -11,7 +11,7 @@ from src.health_checker import HealthChecker
 from src.logger import setup_logger
 
 
-async def test_enhanced_scraping():
+async def run_enhanced_debug():
     """Testa o enhanced scraper com debugging"""
 
     print("🔧 Carregando configuração...")
@@ -66,4 +66,4 @@ async def test_enhanced_scraping():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_enhanced_scraping())
+    asyncio.run(run_enhanced_debug())

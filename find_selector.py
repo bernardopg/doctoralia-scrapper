@@ -5,7 +5,7 @@ Script para encontrar o seletor correto dos reviews
 
 import time
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -37,11 +37,18 @@ def find_review_selector():
 
         # Examinar a estrutura das reviews na seção
         reviews_section = soup.find("section", id="profile-reviews")
-        if reviews_section:
+        if reviews_section and isinstance(reviews_section, Tag):
             # Procurar por elementos que contenham nomes de pacientes
-            name_elements = reviews_section.find_all(
-                string=lambda text: text and "Gabriela" in text
-            )
+            # Usar recursão para encontrar strings que contenham "Gabriela"
+            name_elements = []
+            try:
+                for element in reviews_section.recursiveChildGenerator():
+                    if isinstance(element, str) and "Gabriela" in element:
+                        name_elements.append(element)
+            except AttributeError:
+                # Fallback: procurar de forma diferente se recursiveChildGenerator não funcionar
+                print("Método recursiveChildGenerator falhou, usando abordagem alternativa")
+                name_elements = []
 
             print(f"Elementos com 'Gabriela': {len(name_elements)}")
 
@@ -112,7 +119,7 @@ def find_review_selector():
         # Examinar estrutura específica da lista de opiniões
         print("\n=== ESTRUTURA OPINIONS-LIST ===")
         opinions_list = soup.find("div", class_="opinions-list")
-        if opinions_list:
+        if opinions_list and isinstance(opinions_list, Tag):
             children = opinions_list.find_all(recursive=False)
             print(f"Filhos diretos da opinions-list: {len(children)}")
 
