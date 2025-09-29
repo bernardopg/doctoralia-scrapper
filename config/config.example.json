@@ -2,7 +2,10 @@
   "telegram": {
     "token": "YOUR_BOT_TOKEN_HERE",
     "chat_id": "YOUR_CHAT_ID_HERE",
-    "enabled": false
+    "enabled": false,
+    "parse_mode": "Markdown",
+    "attach_responses_auto": true,
+    "attachment_format": "txt"
   },
   "scraping": {
     "headless": true,

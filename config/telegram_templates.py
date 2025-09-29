@@ -9,6 +9,19 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 
+def _clean_md(text: str) -> str:
+    """Remove caracteres problemáticos básicos do Markdown simples do Telegram."""
+    if not text:
+        return text
+    return (
+        text.replace("*", "")
+        .replace("_", "")
+        .replace("`", "")
+        .replace("[", "")
+        .replace("]", "")
+    )
+
+
 class TelegramTemplates:
     """Templates personalizáveis para mensagens do Telegram"""
 
@@ -17,11 +30,12 @@ class TelegramTemplates:
         """Template para notificação de daemon iniciado"""
         return f"""🔄 *Daemon Automático Iniciado*
 
-⏰ *Intervalo:* {interval_minutes} minutos
-🤖 *Função:* Geração automática de respostas
+⏱️ *Intervalo:* {interval_minutes} min
+🧠 *Função:* Geração automática de respostas
 📅 *Iniciado em:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-✅ Sistema funcionando em segundo plano"""
+✅ Sistema rodando em segundo plano
+📌 Dica: Você pode interromper a qualquer momento pelo servidor."""
 
     @staticmethod
     def daemon_stopped() -> str:
@@ -30,152 +44,117 @@ class TelegramTemplates:
 
 📅 *Finalizado em:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-⚠️ Geração automática interrompida"""
+ℹ️ Execuções agendadas foram interrompidas
+📌 Para retomar, inicie o daemon novamente."""
 
     @staticmethod
     def generation_cycle_success(responses: List[Dict[str, Any]]) -> str:
         """Template para ciclo de geração bem-sucedido"""
         total = len(responses)
+        preview_limit = 3
 
-        message = f"""🤖 *Doctoralia - Respostas Geradas Automaticamente*
+        message = f"""🤖 *Doctoralia — Respostas Geradas com Sucesso*
 
-📊 *Resumo do Ciclo:*
-• {total} nova(s) resposta(s) gerada(s)
-• Arquivos salvos na pasta `responses/`
-• Processamento automático concluído
+📊 *Resumo do Ciclo*
+• Total de respostas: *{total}*
+• Arquivos em `data/responses/`
+• Processo concluído sem erros
 
-📝 *Últimos comentários processados:*
-"""
+📝 *Últimos comentários processados*:"""
 
-        # Mostra até 3 comentários para não ficar muito longo
-        for i, response in enumerate(responses[:3], 1):
-            author = response.get("author", "Anônimo")
-            comment = response.get("comment", "")
-            comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
+        for i, response in enumerate(responses[:preview_limit], 1):
+            author = _clean_md(response.get("author", "Anônimo"))
+            comment = _clean_md(response.get("comment", "") or "")
+            comment_preview = (
+                comment[:80] + "..." if len(comment) > 80 else (comment or "Comentário vazio")
+            )
             message += f"\n{i}. *{author}*: {comment_preview}"
 
-        if total > 3:
-            message += f"\n... e mais {total - 3} resposta(s)"
+        if total > preview_limit:
+            message += f"\n… e mais {total - preview_limit} resposta(s)"
 
         message += f"""
 
-📅 *Data do ciclo:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-🔔 *Próximo ciclo automático em breve!*
-✅ *Copie e cole as respostas no Doctoralia*"""
-
+🔔 As respostas já estão prontas para copiar/colar no Doctoralia."""
         return message
 
     @staticmethod
     def generation_cycle_no_responses() -> str:
         """Template para ciclo sem novas respostas"""
-        return f"""ℹ️ *Doctoralia - Ciclo Automático*
+        return f"""ℹ️ *Doctoralia — Ciclo Automático*
 
 📊 *Status:* Nenhuma nova resposta necessária
-✅ *Todos os comentários já possuem resposta*
+✅ Todos os comentários recentes já possuem resposta
 
-📅 *Verificação em:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
-
-🔄 *Próxima verificação automática em breve*"""
+🗓️ *Verificação:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+🔄 Próxima checagem ocorrerá automaticamente."""
 
     @staticmethod
     def daemon_error(
         error_message: str, context: str = "Daemon de geração automática"
     ) -> str:
         """Template para erros do daemon"""
-        return f"""❌ *Doctoralia - Erro no Daemon*
+        return f"""❌ *Doctoralia — Erro no Daemon*
 
-🔍 *Contexto:* {context}
+🔎 *Contexto:* {context}
 💥 *Erro:* {error_message}
 
-📅 *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-⚠️ *Verificar logs para mais detalhes*
-🔧 *Daemon pode ter sido interrompido*"""
+⚠️ Verifique os logs para detalhes e considere reiniciar o daemon."""
 
     @staticmethod
     def scraping_complete(data: Dict[str, Any], save_path: Path) -> str:
         """Template para scraping concluído"""
-        # Sanitizar nome do médico para evitar problemas com Markdown
-        doctor_name = data.get("doctor_name", "Médico")
-        if doctor_name:
-            doctor_name = (
-                doctor_name.replace("*", "")
-                .replace("_", "")
-                .replace("`", "")
-                .replace("[", "")
-                .replace("]", "")
-            )
+        doctor_name = _clean_md(data.get("doctor_name", "Médico"))
+        total_reviews = int(data.get("total_reviews", 0))
+        with_replies = len([r for r in data.get("reviews", []) if r.get("doctor_reply")])
+        without_replies = max(0, total_reviews - with_replies)
 
-        total_reviews = data.get("total_reviews", 0)
-
-        with_replies = len(
-            [r for r in data.get("reviews", []) if r.get("doctor_reply")]
-        )
-        without_replies = total_reviews - with_replies
-
-        return f"""🏥 *Doctoralia - Scraping Concluído*
+        return f"""🏥 *Doctoralia — Scraping Concluído*
 
 👨‍⚕️ *Médico:* {doctor_name}
-📊 *Total de comentários:* {total_reviews}
+📈 *Total de comentários:* {total_reviews}
 💬 *Com respostas:* {with_replies}
-🔇 *Sem respostas:* {without_replies}
+🕳️ *Sem respostas:* {without_replies}
 
-📁 *Dados salvos em:* `{save_path.name}`
-📅 *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+📁 *Arquivo:* `{save_path.name}`
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-{f"🎯 *{without_replies} comentários prontos para resposta!*" if without_replies > 0 else "✅ *Todos os comentários já possuem resposta*"}"""
+{("🎯 *Há comentários prontos para resposta!*" if without_replies > 0 else "✅ *Todos os comentários já possuem resposta.*")}"""
 
     @staticmethod
     def responses_generated(responses: List[Dict[str, Any]]) -> str:
         """Template para respostas geradas manualmente"""
         total = len(responses)
+        preview_limit = 5
 
-        message = f"""🤖 *Doctoralia - Respostas Geradas*
+        message = f"""🤖 *Doctoralia — Respostas Geradas*
 
-📊 *Resumo:*
-• {total} nova(s) resposta(s) gerada(s)
-• Arquivos salvos na pasta `responses/`
+📊 *Resumo*
+• Total: *{total}* resposta(s)
+• Arquivos salvos em `data/responses/`
 
-📝 *Comentários processados:*
-"""
+📝 *Comentários processados*:"""
 
-        for i, response in enumerate(responses[:5], 1):
-            author = response.get("author", "Anônimo")
-            comment = response.get("comment", "")
-
-            # Sanitizar autor e comentário
-            if author:
-                author = (
-                    author.replace("*", "")
-                    .replace("_", "")
-                    .replace("`", "")
-                    .replace("[", "")
-                    .replace("]", "")
-                )
-            if comment:
-                comment = (
-                    comment.replace("*", "")
-                    .replace("_", "")
-                    .replace("`", "")
-                    .replace("[", "")
-                    .replace("]", "")
-                )
-                comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
-            else:
-                comment_preview = "Comentário vazio"
-
+        for i, response in enumerate(responses[:preview_limit], 1):
+            author = _clean_md(response.get("author", "Anônimo"))
+            comment = _clean_md(response.get("comment", "") or "")
+            comment_preview = (
+                comment[:80] + "..." if len(comment) > 80 else (comment or "Comentário vazio")
+            )
             message += f"\n{i}. *{author}*: {comment_preview}"
 
-        if total > 5:
-            message += f"\n... e mais {total - 5} resposta(s)"
+        if total > preview_limit:
+            message += f"\n… e mais {total - preview_limit} resposta(s)"
 
         message += f"""
 
-📅 *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-🔔 *Copie e cole as respostas no Doctoralia!*"""
-
+🔔 Copie e cole as respostas no Doctoralia."""
         return message
 
     @staticmethod
@@ -184,53 +163,54 @@ class TelegramTemplates:
     ) -> str:
         """Template para respostas geradas com arquivo anexado"""
         total = len(responses)
+        preview_limit = 3
 
-        message = f"""🤖 *Doctoralia - Respostas Geradas*
+        message = f"""🤖 *Doctoralia — Respostas Geradas*
 
-📊 *Resumo:*
-• {total} nova(s) resposta(s) gerada(s)
-• Arquivo único consolidado anexado
-• Todas as respostas prontas para copiar/colar
+📊 *Resumo*
+• Total: *{total}* resposta(s)
+• Arquivo consolidado anexado
+• Conteúdo pronto para copiar/colar
 
-📝 *Comentários processados:*
-"""
+📝 *Comentários processados*:"""
 
-        for i, response in enumerate(responses[:3], 1):
-            author = response.get("author", "Anônimo")
-            comment = response.get("comment", "")
-            comment_preview = comment[:50] + "..." if len(comment) > 50 else comment
+        for i, response in enumerate(responses[:preview_limit], 1):
+            author = _clean_md(response.get("author", "Anônimo"))
+            comment = _clean_md(response.get("comment", "") or "")
+            comment_preview = (
+                comment[:80] + "..." if len(comment) > 80 else (comment or "Comentário vazio")
+            )
             message += f"\n{i}. *{author}*: {comment_preview}"
 
-        if total > 3:
-            message += f"\n... e mais {total - 3} resposta(s)"
+        if total > preview_limit:
+            message += f"\n… e mais {total - preview_limit} resposta(s)"
 
         message += f"""
 
-📁 *Arquivo:* `{file_path.name}`
-📅 *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+📎 *Arquivo:* `{file_path.name}`
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-🔔 *Abra o arquivo anexado e copie as respostas para o Doctoralia!*"""
-
+🔔 Abra o arquivo anexado e copie as respostas para o Doctoralia."""
         return message
 
     @staticmethod
     def generic_error(error_message: str, context: str = "") -> str:
         """Template para erros genéricos"""
-        return f"""❌ *Doctoralia - Erro*
+        return f"""❌ *Doctoralia — Erro*
 
-🔍 *Contexto:* {context}
+🔎 *Contexto:* {context}
 💥 *Erro:* {error_message}
 
-📅 *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"""
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"""
 
     @staticmethod
     def custom_message(title: str, content: str, emoji: str = "📢") -> str:
         """Template para mensagens customizadas"""
-        return f"""{emoji} *{title}*
+        return f"""{emoji} *{_clean_md(title)}*
 
-{content}
+{_clean_md(content)}
 
-📅 *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"""
+🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}"""
 
 
 # Configurações para personalização rápida
@@ -246,10 +226,11 @@ class NotificationConfig:
         "info": "ℹ️",
         "warning": "⚠️",
         "robot": "🤖",
-        "clock": "⏰",
-        "calendar": "📅",
+        "clock": "⏱️",
+        "calendar": "🗓️",
         "folder": "📁",
         "doctor": "👨‍⚕️",
+        "clip": "📎",
         "bell": "🔔",
     }
 
@@ -257,7 +238,7 @@ class NotificationConfig:
     DATE_FORMAT = "%d/%m/%Y %H:%M:%S"
 
     # Limite de caracteres para preview de comentários
-    COMMENT_PREVIEW_LIMIT = 50
+    COMMENT_PREVIEW_LIMIT = 80
 
     # Número máximo de comentários mostrados em listas
     MAX_COMMENTS_SHOWN = 5

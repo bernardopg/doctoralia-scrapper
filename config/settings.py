@@ -10,6 +10,10 @@ class TelegramConfig:
     token: Optional[str] = None
     chat_id: Optional[str] = None
     enabled: bool = False
+    # New customization options
+    parse_mode: str = "Markdown"  # Options: "Markdown", "MarkdownV2", "HTML", ""
+    attach_responses_auto: bool = True  # Auto-anexar arquivo de respostas quando houver
+    attachment_format: str = "txt"  # "txt" | "json" | "csv"
 
 
 @dataclass
@@ -61,10 +65,16 @@ class AppConfig:
                 with open(config_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
+                tg_data = data.get("telegram", {})
                 telegram = TelegramConfig(
-                    token=data.get("telegram", {}).get("token"),
-                    chat_id=data.get("telegram", {}).get("chat_id"),
-                    enabled=bool(data.get("telegram", {}).get("token")),
+                    token=tg_data.get("token"),
+                    chat_id=tg_data.get("chat_id"),
+                    enabled=bool(tg_data.get("token")),
+                    parse_mode=tg_data.get("parse_mode", "Markdown"),
+                    attach_responses_auto=tg_data.get(
+                        "attach_responses_auto", True
+                    ),
+                    attachment_format=tg_data.get("attachment_format", "txt"),
                 )
 
                 scraping_data = data.get("scraping", {})
@@ -98,6 +108,9 @@ class AppConfig:
             "telegram": {
                 "token": self.telegram.token,
                 "chat_id": self.telegram.chat_id,
+                "parse_mode": self.telegram.parse_mode,
+                "attach_responses_auto": self.telegram.attach_responses_auto,
+                "attachment_format": self.telegram.attachment_format,
             },
             "scraping": {
                 "headless": self.scraping.headless,
