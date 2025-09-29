@@ -128,3 +128,11 @@ secrets/
 n8n-data/
 n8n-workflows/
 .n8n/
+
+# Doctoralia runtime
+.env
+data/backups/
+data/logs/
+data/temp/
+*.bak
+*.backup
