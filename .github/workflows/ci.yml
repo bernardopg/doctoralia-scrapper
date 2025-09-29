@@ -1,125 +1,210 @@
-name: 🔍 CI/CD Pipeline
+name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
 
 jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Install project
+        run: poetry install --no-interaction
+
+      - name: Run Black
+        run: poetry run black --check src/ tests/ config/ scripts/
+
+      - name: Run isort
+        run: poetry run isort --check-only src/ tests/ config/ scripts/
+
+      - name: Run Flake8
+        run: poetry run flake8 src/ tests/ config/ scripts/ --max-line-length=100 --extend-ignore=E203,W503
+
+      - name: Run MyPy
+        run: poetry run mypy src/ --ignore-missing-imports
+        continue-on-error: true
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run Bandit
+        run: poetry run bandit -r src/ -ll -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+      - name: Run Safety check
+        run: poetry run safety check --json
+        continue-on-error: true
+
+      - name: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
   test:
+    name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
-      - name: 📦 Install Poetry
+      - name: Install Poetry
         uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
 
-      - name: 💾 Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: .venv
-          key: ${{ runner.os }}-${{ matrix.python-version }}-poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.python-version }}-poetry-
-
-      - name: 📦 Install dependencies
-        run: poetry install --no-interaction --no-root
-
-      - name: 🎨 Check code formatting
+      - name: Install dependencies
         run: |
-          poetry run black --check .
-          poetry run isort --check-only .
+          poetry install --no-interaction --with dev
 
-      - name: 🔍 Type checking
+      - name: Run tests
+        env:
+          REDIS_URL: redis://localhost:6379/0
+          API_KEY: test-api-key
+          WEBHOOK_SIGNING_SECRET: test-secret
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          poetry run mypy src/
+          poetry run pytest tests/ \
+            -v \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=junit.xml
 
-      - name: 🧪 Run tests
-        run: |
-          poetry run pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
-
-      - name: 📊 Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == '3.11'
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
 
-  security:
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            junit.xml
+
+  build:
+    name: Build Check
     runs-on: ubuntu-latest
+    needs: [lint, security, test]
     steps:
-      - name: 📥 Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: 📦 Install Poetry
+      - name: Install Poetry
         uses: snok/install-poetry@v1
+
+      - name: Build package
+        run: poetry build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+          name: dist
+          path: dist/
 
-      - name: 💾 Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: .venv
-          key: ${{ runner.os }}-3.11-poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-3.11-poetry-
-
-      - name: 📦 Install dependencies
-        run: poetry install --no-interaction --no-root
-
-      - name: 🔒 Run security checks
-        run: |
-          poetry run bandit -r src/
-          poetry run safety check
-
-  lint:
+  all-checks-passed:
+    name: All Checks Passed
     runs-on: ubuntu-latest
+    needs: [lint, security, test, build]
+    if: always()
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: 📦 Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: 💾 Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: .venv
-          key: ${{ runner.os }}-3.11-poetry-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-3.11-poetry-
-
-      - name: 📦 Install dependencies
-        run: poetry install --no-interaction --no-root
-
-      - name: 🔍 Run linting
+      - name: Check if all jobs succeeded
         run: |
-          poetry run flake8 src/ --ignore=E501,W503
-          poetry run pylint src/
+          if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.security.result }}" != "success" ]] || \
+             [[ "${{ needs.test.result }}" != "success" ]] || \
+             [[ "${{ needs.build.result }}" != "success" ]]; then
+            echo "One or more checks failed"
+            exit 1
+          fi

@@ -66,7 +66,9 @@ class TelegramTemplates:
             author = _clean_md(response.get("author", "Anônimo"))
             comment = _clean_md(response.get("comment", "") or "")
             comment_preview = (
-                comment[:80] + "..." if len(comment) > 80 else (comment or "Comentário vazio")
+                comment[:80] + "..."
+                if len(comment) > 80
+                else (comment or "Comentário vazio")
             )
             message += f"\n{i}. *{author}*: {comment_preview}"
 
@@ -110,7 +112,9 @@ class TelegramTemplates:
         """Template para scraping concluído"""
         doctor_name = _clean_md(data.get("doctor_name", "Médico"))
         total_reviews = int(data.get("total_reviews", 0))
-        with_replies = len([r for r in data.get("reviews", []) if r.get("doctor_reply")])
+        with_replies = len(
+            [r for r in data.get("reviews", []) if r.get("doctor_reply")]
+        )
         without_replies = max(0, total_reviews - with_replies)
 
         return f"""🏥 *Doctoralia — Scraping Concluído*
@@ -143,7 +147,9 @@ class TelegramTemplates:
             author = _clean_md(response.get("author", "Anônimo"))
             comment = _clean_md(response.get("comment", "") or "")
             comment_preview = (
-                comment[:80] + "..." if len(comment) > 80 else (comment or "Comentário vazio")
+                comment[:80] + "..."
+                if len(comment) > 80
+                else (comment or "Comentário vazio")
             )
             message += f"\n{i}. *{author}*: {comment_preview}"
 
@@ -178,7 +184,9 @@ class TelegramTemplates:
             author = _clean_md(response.get("author", "Anônimo"))
             comment = _clean_md(response.get("comment", "") or "")
             comment_preview = (
-                comment[:80] + "..." if len(comment) > 80 else (comment or "Comentário vazio")
+                comment[:80] + "..."
+                if len(comment) > 80
+                else (comment or "Comentário vazio")
             )
             message += f"\n{i}. *{author}*: {comment_preview}"
 

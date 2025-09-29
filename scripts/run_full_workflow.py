@@ -6,12 +6,14 @@ from typing import Any, Dict, List
 
 from config.settings import AppConfig
 from src.logger import setup_logger
-from src.scraper import DoctoraliaScraper
 from src.response_generator import ResponseGenerator
+from src.scraper import DoctoraliaScraper
 from src.telegram_notifier import TelegramNotifier
 
 
-def build_responses_from_data(data: Dict[str, Any], generator: ResponseGenerator) -> List[Dict[str, Any]]:
+def build_responses_from_data(
+    data: Dict[str, Any], generator: ResponseGenerator
+) -> List[Dict[str, Any]]:
     reviews = data.get("reviews", []) or []
     # Processar apenas sem resposta do médico
     reviews_to_process = [r for r in reviews if not r.get("doctor_reply")]
@@ -33,9 +35,13 @@ def build_responses_from_data(data: Dict[str, Any], generator: ResponseGenerator
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run full workflow: scrape -> generate -> notify (with attachment).")
+    parser = argparse.ArgumentParser(
+        description="Run full workflow: scrape -> generate -> notify (with attachment)."
+    )
     parser.add_argument("--url", required=True, help="Doctoralia profile URL to scrape")
-    parser.add_argument("--no-telegram", action="store_true", help="Skip Telegram notification")
+    parser.add_argument(
+        "--no-telegram", action="store_true", help="Skip Telegram notification"
+    )
     args = parser.parse_args()
 
     config = AppConfig.load()
@@ -75,7 +81,9 @@ def main():
             # Observação: para simplicidade, vamos anexar um campo 'generated_responses'
             enriched = dict(data)
             enriched["generated_responses"] = responses
-            enriched_file = Path(saved_file).with_name(Path(saved_file).stem + "_with_responses.json")
+            enriched_file = Path(saved_file).with_name(
+                Path(saved_file).stem + "_with_responses.json"
+            )
             with open(enriched_file, "w", encoding="utf-8") as f:
                 json.dump(enriched, f, ensure_ascii=False, indent=2)
             logger.info("💾 Arquivo enriquecido salvo: %s", enriched_file)

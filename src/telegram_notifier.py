@@ -84,7 +84,9 @@ class TelegramNotifier:
                     )
                     time.sleep(int(retry_after))
                     continue
-                elif response.status_code == 400:  # Bad request (provável erro de formatação)
+                elif (
+                    response.status_code == 400
+                ):  # Bad request (provável erro de formatação)
                     self.logger.warning(
                         "⚠️ Erro de formatação/parse_mode, tentando sem parse_mode"
                     )
@@ -92,7 +94,9 @@ class TelegramNotifier:
                     data.pop("parse_mode", None)
                     response = requests.post(url, data=data, timeout=30)
                     if response.status_code == 200:
-                        self.logger.info("✅ Notificação enviada (fallback sem parse_mode)")
+                        self.logger.info(
+                            "✅ Notificação enviada (fallback sem parse_mode)"
+                        )
                         return True
 
                 self.logger.error(
@@ -170,7 +174,9 @@ class TelegramNotifier:
                             url, files=files, data=data, timeout=60
                         )
                         if response.status_code == 200:
-                            self.logger.info("✅ Documento enviado (fallback sem parse_mode)")
+                            self.logger.info(
+                                "✅ Documento enviado (fallback sem parse_mode)"
+                            )
                             return True
 
                     self.logger.error(
@@ -209,7 +215,9 @@ class TelegramNotifier:
 
     # -------------------- Anexo automático de respostas --------------------
 
-    def _create_attachment_file(self, responses: List[Dict[str, Any]]) -> Optional[Path]:
+    def _create_attachment_file(
+        self, responses: List[Dict[str, Any]]
+    ) -> Optional[Path]:
         """Cria arquivo (txt/json/csv) com as respostas para anexar junto da mensagem."""
         try:
             if not responses:
@@ -258,7 +266,9 @@ class TelegramNotifier:
                     f.write("=" * 80 + "\n")
                     f.write("           RESPOSTAS DOCTORALIA - ARQUIVO CONSOLIDADO\n")
                     f.write("=" * 80 + "\n")
-                    f.write(f"GERADO EM: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                    f.write(
+                        f"GERADO EM: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
+                    )
                     f.write(f"TOTAL DE RESPOSTAS: {len(responses)}\n")
                     f.write("=" * 80 + "\n\n")
 
@@ -275,7 +285,9 @@ class TelegramNotifier:
                         f.write("\n\n" + "=" * 60 + "\n\n")
 
                     f.write("INSTRUÇÕES:\n")
-                    f.write("1. Copie cada resposta e cole no comentário correspondente no Doctoralia\n")
+                    f.write(
+                        "1. Copie cada resposta e cole no comentário correspondente no Doctoralia\n"
+                    )
                     f.write("2. Verifique se o autor corresponde antes de colar\n")
                     f.write("3. Personalize se necessário antes de publicar\n")
                     f.write("\n" + "=" * 80 + "\n")

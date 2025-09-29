@@ -71,9 +71,7 @@ class AppConfig:
                     chat_id=tg_data.get("chat_id"),
                     enabled=bool(tg_data.get("token")),
                     parse_mode=tg_data.get("parse_mode", "Markdown"),
-                    attach_responses_auto=tg_data.get(
-                        "attach_responses_auto", True
-                    ),
+                    attach_responses_auto=tg_data.get("attach_responses_auto", True),
                     attachment_format=tg_data.get("attachment_format", "txt"),
                 )
 

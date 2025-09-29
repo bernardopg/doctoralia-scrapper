@@ -1,10 +1,11 @@
-# 🎯 Doctoralia Scraper - Automated Setup Complete!
+# 🎯 Doctoralia Scraper - Automated Setup Complete
 
 ## ✅ Installation Summary
 
 Your Doctoralia scraper is now **fully configured** and **production-ready**!
 
 ### 📅 Automated Schedule
+
 - **Morning Run**: Every day at **08:30 AM**
 - **Evening Run**: Every day at **19:00 PM** (7:00 PM)
 
@@ -41,6 +42,7 @@ Your Doctoralia scraper is now **fully configured** and **production-ready**!
 ## 📋 Useful Commands
 
 ### Check Status
+
 ```bash
 # Quick status check
 /root/dev/doctoralia-scrapper/scripts/status_check.sh
@@ -53,6 +55,7 @@ tail -f /root/dev/doctoralia-scrapper/data/logs/latest.log
 ```
 
 ### Manual Operations
+
 ```bash
 # Run manually (test)
 /root/dev/doctoralia-scrapper/scripts/daily_scrape.sh
@@ -65,6 +68,7 @@ crontab -l | grep -v "DOCTORALIA_SCRAPER_CRON" | crontab -
 ```
 
 ### Logs & Monitoring
+
 ```bash
 # View all logs
 ls -lh /root/dev/doctoralia-scrapper/data/logs/
@@ -81,11 +85,13 @@ cat /root/dev/doctoralia-scrapper/data/health/status.json
 ## 📱 Telegram Notifications
 
 You'll receive notifications for:
+
 - ⏳ Job started
 - ✅ Successful completion (with attempt number)
 - 🔴 Failures (with error details and log location)
 
 ### Test Telegram Notifications
+
 ```bash
 source /root/dev/doctoralia-scrapper/.env
 curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
@@ -97,7 +103,8 @@ curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
 
 ## 🛠️ Troubleshooting
 
-### If a run fails:
+### If a run fails
+
 1. Check the latest log: `tail -100 /root/dev/doctoralia-scrapper/data/logs/latest.log`
 2. Check health status: `cat /root/dev/doctoralia-scrapper/data/health/status.json`
 3. The script will automatically retry (up to 3 times) with these strategies:
@@ -108,18 +115,22 @@ curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"
 ### Common Issues
 
 **Network failures:**
+
 - Script retries automatically with exponential backoff
 - Check connectivity: `curl -I https://www.doctoralia.com.br`
 
 **Selenium/WebDriver errors:**
+
 - Dependencies auto-installed in venv
 - If persistent, recreate venv: `cd /root/dev/doctoralia-scrapper && poetry install --no-root`
 
 **Rate limiting (HTTP 429):**
+
 - Script automatically backs off 3x longer
 - Consider adding random jitter if persistent
 
 ### Re-create Environment
+
 ```bash
 cd /root/dev/doctoralia-scrapper
 rm -rf .venv
@@ -130,7 +141,7 @@ poetry install --no-root
 
 ## 📊 File Structure
 
-```
+```text
 /root/dev/doctoralia-scrapper/
 ├── .env                          # Environment variables (Telegram, etc.)
 ├── config/config.json            # Scraper configuration
@@ -174,6 +185,7 @@ echo "00 19 * * * $SCRIPT >> $LOG 2>&1"  # 19:00 PM (7:00 PM)
 ```
 
 **Cron time format**: `minute hour day month weekday`
+
 - `30 08 * * *` = 08:30 AM every day
 - `00 19 * * *` = 19:00 PM (7:00 PM) every day
 - `*/15 * * * *` = Every 15 minutes

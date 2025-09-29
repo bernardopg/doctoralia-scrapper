@@ -202,7 +202,7 @@ class TestAsyncJobs:
                 "profile_url": "https://example.com/dr-test",
                 "specialty": "General Practice",
                 "location": "Test City",
-                "rating": 4.5
+                "rating": 4.5,
             },
             "reviews": [],
             "metrics": {
@@ -210,7 +210,7 @@ class TestAsyncJobs:
                 "start_ts": "2024-01-15T10:00:00",
                 "end_ts": "2024-01-15T10:00:01",
                 "duration_ms": 1000,
-                "source": "doctoralia"
+                "source": "doctoralia",
             },
             "status": "completed",
         }
