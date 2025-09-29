@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import random
 import re
 import time
@@ -16,6 +17,8 @@ from selenium.common.exceptions import (
     TimeoutException,
     WebDriverException,
 )
+from selenium.webdriver import Remote
+from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -81,7 +84,7 @@ class DoctoraliaScraper:
     ) -> None:
         self.config = config
         self.logger = logger or default_logger
-        self.driver: Optional[webdriver.Chrome] = None
+        self.driver: Optional[WebDriver] = None
         self.rate_limiter = RateLimiter(
             requests_per_minute=6
         )  # Conservative rate limiting
@@ -93,6 +96,10 @@ class DoctoraliaScraper:
         self.error_handler = error_handler or EnhancedErrorHandler(
             self.logger, max_retries=self.config.scraping.max_retries
         )
+
+        # Cache para otimizar extrações repetidas
+        self._cache: Dict[str, Any] = {}
+        self._last_url: Optional[str] = None
 
     def get_random_user_agent(self) -> str:
         user_agents = [
@@ -114,9 +121,16 @@ class DoctoraliaScraper:
                     f"Tentativa {attempt + 1}/{max_attempts} de inicializar navegador..."
                 )
 
-                chromedriver_binary = ChromeDriverManager().install()
-
                 options = Options()
+
+                # Check if we should use remote Selenium
+                selenium_url = os.environ.get("SELENIUM_REMOTE_URL")
+                if selenium_url:
+                    self.logger.info(f"Using remote Selenium at {selenium_url}")
+                    # Remote Selenium setup
+                else:
+                    # Local ChromeDriver setup
+                    chromedriver_binary = ChromeDriverManager().install()
 
                 if self.config.scraping.headless:
                     options.add_argument("--headless=new")
@@ -146,8 +160,13 @@ class DoctoraliaScraper:
                 options.add_argument("--aggressive-cache-discard")
                 options.add_argument("--disable-background-networking")
 
-                service = Service(chromedriver_binary)
-                self.driver = webdriver.Chrome(service=service, options=options)
+                if selenium_url:
+                    # Use remote Selenium
+                    self.driver = Remote(command_executor=selenium_url, options=options)
+                else:
+                    # Use local Chrome
+                    service = Service(chromedriver_binary)
+                    self.driver = webdriver.Chrome(service=service, options=options)
 
                 self.driver.set_page_load_timeout(
                     self.config.scraping.page_load_timeout
@@ -374,12 +393,19 @@ class DoctoraliaScraper:
                 # Every 3 clicks or when we have >50 reviews, get current data
                 if clicks_realizados % 3 == 0 or reviews_after > 50:
                     current_url = self.driver.current_url
-                    if current_url.startswith("https://www.doctoralia.com.br/") and "/booking/" not in current_url:
+                    if (
+                        current_url.startswith("https://www.doctoralia.com.br/")
+                        and "/booking/" not in current_url
+                    ):
                         try:
                             last_successful_reviews = self._extract_all_reviews()
-                            self.logger.debug(f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})")
+                            self.logger.debug(
+                                f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})"
+                            )
                         except Exception as e:
-                            self.logger.debug(f"Erro ao fazer backup dos comentários: {e}")
+                            self.logger.debug(
+                                f"Erro ao fazer backup dos comentários: {e}"
+                            )
 
                 # Wait for page to stabilize after loading new content
                 self.add_human_delay(2.0, 4.0)
@@ -391,10 +417,18 @@ class DoctoraliaScraper:
                 )
                 # Check if we're still on the correct page after timeout
                 current_url = self.driver.current_url if self.driver else ""
-                if not current_url.startswith("https://www.doctoralia.com.br/") or "/booking/" in current_url:
-                    self.logger.error("❌ Página redirecionada durante scraping! URL atual: %s", current_url)
+                if (
+                    not current_url.startswith("https://www.doctoralia.com.br/")
+                    or "/booking/" in current_url
+                ):
+                    self.logger.error(
+                        "❌ Página redirecionada durante scraping! URL atual: %s",
+                        current_url,
+                    )
                     # Even though redirected, we might have loaded reviews successfully before
-                    self.logger.info("⚠️ Tentando salvar dados extraídos antes do redirecionamento...")
+                    self.logger.info(
+                        "⚠️ Tentando salvar dados extraídos antes do redirecionamento..."
+                    )
                 break
             except WebDriverException as e:
                 self.logger.warning(
@@ -714,9 +748,20 @@ class DoctoraliaScraper:
 
         # Check if we're still on the correct page (avoid booking redirects)
         current_url = self.driver.current_url
-        if not current_url.startswith("https://www.doctoralia.com.br/") or "/booking/" in current_url:
-            self.logger.error("❌ Extração cancelada: página redirecionada para %s", current_url)
+        if (
+            not current_url.startswith("https://www.doctoralia.com.br/")
+            or "/booking/" in current_url
+        ):
+            self.logger.error(
+                "❌ Extração cancelada: página redirecionada para %s", current_url
+            )
             return []
+
+        # Verificar cache para mesma URL
+        cache_key = f"reviews_{current_url}"
+        if self._last_url == current_url and cache_key in self._cache:
+            self.logger.info("✅ Usando cache para extração de reviews")
+            return self._cache[cache_key]
 
         reviews_data: List[Dict[str, Any]] = []
         page_source = self.driver.page_source
@@ -727,40 +772,39 @@ class DoctoraliaScraper:
             f"Encontrados {len(review_elements)} elementos de review com o seletor principal."
         )
 
+        # Processamento otimizado com list comprehension
         for review_index, review_element in enumerate(review_elements):
             try:
                 comment = self.extract_comment(review_element)
                 if not comment:
-                    self.logger.warning(
-                        f"Comentário {review_index + 1} ignorado por falta de texto."
-                    )
                     continue
 
-                # Use direct assignment to reduce local variables
                 review_data = {
                     "id": review_index + 1,
                     "author": self.extract_author_name(review_element),
-                    "comment": comment,  # Reuse already extracted comment
+                    "comment": comment,
                     "rating": self.extract_rating(review_element),
                     "date": self.extract_date(review_element),
                     "doctor_reply": self.extract_reply(review_element),
                 }
 
+                # Filtrar valores None de forma mais eficiente
                 review_data = {k: v for k, v in review_data.items() if v is not None}
-                reviews_data.append(review_data)
+                if review_data.get("comment"):  # Garantir que tem comentário
+                    reviews_data.append(review_data)
 
-            except (ValueError, TypeError, AttributeError) as e:
-                self.logger.warning(
-                    "Erro ao processar avaliação %d: %s", review_index + 1, e
-                )
-                continue
-            except (TimeoutException, WebDriverException) as e:
-                self.logger.warning(
-                    "Erro de navegador ao processar avaliação %d: %s",
-                    review_index + 1,
-                    e,
-                )
-                continue
+            except (
+                ValueError,
+                TypeError,
+                AttributeError,
+                TimeoutException,
+                WebDriverException,
+            ):
+                continue  # Silenciosamente ignorar erros de processamento
+
+        # Atualizar cache
+        self._cache[cache_key] = reviews_data
+        self._last_url = current_url
 
         self.logger.info("Extraídos %d comentários com sucesso.", len(reviews_data))
         return reviews_data

@@ -114,3 +114,28 @@ class AppConfig:
 
         with open(config_file, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
+    # --- Added method used by CLI (main.py) ---
+    def validate(self) -> bool:
+        """Basic validation used by CLI.
+
+        Returns True if mandatory directories can be created and basic numeric
+        constraints look sane. This keeps behaviour simple while avoiding
+        AttributeErrors where the CLI previously expected a validate() method.
+        """
+        ok = True
+
+        # Ensure data/log dirs exist
+        try:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            self.logs_dir.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            ok = False
+
+        # Scraping delay sanity
+        if self.scraping.delay_min < 0 or self.scraping.delay_max < 0:
+            ok = False
+        if self.scraping.delay_min > self.scraping.delay_max:
+            ok = False
+
+        return ok

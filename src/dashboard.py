@@ -56,6 +56,9 @@ class DashboardApp:
 
         self.setup_routes()
 
+    # The run() method is defined near the end of the file with more options (debug flag).
+    # We keep a single implementation there to avoid duplication.
+
     def setup_routes(self) -> None:
         """Setup Flask routes."""
         self._setup_main_routes()
@@ -379,6 +382,21 @@ class DashboardApp:
         if self.logger:
             self.logger.info(f"Starting dashboard server on http://{host}:{port}")
         self.app.run(host=host, port=port, debug=debug)
+
+
+def start_dashboard(
+    host: str = "0.0.0.0", port: int = 5000, debug: bool = False
+):  # pragma: no cover - thin wrapper
+    """Convenience wrapper so the CLI can start the dashboard with a single import."""
+    config = None
+    try:
+        from config.settings import AppConfig as _Cfg  # local import
+
+        config = _Cfg.load()
+    except Exception:  # noqa: BLE001
+        config = None
+    app = DashboardApp(config)
+    app.run(host=host, port=port, debug=debug)
 
 
 def create_dashboard_template():
