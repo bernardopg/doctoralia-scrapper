@@ -255,11 +255,17 @@ class TestWebhookSecurity:
 
     def test_webhook_without_signature(self, client):
         """Test webhook endpoint without signature."""
-        response = client.post(
-            "/v1/hooks/n8n/scrape", json={"doctor_url": "https://example.com"}
-        )
-        # Should pass if no secret is configured
-        assert response.status_code in [200, 401, 422]
+        with patch("src.api.v1.main.create_job") as mock_create:
+            mock_result = MagicMock()
+            mock_result.job_id = "job-123"
+            mock_result.status = "queued"
+            mock_create.return_value = mock_result
+
+            response = client.post(
+                "/v1/hooks/n8n/scrape", json={"doctor_url": "https://example.com"}
+            )
+            # Should pass if no secret is configured
+            assert response.status_code in [200, 401, 422]
 
     def test_webhook_with_valid_signature(self, client):
         """Test webhook with valid signature."""

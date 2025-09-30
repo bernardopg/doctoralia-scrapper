@@ -9,9 +9,14 @@ from tests.fixtures import MockConfig
 
 @pytest.fixture
 def enhanced_scraper():
+    """Create a fresh EnhancedDoctoraliaScraper instance for each test"""
     config = MockConfig()
     logger = MagicMock()
-    return EnhancedDoctoraliaScraper(config, logger)
+    scraper = EnhancedDoctoraliaScraper(config, logger)
+    # Ensure circuit breaker is in clean state
+    scraper.page_load_circuit.reset()
+    scraper.api_circuit.reset()
+    return scraper
 
 
 def test_scrape_page_with_protection_success(enhanced_scraper):
@@ -35,11 +40,17 @@ def test_scrape_page_with_protection_success(enhanced_scraper):
     ],
 )
 def test_scrape_page_with_protection_error_mapping(enhanced_scraper, message, expected):
+    # Reset circuit breaker state and increase threshold to allow multiple retries
+    # without triggering the circuit breaker (retry_with_backoff does 3 retries)
+    enhanced_scraper.page_load_circuit.reset()
+    enhanced_scraper.page_load_circuit.failure_threshold = 10
+
     def raise_error(_):  # noqa: D401
         raise Exception(message)
 
-    # Force underlying protected function to raise error
-    enhanced_scraper.scrape_reviews = MagicMock(side_effect=raise_error)  # type: ignore
+    # Mock _scrape_page_protected directly to avoid multiple failures from retry logic
+    # triggering the circuit breaker
+    enhanced_scraper._scrape_page_protected = MagicMock(side_effect=raise_error)  # type: ignore
 
     with pytest.raises(expected):
         enhanced_scraper.scrape_page_with_protection(

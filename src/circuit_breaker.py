@@ -5,7 +5,7 @@ Circuit Breaker pattern para proteger contra falhas em cascata
 import threading
 import time
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, Tuple, Type, Union
 
 
 class CircuitState(Enum):
@@ -25,7 +25,9 @@ class CircuitBreaker:
         self,
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
-        expected_exception: type = Exception,
+        expected_exception: Union[
+            Type[BaseException], Tuple[Type[BaseException], ...]
+        ] = Exception,
     ):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -55,9 +57,12 @@ class CircuitBreaker:
                     self._on_success()
                     return result
 
-                except self.expected_exception as e:
-                    self._on_failure()
-                    raise e
+                except Exception as e:
+                    # Only treat configured exception types as circuit failures.
+                    # Unexpected exception types are re-raised without affecting the circuit state.
+                    if isinstance(e, self.expected_exception):
+                        self._on_failure()
+                    raise
 
         return wrapper
 
@@ -73,6 +78,13 @@ class CircuitBreaker:
 
         if self.failure_count >= self.failure_threshold:
             self.state = CircuitState.OPEN
+
+    def reset(self):
+        """Reset circuit breaker state to initial values"""
+        with self._lock:
+            self.failure_count = 0
+            self.last_failure_time = 0
+            self.state = CircuitState.CLOSED
 
     @property
     def status(self) -> dict:

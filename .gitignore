@@ -123,6 +123,16 @@ secrets/
 *.pem
 *.cert
 *.crt
+*.p12
+*.pfx
+credentials.json
+token.json
+*.credentials
+
+# Coverage and test reports
+junit.xml
+coverage.xml
+.coverage
 
 # n8n integration specific
 n8n-data/
@@ -136,3 +146,4 @@ data/logs/
 data/temp/
 *.bak
 *.backup
+bruna_pinto_gomes.json
