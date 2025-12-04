@@ -1,10 +1,57 @@
 [tool.poetry]
 name = "doctoralia-scrapper"
 version = "0.1.0"
-description = "Sistema automatizado para scraping de avaliações e geração de respostas no Doctoralia com notificações via Telegram."
-authors = ["Your Name <you@example.com>"]
+description = "Sistema profissional de monitoramento e resposta a avaliações médicas. Inclui web scraping resiliente, API REST, análise de sentimento, geração inteligente de respostas e integração com n8n/Telegram."
+authors = ["Bernardo Gomes <bernardopg@users.noreply.github.com>"]
+maintainers = ["Bernardo Gomes <bernardopg@users.noreply.github.com>"]
+license = "MIT"
 readme = "README.md"
+homepage = "https://github.com/bernardopg/doctoralia-scrapper"
+repository = "https://github.com/bernardopg/doctoralia-scrapper"
+documentation = "https://github.com/bernardopg/doctoralia-scrapper/tree/main/docs"
+keywords = [
+    "doctoralia",
+    "scraping",
+    "web-scraping",
+    "selenium",
+    "healthcare",
+    "medical-reviews",
+    "sentiment-analysis",
+    "fastapi",
+    "automation",
+    "reviews",
+    "nlp",
+    "telegram-bot",
+    "n8n",
+    "api",
+    "python"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Framework :: Flask",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Healthcare Industry",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: Portuguese (Brazilian)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed"
+]
 packages = [{include = "src"}]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/bernardopg/doctoralia-scrapper/issues"
+"Changelog" = "https://github.com/bernardopg/doctoralia-scrapper/blob/main/CHANGELOG.md"
+"Discussions" = "https://github.com/bernardopg/doctoralia-scrapper/discussions"
 
 [tool.poetry.dependencies]
 python = ">=3.10"
