@@ -654,9 +654,15 @@ class DoctoraliaAPI:
         del self.tasks[task_id]
         return {"message": "Task deleted successfully"}
 
-    def run(self, host: str = "0.0.0.0", port: int = 8000) -> None:
+    def run(self, host: str = None, port: int = None) -> None:
         """Run the API server."""
         import uvicorn
+
+        # Use config values if available, otherwise defaults
+        if host is None:
+            host = self.config.api.host if self.config and hasattr(self.config, 'api') else "0.0.0.0"
+        if port is None:
+            port = self.config.api.port if self.config and hasattr(self.config, 'api') else 8000
 
         if self.logger:
             self.logger.info(f"Starting API server on http://{host}:{port}")
@@ -666,10 +672,14 @@ class DoctoraliaAPI:
 # Create API instance
 def create_api_app(config: Any = None, logger: Any = None) -> DoctoraliaAPI:
     """Create and configure the API application."""
+    # Load config if not provided
+    if config is None and AppConfig is not None:
+        config = AppConfig.load()
     return DoctoraliaAPI(config, logger)
 
 
 if __name__ == "__main__":
     # Initialize and run API
-    api = create_api_app()
+    config = AppConfig.load() if AppConfig else None
+    api = create_api_app(config)
     api.run()

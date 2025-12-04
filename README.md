@@ -121,6 +121,28 @@ make dashboard  # http://localhost:5000
 make api  # http://localhost:8000/docs
 ```
 
+### 🔄 Comandos de Atualização
+
+```bash
+# Verificar atualizações disponíveis
+make update-check
+
+# Atualizar TUDO (dependências + chromedriver + nltk)
+make update
+
+# Atualizar apenas dependências Python
+make update-deps
+
+# Atualizar ChromeDriver
+make update-drivers
+
+# Atualizar recursos NLTK
+make update-nltk
+
+# Atualização completa incluindo git pull
+make update-all
+```
+
 📚 Consulte o [Guia Rápido Completo](docs/quickstart.md) para mais detalhes.
 
 ---

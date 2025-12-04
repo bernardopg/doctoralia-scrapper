@@ -17,6 +17,12 @@
     "implicit_wait": 20,
     "explicit_wait": 30
   },
+  "api": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": false,
+    "workers": 1
+  },
   "urls": {
     "base_url": "https://www.doctoralia.com.br",
     "profile_url": "YOUR_DOCTORALIA_PROFILE_URL_HERE"

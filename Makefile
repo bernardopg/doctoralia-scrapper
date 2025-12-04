@@ -179,7 +179,7 @@ dashboard: ## Inicia dashboard web (Priority 4)
 
 api: ## Inicia API REST (Priority 4)
 	@echo "$(BLUE)Iniciando API REST...$(NC)"
-	$(PYTHON) src/api.py
+	poetry run $(PYTHON) src/api.py
 
 api-docs: ## Abre documentação da API no navegador
 	@echo "$(BLUE)Abrindo documentação da API...$(NC)"
@@ -196,6 +196,114 @@ deps-sync: ## Sincroniza requirements.txt a partir do pyproject.toml (Poetry nec
 	else \
 		echo "$(YELLOW)Poetry não encontrado. Instale para usar deps-sync.$(NC)"; \
 	fi
+
+# ===================================
+# Comandos de Update
+# ===================================
+
+update: ## 🔄 Atualiza TUDO: dependências, chromedriver e verifica sistema
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)       🔄 DOCTORALIA SCRAPPER - ATUALIZAÇÃO COMPLETA        $(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@$(MAKE) update-deps
+	@echo ""
+	@$(MAKE) update-drivers
+	@echo ""
+	@$(MAKE) update-nltk
+	@echo ""
+	@$(MAKE) deps-sync
+	@echo ""
+	@echo "$(GREEN)═══════════════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)       ✅ ATUALIZAÇÃO COMPLETA FINALIZADA!                  $(NC)"
+	@echo "$(GREEN)═══════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@$(MAKE) info
+
+update-deps: ## 📦 Atualiza dependências Python via Poetry
+	@echo "$(BLUE)📦 Atualizando dependências Python...$(NC)"
+	@if command -v poetry >/dev/null 2>&1; then \
+		echo "$(YELLOW)→ Verificando atualizações disponíveis...$(NC)"; \
+		poetry show --outdated 2>/dev/null || true; \
+		echo ""; \
+		echo "$(YELLOW)→ Atualizando dependências...$(NC)"; \
+		poetry update; \
+		echo "$(GREEN)✅ Dependências Python atualizadas!$(NC)"; \
+	else \
+		echo "$(RED)❌ Poetry não encontrado!$(NC)"; \
+		echo "$(YELLOW)Instalando Poetry...$(NC)"; \
+		$(PIP) install poetry --break-system-packages 2>/dev/null || $(PIP) install poetry; \
+		poetry update; \
+	fi
+
+update-deps-dry: ## 📦 Mostra atualizações disponíveis (sem instalar)
+	@echo "$(BLUE)📦 Verificando atualizações disponíveis...$(NC)"
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry show --outdated; \
+	else \
+		echo "$(YELLOW)Poetry não encontrado. Use: make update-deps$(NC)"; \
+	fi
+
+update-drivers: ## 🌐 Atualiza ChromeDriver para versão mais recente
+	@echo "$(BLUE)🌐 Atualizando ChromeDriver...$(NC)"
+	@poetry run python scripts/update_drivers.py chromedriver
+	@echo "$(GREEN)✅ ChromeDriver atualizado!$(NC)"
+
+update-nltk: ## 📚 Atualiza recursos NLTK (tokenizers, stopwords)
+	@echo "$(BLUE)📚 Atualizando recursos NLTK...$(NC)"
+	@poetry run python scripts/update_drivers.py nltk
+	@echo "$(GREEN)✅ NLTK atualizado!$(NC)"
+
+update-poetry: ## 🔧 Atualiza o próprio Poetry para última versão
+	@echo "$(BLUE)🔧 Atualizando Poetry...$(NC)"
+	@if command -v poetry >/dev/null 2>&1; then \
+		poetry self update; \
+		echo "$(GREEN)✅ Poetry atualizado!$(NC)"; \
+	else \
+		echo "$(YELLOW)Poetry não encontrado. Instalando...$(NC)"; \
+		$(PIP) install poetry --break-system-packages 2>/dev/null || $(PIP) install poetry; \
+	fi
+
+update-check: ## 🔍 Verifica status de todas as atualizações disponíveis
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)       🔍 VERIFICAÇÃO DE ATUALIZAÇÕES DISPONÍVEIS          $(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@echo "$(YELLOW)📦 Dependências Python desatualizadas:$(NC)"
+	@poetry show --outdated 2>/dev/null || echo "  (Poetry não disponível)"
+	@echo ""
+	@echo "$(YELLOW)🐍 Versão do Python:$(NC)"
+	@$(PYTHON) --version
+	@echo ""
+	@echo "$(YELLOW)📝 Versão do Poetry:$(NC)"
+	@poetry --version 2>/dev/null || echo "  Poetry não instalado"
+	@echo ""
+	@echo "$(YELLOW)🌐 Chrome/Chromium instalado:$(NC)"
+	@google-chrome --version 2>/dev/null || chromium --version 2>/dev/null || chromium-browser --version 2>/dev/null || echo "  Chrome não encontrado"
+	@echo ""
+	@echo "$(YELLOW)📊 Status do Git:$(NC)"
+	@git fetch --quiet 2>/dev/null; \
+	LOCAL=$$(git rev-parse HEAD 2>/dev/null); \
+	REMOTE=$$(git rev-parse @{u} 2>/dev/null); \
+	if [ "$$LOCAL" = "$$REMOTE" ]; then \
+		echo "  ✅ Repositório atualizado"; \
+	else \
+		BEHIND=$$(git rev-list --count HEAD..@{u} 2>/dev/null || echo "0"); \
+		echo "  ⚠️  $$BEHIND commit(s) atrás do remoto. Use: git pull"; \
+	fi
+	@echo ""
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════$(NC)"
+	@echo "$(GREEN)💡 Use 'make update' para atualizar tudo automaticamente$(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════$(NC)"
+
+update-git: ## 📥 Atualiza código do repositório (git pull)
+	@echo "$(BLUE)📥 Atualizando código do repositório...$(NC)"
+	@git fetch --all
+	@git pull --rebase
+	@echo "$(GREEN)✅ Código atualizado!$(NC)"
+
+update-all: update-git update ## 🚀 Atualização completa incluindo git pull
+	@echo "$(GREEN)✅ Sistema completamente atualizado!$(NC)"
 
 # Comandos Úteis
 dev: install-dev ## Configuração completa para desenvolvimento

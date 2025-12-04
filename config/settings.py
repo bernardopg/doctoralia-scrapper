@@ -29,6 +29,16 @@ class DelayConfig:
 
 
 @dataclass
+class APIConfig:
+    """Configurações da API REST"""
+
+    host: str = "0.0.0.0"
+    port: int = 8000
+    debug: bool = False
+    workers: int = 1
+
+
+@dataclass
 class ScrapingConfig:
     headless: bool = True
     timeout: int = 60
@@ -45,6 +55,7 @@ class AppConfig:
     telegram: TelegramConfig
     scraping: ScrapingConfig
     delays: DelayConfig
+    api: APIConfig
     base_dir: Path
     data_dir: Path
     logs_dir: Path
@@ -58,6 +69,7 @@ class AppConfig:
         telegram = TelegramConfig()
         scraping = ScrapingConfig()
         delays = DelayConfig()
+        api = APIConfig()
 
         # Carregar configurações se existir
         if config_file.exists():
@@ -86,6 +98,14 @@ class AppConfig:
                     implicit_wait=scraping_data.get("implicit_wait", 20),
                     explicit_wait=scraping_data.get("explicit_wait", 30),
                 )
+
+                api_data = data.get("api", {})
+                api = APIConfig(
+                    host=api_data.get("host", "0.0.0.0"),
+                    port=api_data.get("port", 8000),
+                    debug=api_data.get("debug", False),
+                    workers=api_data.get("workers", 1),
+                )
             except Exception:
                 pass
 
@@ -93,6 +113,7 @@ class AppConfig:
             telegram=telegram,
             scraping=scraping,
             delays=delays,
+            api=api,
             base_dir=base_dir,
             data_dir=base_dir / "data",
             logs_dir=base_dir / "data" / "logs",
@@ -119,6 +140,12 @@ class AppConfig:
                 "page_load_timeout": self.scraping.page_load_timeout,
                 "implicit_wait": self.scraping.implicit_wait,
                 "explicit_wait": self.scraping.explicit_wait,
+            },
+            "api": {
+                "host": self.api.host,
+                "port": self.api.port,
+                "debug": self.api.debug,
+                "workers": self.api.workers,
             },
             "updated_at": str(datetime.now()),
         }
