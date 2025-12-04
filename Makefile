@@ -4,8 +4,10 @@
 .PHONY: help install setup test lint run daemon monitor clean venv format security deps-sync analyze run-full-url
 
 # Variáveis
-PYTHON := python3
-PIP := pip3
+# Detecta se .venv existe e usa o Python do venv, caso contrário usa python3 do sistema
+VENV_PYTHON := .venv/bin/python
+PYTHON := $(shell [ -f $(VENV_PYTHON) ] && echo $(VENV_PYTHON) || echo python3)
+PIP := $(shell [ -f .venv/bin/pip ] && echo .venv/bin/pip || echo pip3)
 SRC_DIR := src
 TEST_DIR := tests
 
@@ -179,7 +181,7 @@ dashboard: ## Inicia dashboard web (Priority 4)
 
 api: ## Inicia API REST (Priority 4)
 	@echo "$(BLUE)Iniciando API REST...$(NC)"
-	poetry run $(PYTHON) src/api.py
+	$(PYTHON) src/api_server.py
 
 api-docs: ## Abre documentação da API no navegador
 	@echo "$(BLUE)Abrindo documentação da API...$(NC)"
@@ -246,12 +248,12 @@ update-deps-dry: ## 📦 Mostra atualizações disponíveis (sem instalar)
 
 update-drivers: ## 🌐 Atualiza ChromeDriver para versão mais recente
 	@echo "$(BLUE)🌐 Atualizando ChromeDriver...$(NC)"
-	@poetry run python scripts/update_drivers.py chromedriver
+	@$(PYTHON) scripts/update_drivers.py chromedriver
 	@echo "$(GREEN)✅ ChromeDriver atualizado!$(NC)"
 
 update-nltk: ## 📚 Atualiza recursos NLTK (tokenizers, stopwords)
 	@echo "$(BLUE)📚 Atualizando recursos NLTK...$(NC)"
-	@poetry run python scripts/update_drivers.py nltk
+	@$(PYTHON) scripts/update_drivers.py nltk
 	@echo "$(GREEN)✅ NLTK atualizado!$(NC)"
 
 update-poetry: ## 🔧 Atualiza o próprio Poetry para última versão

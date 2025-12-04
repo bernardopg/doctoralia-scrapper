@@ -147,3 +147,9 @@ data/temp/
 *.bak
 *.backup
 bruna_pinto_gomes.json
+
+#mypy cache
+.mypy_cache/
+
+#claude cache
+.claude

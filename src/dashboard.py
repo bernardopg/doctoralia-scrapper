@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import requests
+
 # Import our modules
 try:
     from config.settings import AppConfig
@@ -35,10 +37,28 @@ class DashboardApp:
     """
 
     def __init__(self, config: Any = None, logger: Any = None) -> None:
+        # Load config if not provided
+        if config is None and AppConfig is not None:
+            try:
+                config = AppConfig.load()
+            except Exception:
+                pass  # Fail gracefully if config can't be loaded
+
         self.config = config
         self.logger = logger or (
-            setup_logger("dashboard", config) if setup_logger else None
+            setup_logger("dashboard", config) if (setup_logger and config) else None
         )
+
+        # Configure API connection
+        api_host = "0.0.0.0"
+        api_port = 8080
+        if self.config and hasattr(self.config, "api"):
+            api_host = getattr(self.config.api, "host", api_host)
+            api_port = getattr(self.config.api, "port", api_port)
+
+        # Use localhost for API calls from dashboard
+        self.api_base_url = f"http://localhost:{api_port}"
+        self.api_timeout = 5  # seconds
 
         self.app = Flask(
             __name__,
@@ -59,6 +79,70 @@ class DashboardApp:
     # The run() method is defined near the end of the file with more options (debug flag).
     # We keep a single implementation there to avoid duplication.
 
+    def _call_api(self, endpoint: str, method: str = "GET", **kwargs) -> Optional[Dict]:
+        """
+        Make HTTP call to the main API.
+
+        Args:
+            endpoint: API endpoint (e.g., '/health', '/v1/metrics')
+            method: HTTP method (GET, POST, etc.)
+            **kwargs: Additional arguments for requests
+
+        Returns:
+            JSON response dict or None if API is unavailable
+        """
+        try:
+            url = f"{self.api_base_url}{endpoint}"
+            response = requests.request(
+                method, url, timeout=self.api_timeout, **kwargs
+            )
+            if response.status_code == 200:
+                return response.json()
+            else:
+                if self.logger:
+                    self.logger.warning(
+                        f"API call failed: {method} {endpoint} -> {response.status_code}"
+                    )
+                return None
+        except requests.exceptions.ConnectionError:
+            if self.logger:
+                self.logger.debug(
+                    f"API not available at {self.api_base_url} (connection refused)"
+                )
+            return None
+        except requests.exceptions.Timeout:
+            if self.logger:
+                self.logger.warning(f"API timeout: {method} {endpoint}")
+            return None
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error calling API: {e}")
+            return None
+
+    def _get_api_health(self) -> Dict[str, Any]:
+        """Get health status from main API."""
+        api_data = self._call_api("/health")
+        if api_data:
+            return {
+                "status": "connected",
+                "api_url": self.api_base_url,
+                "api_data": api_data,
+            }
+        else:
+            return {
+                "status": "disconnected",
+                "api_url": self.api_base_url,
+                "message": "API não está acessível",
+            }
+
+    def _get_api_metrics(self) -> Optional[Dict[str, Any]]:
+        """Get performance metrics from main API."""
+        return self._call_api("/performance")
+
+    def _get_api_statistics(self) -> Optional[Dict[str, Any]]:
+        """Get statistics from main API."""
+        return self._call_api("/statistics")
+
     def setup_routes(self) -> None:
         """Setup Flask routes."""
         self._setup_main_routes()
@@ -72,14 +156,38 @@ class DashboardApp:
             """Main dashboard page."""
             return render_template("dashboard.html")
 
+        @self.app.route("/settings")
+        def settings():
+            """Settings page."""
+            return render_template("settings.html")
+
+        @self.app.route("/history")
+        def history():
+            """History page."""
+            return render_template("history.html")
+
+        @self.app.route("/reports")
+        def reports():
+            """Reports page."""
+            return render_template("reports.html")
+
+        @self.app.route("/health-check")
+        def health_check_page():
+            """Health check visual page."""
+            return render_template("health.html")
+
         @self.app.route("/api/health")
         def health_check():
-            """Health check endpoint."""
+            """Health check endpoint with API connection status."""
+            api_health = self._get_api_health()
             return jsonify(
                 {
-                    "status": "healthy",
-                    "timestamp": datetime.now().isoformat(),
-                    "version": "1.0.0",
+                    "dashboard": {
+                        "status": "healthy",
+                        "timestamp": datetime.now().isoformat(),
+                        "version": "1.0.0",
+                    },
+                    "api": api_health,
                 }
             )
 
@@ -88,21 +196,44 @@ class DashboardApp:
 
         @self.app.route("/api/stats")
         def get_stats():
-            """Get scraper statistics."""
+            """Get scraper statistics from API or local files."""
             try:
+                # Try to get stats from main API first
+                api_stats = self._get_api_statistics()
+                if api_stats:
+                    return jsonify({"source": "api", "data": api_stats})
+
+                # Fallback to local files
                 stats = self._get_scraper_stats()
-                return jsonify(stats)
+                return jsonify({"source": "local", "data": stats})
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
         @self.app.route("/api/performance")
         def get_performance():
-            """Get performance metrics."""
+            """Get performance metrics from API or local monitor."""
             try:
+                # Try to get metrics from main API first
+                api_metrics = self._get_api_metrics()
+                if api_metrics:
+                    return jsonify(
+                        {
+                            "source": "api",
+                            "data": api_metrics,
+                        }
+                    )
+
+                # Fallback to local performance monitor
                 if self.performance_monitor:
                     summary = self.performance_monitor.get_summary()
-                    return jsonify(summary)
-                return jsonify({"message": "Performance monitoring not available"})
+                    return jsonify({"source": "local", "data": summary})
+
+                return jsonify(
+                    {
+                        "source": "none",
+                        "message": "No performance data available. Start the API with 'make api'",
+                    }
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -138,6 +269,46 @@ class DashboardApp:
                 lines = request.args.get("lines", default=50, type=int)
                 logs = self._get_recent_logs(lines)
                 return jsonify({"logs": logs})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        # Proxy endpoints to avoid CORS issues
+        @self.app.route("/api/scrape", methods=["POST"])
+        def proxy_scrape():
+            """Proxy scraping request to main API."""
+            try:
+                data = request.get_json()
+                result = self._call_api("/scrape", method="POST", json=data)
+                if result:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível. Execute 'make api' para iniciar."}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/tasks/<task_id>")
+        def proxy_task_status(task_id):
+            """Proxy task status request to main API."""
+            try:
+                result = self._call_api(f"/tasks/{task_id}")
+                if result:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível ou task não encontrada"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/tasks")
+        def proxy_list_tasks():
+            """Proxy task list request to main API."""
+            try:
+                status = request.args.get("status")
+                endpoint = "/tasks"
+                if status:
+                    endpoint += f"?status={status}"
+
+                result = self._call_api(endpoint)
+                if result is not None:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 

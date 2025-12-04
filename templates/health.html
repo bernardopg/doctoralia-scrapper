@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Health Check - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Health Check do Sistema{% endblock %}
+
+{% block content %}
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-heartbeat"></i>
+      Status Geral do Sistema
+    </h3>
+    <div class="card-actions">
+      <button class="btn btn-secondary btn-sm" onclick="checkHealth()">
+        <i class="fas fa-sync-alt"></i>
+        Verificar Agora
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="health-overview">
+      <div class="health-status-large" id="overall-status">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <span>Verificando...</span>
+      </div>
+      <div class="health-meta">
+        <div class="meta-item">
+          <span class="meta-label">Última verificação:</span>
+          <span class="meta-value" id="last-check">-</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Versão da API:</span>
+          <span class="meta-value" id="api-version">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid"
+  style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+  <!-- Component Status -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Componentes</h3>
+    </div>
+    <div class="card-body">
+      <div class="component-list" id="component-list">
+        <div class="text-center text-secondary">Carregando componentes...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Resources -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Recursos do Sistema</h3>
+    </div>
+    <div class="card-body">
+      <div class="resource-list">
+        <div class="resource-item">
+          <div class="resource-header">
+            <span>CPU</span>
+            <span class="resource-value">Unknown</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="resource-item">
+          <div class="resource-header">
+            <span>Memória</span>
+            <span class="resource-value">Unknown</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="resource-item">
+          <div class="resource-header">
+            <span>Disco</span>
+            <span class="resource-value">Unknown</span>
+          </div>
+          <div class="progress-bar-container">
+            <div class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .health-overview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  .health-status-large {
+    font-size: 24px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .health-status-large.healthy {
+    color: var(--apple-green, #34c759);
+  }
+
+  .health-status-large.unhealthy {
+    color: var(--apple-red, #ff3b30);
+  }
+
+  .health-status-large.degraded {
+    color: var(--apple-orange, #ff9500);
+  }
+
+  .health-meta {
+    display: flex;
+    gap: 24px;
+    color: var(--text-secondary, #8e8e93);
+    font-size: 14px;
+  }
+
+  .meta-item {
+    display: flex;
+    gap: 8px;
+  }
+
+  .meta-value {
+    color: var(--text-primary, #fff);
+    font-weight: 500;
+  }
+
+  .component-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .component-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: var(--bg-tertiary, #3a3a3c);
+    border-radius: 8px;
+  }
+
+  .component-name {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .component-status {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .status-healthy {
+    background: rgba(52, 199, 89, 0.15);
+    color: #34c759;
+  }
+
+  .status-unhealthy {
+    background: rgba(255, 59, 48, 0.15);
+    color: #ff3b30;
+  }
+
+  .status-degraded {
+    background: rgba(255, 149, 0, 0.15);
+    color: #ff9500;
+  }
+
+  .resource-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .resource-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function checkHealth() {
+    const statusEl = document.getElementById('overall-status');
+    const listEl = document.getElementById('component-list');
+
+    statusEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Verificando...</span>';
+    statusEl.className = 'health-status-large';
+
+    try {
+      const response = await fetch('/api/health');
+      const data = await response.json();
+
+      // Update overall status
+      const apiStatus = data.api ? data.api.status : 'disconnected';
+      const dashboardStatus = data.dashboard ? data.dashboard.status : 'unknown';
+
+      const isHealthy = apiStatus === 'connected' && dashboardStatus === 'healthy';
+
+      statusEl.className = `health-status-large ${isHealthy ? 'healthy' : 'unhealthy'}`;
+      statusEl.innerHTML = `
+        <i class="fas fa-${isHealthy ? 'check-circle' : 'exclamation-circle'}"></i>
+        <span>${isHealthy ? 'Sistema Saudável' : 'Atenção Necessária'}</span>
+      `;
+
+      document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
+      document.getElementById('api-version').textContent = data.dashboard.version;
+
+      // Update components list
+      let componentsHtml = '';
+
+      // Dashboard Component
+      componentsHtml += createComponentItem('Dashboard', dashboardStatus);
+
+      // API Component
+      componentsHtml += createComponentItem('API Server', apiStatus === 'connected' ? 'healthy' : 'unhealthy', data.api.message);
+
+      // If API is connected, show its internal checks
+      if (data.api && data.api.api_data && data.api.api_data.checks) {
+        const checks = data.api.api_data.checks;
+        for (const [name, check] of Object.entries(checks)) {
+          componentsHtml += createComponentItem(name, check.status, `${check.response_time_ms}ms`);
+        }
+      }
+
+      listEl.innerHTML = componentsHtml;
+
+    } catch (error) {
+      console.error('Error checking health:', error);
+      statusEl.className = 'health-status-large unhealthy';
+      statusEl.innerHTML = '<i class="fas fa-times-circle"></i><span>Erro na Verificação</span>';
+      listEl.innerHTML = `<div class="text-center text-error">${error.message}</div>`;
+    }
+  }
+
+  function createComponentItem(name, status, detail = '') {
+    const statusClass = status === 'healthy' ? 'status-healthy' : (status === 'degraded' ? 'status-degraded' : 'status-unhealthy');
+    const icon = status === 'healthy' ? 'check' : 'times';
+
+    return `
+      <div class="component-item">
+        <div class="component-name">
+          <i class="fas fa-server"></i>
+          ${name}
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          ${detail ? `<span style="font-size: 12px; color: var(--text-secondary);">${detail}</span>` : ''}
+          <span class="component-status ${statusClass}">${status}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  document.addEventListener('DOMContentLoaded', checkHealth);
+</script>
+{% endblock %}

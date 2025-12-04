@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Doctoralia Scraper{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <a href="/" class="sidebar-logo">
+          <i class="fas fa-hospital-alt"></i>
+          <div class="sidebar-logo-text">
+            <span class="sidebar-logo-title">Doctoralia</span>
+            <span class="sidebar-logo-subtitle">Scraper Dashboard</span>
+          </div>
+        </a>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Menu Principal</div>
+          <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+          </a>
+          <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}">
+            <i class="fas fa-cog"></i>
+            <span>Configurações</span>
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Operações</div>
+          <a href="#" class="nav-item" onclick="showScrapeModal(); return false;">
+            <i class="fas fa-play-circle"></i>
+            <span>Iniciar Scraping</span>
+          </a>
+          <a href="/history" class="nav-item {% if request.path == '/history' %}active{% endif %}">
+            <i class="fas fa-list-alt"></i>
+            <span>Histórico</span>
+          </a>
+          <a href="/reports" class="nav-item {% if request.path == '/reports' %}active{% endif %}">
+            <i class="fas fa-chart-line"></i>
+            <span>Relatórios</span>
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-section-title">Sistema</div>
+          <a href="/health-check" class="nav-item {% if request.path == '/health-check' %}active{% endif %}">
+            <i class="fas fa-heartbeat"></i>
+            <span>Health Check</span>
+          </a>
+          <a href="#" class="nav-item">
+            <i class="fas fa-book"></i>
+            <span>Documentação</span>
+          </a>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-user-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name">Admin</div>
+            <div class="sidebar-user-role">Administrador</div>
+          </div>
+          <i class="fas fa-ellipsis-h" style="color: var(--text-tertiary);"></i>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleSidebar()">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <div class="top-bar">
+        <h1 class="top-bar-title">{% block page_title %}Dashboard{% endblock %}</h1>
+        <div class="top-bar-actions">
+          {% block top_bar_actions %}
+          <div class="top-bar-search">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Pesquisar...">
+          </div>
+          <button class="icon-btn" title="Notificações">
+            <i class="fas fa-bell"></i>
+            <span class="badge" id="notifications-badge" style="display: none;">0</span>
+          </button>
+          <button class="icon-btn" title="Configurações" onclick="window.location.href='/settings'">
+            <i class="fas fa-cog"></i>
+          </button>
+          {% endblock %}
+        </div>
+      </div>
+
+      <!-- Content Wrapper -->
+      <div class="content-wrapper">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <!-- Scraping Modal (Common) -->
+  <div id="scrape-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">
+          <i class="fas fa-play-circle"></i>
+          Iniciar Scraping
+        </h2>
+        <button class="modal-close" onclick="closeScrapeModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Step 1: Configuration -->
+        <div id="scrape-step-config">
+          <div class="form-group">
+            <label class="form-label">
+              URL do Perfil do Médico
+              <i class="fas fa-info-circle help-icon" title="Cole a URL completa do perfil do médico no Doctoralia"></i>
+            </label>
+            <input type="url" id="scrape-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
+            <small class="form-help">Ex: https://www.doctoralia.com.br/dr-joao-silva</small>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label class="form-label">Plataforma</label>
+              <select id="scrape-platform" class="form-control">
+                <option value="doctoralia" selected>Doctoralia</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Máximo de Avaliações</label>
+              <input type="number" id="scrape-max-reviews" class="form-control" min="1" max="100" value="50"
+                placeholder="Deixe vazio para todas">
+            </div>
+          </div>
+
+          <div class="checkbox-wrapper" style="margin-top: 16px;">
+            <input type="checkbox" id="scrape-include-reviews" checked>
+            <label for="scrape-include-reviews" class="checkbox-label">
+              Incluir avaliações dos pacientes
+            </label>
+          </div>
+
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="scrape-generate-responses">
+            <label for="scrape-generate-responses" class="checkbox-label">
+              Gerar respostas automáticas (requer API configurada)
+            </label>
+          </div>
+        </div>
+
+        <!-- Step 2: Progress -->
+        <div id="scrape-step-progress" style="display: none;">
+          <div class="progress-container">
+            <div class="progress-icon">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <h3 id="scrape-status-title">Iniciando scraping...</h3>
+            <p id="scrape-status-message" class="text-secondary">Conectando ao servidor...</p>
+            <div class="progress-bar-container" style="margin-top: 20px;">
+              <div class="progress-bar" id="scrape-progress-bar" style="width: 0%;"></div>
+            </div>
+            <p id="scrape-progress-text" class="text-secondary" style="margin-top: 8px;">0%</p>
+          </div>
+        </div>
+
+        <!-- Step 3: Results -->
+        <div id="scrape-step-results" style="display: none;">
+          <div id="scrape-results-content"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="scrape-cancel-btn" onclick="closeScrapeModal()">
+          Cancelar
+        </button>
+        <button class="btn btn-primary" id="scrape-start-btn" onclick="startScraping()">
+          <i class="fas fa-play"></i>
+          Iniciar Scraping
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .modal-container {
+      background: var(--bg-primary, #1c1c1e);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color, #3a3a3c);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary, #fff);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0;
+    }
+
+    .modal-title i {
+      color: var(--apple-blue, #0a84ff);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary, #8e8e93);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-tertiary, #3a3a3c);
+      color: var(--text-primary, #fff);
+    }
+
+    .modal-body {
+      padding: 24px;
+      max-height: 60vh;
+      overflow-y: auto;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 16px 24px;
+      border-top: 1px solid var(--border-color, #3a3a3c);
+    }
+
+    /* Progress styles */
+    .progress-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .progress-icon {
+      font-size: 48px;
+      color: var(--apple-blue, #0a84ff);
+      margin-bottom: 20px;
+    }
+
+    .progress-icon i {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .progress-bar-container {
+      height: 8px;
+      background: var(--bg-tertiary, #3a3a3c);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--apple-blue, #0a84ff), var(--apple-green, #34c759));
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    /* Result Card */
+    .result-card {
+      background: var(--bg-secondary, #2c2c2e);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .result-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .result-icon.success {
+      background: rgba(52, 199, 89, 0.15);
+      color: var(--apple-green, #34c759);
+    }
+
+    .result-icon.error {
+      background: rgba(255, 59, 48, 0.15);
+      color: var(--apple-red, #ff3b30);
+    }
+
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .result-stat {
+      text-align: center;
+      padding: 12px;
+      background: var(--bg-tertiary, #3a3a3c);
+      border-radius: 8px;
+    }
+
+    .result-stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary, #fff);
+    }
+
+    .result-stat-label {
+      font-size: 12px;
+      color: var(--text-secondary, #8e8e93);
+      margin-top: 4px;
+    }
+  </style>
+
+  <script>
+    // Global variables
+    let performanceChart = null;
+
+    // Toggle sidebar for mobile
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('open');
+    }
+
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function (event) {
+      const sidebar = document.getElementById('sidebar');
+      const toggle = document.getElementById('mobileMenuToggle');
+      if (window.innerWidth <= 1024 && sidebar.classList.contains('open')) {
+        if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+          sidebar.classList.remove('open');
+        }
+      }
+    });
+
+    // Scrape Modal Functions (Common)
+    function showScrapeModal() {
+      document.getElementById('scrape-modal').style.display = 'flex';
+      document.getElementById('scrape-step-config').style.display = 'block';
+      document.getElementById('scrape-step-progress').style.display = 'none';
+      document.getElementById('scrape-step-results').style.display = 'none';
+      document.getElementById('scrape-start-btn').style.display = 'flex';
+      document.getElementById('scrape-cancel-btn').textContent = 'Cancelar';
+    }
+
+    function closeScrapeModal() {
+      document.getElementById('scrape-modal').style.display = 'none';
+    }
+
+    async function startScraping() {
+      const url = document.getElementById('scrape-url').value;
+      const platform = document.getElementById('scrape-platform').value;
+      const maxReviews = document.getElementById('scrape-max-reviews').value;
+      const includeReviews = document.getElementById('scrape-include-reviews').checked;
+
+      if (!url) {
+        alert('Por favor, insira a URL do perfil do médico.');
+        return;
+      }
+
+      // Show progress
+      document.getElementById('scrape-step-config').style.display = 'none';
+      document.getElementById('scrape-step-progress').style.display = 'block';
+      document.getElementById('scrape-start-btn').style.display = 'none';
+      document.getElementById('scrape-cancel-btn').textContent = 'Fechar';
+
+      // Simulate progress (since API is async)
+      let progress = 0;
+      const progressBar = document.getElementById('scrape-progress-bar');
+      const progressText = document.getElementById('scrape-progress-text');
+      const statusMessage = document.getElementById('scrape-status-message');
+
+      const progressInterval = setInterval(() => {
+        if (progress < 90) {
+          progress += Math.random() * 5;
+          progressBar.style.width = `${Math.min(progress, 90)}%`;
+          progressText.textContent = `${Math.round(Math.min(progress, 90))}%`;
+        }
+      }, 500);
+
+      try {
+        const response = await fetch('/api/scrape', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            doctor_urls: [url],
+            platform: platform,
+            include_reviews: includeReviews,
+            max_reviews: maxReviews ? parseInt(maxReviews) : null
+          })
+        });
+
+        const result = await response.json();
+
+        clearInterval(progressInterval);
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
+        statusMessage.textContent = 'Concluído!';
+
+        // Show results
+        setTimeout(() => {
+          document.getElementById('scrape-step-progress').style.display = 'none';
+          document.getElementById('scrape-step-results').style.display = 'block';
+
+          const resultsContent = document.getElementById('scrape-results-content');
+
+          if (result.error) {
+            resultsContent.innerHTML = `
+              <div class="result-card">
+                <div class="result-header">
+                  <div class="result-icon error">
+                    <i class="fas fa-times"></i>
+                  </div>
+                  <div>
+                    <h3>Erro ao iniciar scraping</h3>
+                    <p class="text-secondary">${result.error}</p>
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            resultsContent.innerHTML = `
+              <div class="result-card">
+                <div class="result-header">
+                  <div class="result-icon success">
+                    <i class="fas fa-check"></i>
+                  </div>
+                  <div>
+                    <h3>Scraping Iniciado</h3>
+                    <p class="text-secondary">Task ID: ${result.task_id}</p>
+                  </div>
+                </div>
+                <div class="result-stats">
+                   <div class="result-stat">
+                      <div class="result-stat-value">${result.status}</div>
+                      <div class="result-stat-label">Status</div>
+                   </div>
+                </div>
+                <p style="margin-top: 16px; text-align: center; color: var(--text-secondary);">
+                  Acompanhe o progresso no Dashboard ou Histórico.
+                </p>
+              </div>
+            `;
+          }
+        }, 500);
+
+      } catch (error) {
+        clearInterval(progressInterval);
+        statusMessage.textContent = 'Erro!';
+        console.error('Error starting scraping:', error);
+        alert('Erro ao iniciar scraping: ' + error.message);
+      }
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+
+</html>

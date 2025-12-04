@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Histórico de Scraping{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-list-alt"></i>
+      Tarefas Recentes
+    </h3>
+    <div class="card-actions">
+      <button class="btn btn-secondary btn-sm" onclick="loadTasks()">
+        <i class="fas fa-sync-alt"></i>
+        Atualizar
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID da Tarefa</th>
+            <th>Status</th>
+            <th>Progresso</th>
+            <th>Mensagem</th>
+            <th>Criado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tasks-table-body">
+          <tr>
+            <td colspan="6" class="text-center text-secondary">Carregando tarefas...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table th,
+  .table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #3a3a3c);
+  }
+
+  .table th {
+    font-weight: 600;
+    color: var(--text-secondary, #8e8e93);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .table td {
+    color: var(--text-primary, #fff);
+    font-size: 14px;
+  }
+
+  .status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .status-pending {
+    background: rgba(255, 149, 0, 0.15);
+    color: #ff9500;
+  }
+
+  .status-running {
+    background: rgba(10, 132, 255, 0.15);
+    color: #0a84ff;
+  }
+
+  .status-completed {
+    background: rgba(52, 199, 89, 0.15);
+    color: #34c759;
+  }
+
+  .status-failed {
+    background: rgba(255, 59, 48, 0.15);
+    color: #ff3b30;
+  }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  async function loadTasks() {
+    const tbody = document.getElementById('tasks-table-body');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
+
+    try {
+      // In a real scenario, we would fetch from /api/tasks
+      // For now, let's try to fetch from the API proxy if it exists, or mock it
+      const response = await fetch('/api/tasks'); // We need to implement this route in dashboard.py
+
+      let tasks = [];
+      if (response.ok) {
+        tasks = await response.json();
+      } else {
+        // Fallback or error
+        console.warn('Failed to fetch tasks, using mock data');
+        tasks = [];
+      }
+
+      if (tasks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Nenhuma tarefa encontrada</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = tasks.map(task => `
+        <tr>
+          <td><span style="font-family: monospace;">${task.task_id}</span></td>
+          <td><span class="status-badge status-${task.status}">${task.status}</span></td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div class="progress-bar-container" style="width: 100px; height: 6px;">
+                <div class="progress-bar" style="width: ${task.progress}%"></div>
+              </div>
+              <span style="font-size: 12px;">${Math.round(task.progress)}%</span>
+            </div>
+          </td>
+          <td>${task.message}</td>
+          <td>${new Date(task.created_at).toLocaleString()}</td>
+          <td>
+            <button class="icon-btn" title="Ver Detalhes" onclick="viewTask('${task.task_id}')">
+              <i class="fas fa-eye"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-error">Erro ao carregar tarefas</td></tr>';
+    }
+  }
+
+  function viewTask(taskId) {
+    alert('Detalhes da tarefa: ' + taskId);
+  }
+
+  document.addEventListener('DOMContentLoaded', loadTasks);
+</script>
+{% endblock %}

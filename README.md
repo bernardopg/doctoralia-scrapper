@@ -231,11 +231,14 @@ X-API-Key: sua_chave_secreta
 
 | Método | Endpoint | Descrição |
 |--------|----------|-----------|
-| `POST` | `/v1/scrape:run` | Inicia scraping síncrono |
-| `POST` | `/v1/scrape:async` | Inicia job assíncrono |
-| `GET` | `/v1/jobs/{id}` | Status do job |
-| `GET` | `/v1/health` | Health check |
-| `GET` | `/v1/metrics` | Métricas do sistema |
+| `POST` | `/v1/scrape:run` | Executa scraping síncrono (retorna resultados imediatamente) |
+| `POST` | `/v1/jobs` | Cria job assíncrono (retorna job_id para polling) |
+| `GET` | `/v1/jobs/{job_id}` | Consulta status e resultado de um job |
+| `POST` | `/v1/hooks/n8n/scrape` | Webhook dedicado para integração n8n |
+| `GET` | `/v1/health` | Health check básico |
+| `GET` | `/v1/ready` | Readiness check com diagnóstico de componentes |
+| `GET` | `/v1/metrics` | Métricas de performance da API |
+| `GET` | `/v1/version` | Versão da API e uptime |
 
 ### Exemplo de Uso
 
@@ -244,22 +247,44 @@ X-API-Key: sua_chave_secreta
 curl -X POST http://localhost:8000/v1/scrape:run \
   -H "X-API-Key: sua_chave" \
   -H "Content-Type: application/json" \
-  -d '{"doctor_url": "https://www.doctoralia.com.br/medico/exemplo"}'
+  -d '{
+    "doctor_url": "https://www.doctoralia.com.br/medico/exemplo",
+    "include_analysis": true,
+    "include_generation": false
+  }'
 
-# Resposta
+# Resposta (UnifiedResult)
 {
-  "success": true,
-  "data": {
-    "doctor_name": "Dr. João Silva",
+  "doctor": {
+    "id": "12345",
+    "name": "Dr. João Silva",
     "specialty": "Cardiologia",
     "rating": 4.8,
-    "reviews_count": 127,
-    "reviews": [...]
-  }
+    "profile_url": "https://..."
+  },
+  "reviews": [
+    {
+      "id": "r1",
+      "rating": 5,
+      "text": "Excelente profissional!",
+      "author": {"name": "Maria Santos", "is_verified": true}
+    }
+  ],
+  "analysis": {
+    "sentiments": {"compound": 0.85, "positive": 0.78},
+    "quality_score": 85.0
+  },
+  "metrics": {
+    "scraped_count": 10,
+    "duration_ms": 5234
+  },
+  "status": "completed"
 }
 ```
 
-📚 Documentação completa da API: [docs/api.md](docs/api.md)
+📚 **Documentação completa da API**: [docs/api.md](docs/api.md)
+
+📖 **Swagger UI**: http://localhost:8000/docs (quando a API estiver rodando)
 
 ---
 

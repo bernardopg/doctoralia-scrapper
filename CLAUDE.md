@@ -84,7 +84,7 @@ make info              # Environment info (Python, Git, system)
 - `src/response_quality_analyzer.py` - Sentiment analysis, quality scoring, response validation
 
 **API & Integration**:
-- `src/api/v1/main.py` - FastAPI app with endpoints: `/v1/scrape:run`, `/v1/scrape:async`, `/v1/jobs/*`, `/v1/webhook`, `/health`, `/metrics`
+- `src/api/v1/main.py` - FastAPI app with endpoints: `/v1/scrape:run`, `/v1/jobs`, `/v1/jobs/{job_id}`, `/v1/hooks/n8n/scrape`, `/v1/health`, `/v1/ready`, `/v1/metrics`, `/v1/version`
 - `src/api/v1/deps.py` - API key auth, webhook signature verification
 - `src/api/schemas/` - Pydantic models for requests/responses
 - `src/integrations/n8n/normalize.py` - n8n-compatible result normalization

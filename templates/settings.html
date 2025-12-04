@@ -1,0 +1,412 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Configurações{% endblock %}
+
+{% block top_bar_actions %}
+<button class="btn btn-secondary" onclick="window.location.href='/'">
+  <i class="fas fa-arrow-left"></i>
+  Voltar ao Dashboard
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Alert Container -->
+<div id="alert-container"></div>
+
+<!-- Telegram Settings Section -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fab fa-telegram"></i>
+      Configurações do Telegram
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">
+          Token do Bot
+          <i class="fas fa-info-circle help-icon" title="Token de autenticação do bot do Telegram"></i>
+        </label>
+        <input type="password" id="telegram-token" class="form-control" placeholder="••••••••••••">
+        <small class="form-help">Token fornecido pelo @BotFather</small>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          Chat ID
+          <i class="fas fa-info-circle help-icon" title="ID do chat para enviar notificações"></i>
+        </label>
+        <input type="text" id="telegram-chat-id" class="form-control" placeholder="123456789">
+        <small class="form-help">ID do usuário ou grupo que receberá mensagens</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Modo de Parse</label>
+          <select id="telegram-parse-mode" class="form-control">
+            <option value="">Nenhum</option>
+            <option value="Markdown" selected>Markdown</option>
+            <option value="MarkdownV2">MarkdownV2</option>
+            <option value="HTML">HTML</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Formato do Anexo</label>
+          <select id="telegram-attachment-format" class="form-control">
+            <option value="txt" selected>TXT</option>
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="telegram-attach-auto" checked>
+        <label for="telegram-attach-auto" class="checkbox-label">
+          Anexar respostas automaticamente às notificações
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scraping Settings Section -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-robot"></i>
+      Configurações de Scraping
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Delay Mínimo (segundos)</label>
+          <input type="number" id="scraping-delay-min" class="form-control" min="0.1" max="10" step="0.1" value="2.0">
+          <small class="form-help">Atraso mínimo entre ações</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Delay Máximo (segundos)</label>
+          <input type="number" id="scraping-delay-max" class="form-control" min="0.1" max="10" step="0.1" value="4.0">
+          <small class="form-help">Atraso máximo entre ações</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Timeout (segundos)</label>
+          <input type="number" id="scraping-timeout" class="form-control" min="10" max="300" value="60">
+          <small class="form-help">Tempo máximo de espera por operação</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Máximo de Tentativas</label>
+          <input type="number" id="scraping-max-retries" class="form-control" min="1" max="10" value="5">
+          <small class="form-help">Número máximo de tentativas em caso de falha</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Page Load Timeout (segundos)</label>
+          <input type="number" id="scraping-page-load-timeout" class="form-control" min="10" max="120" value="45">
+          <small class="form-help">Tempo máximo para carregar página</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Implicit Wait (segundos)</label>
+          <input type="number" id="scraping-implicit-wait" class="form-control" min="5" max="60" value="20">
+          <small class="form-help">Espera implícita do WebDriver</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Explicit Wait (segundos)</label>
+          <input type="number" id="scraping-explicit-wait" class="form-control" min="5" max="120" value="30">
+          <small class="form-help">Espera explícita por elementos</small>
+        </div>
+      </div>
+
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="scraping-headless" checked>
+        <label for="scraping-headless" class="checkbox-label">
+          Executar navegador em modo headless (sem interface gráfica)
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- API Settings Section -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-server"></i>
+      Configurações da API
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Host</label>
+          <input type="text" id="api-host" class="form-control" value="0.0.0.0" placeholder="0.0.0.0">
+          <small class="form-help">Endereço de bind da API</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Porta</label>
+          <input type="number" id="api-port" class="form-control" min="1024" max="65535" value="8080">
+          <small class="form-help">Porta para o servidor da API</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Workers</label>
+          <input type="number" id="api-workers" class="form-control" min="1" max="8" value="1">
+          <small class="form-help">Número de workers do Uvicorn</small>
+        </div>
+      </div>
+
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="api-debug">
+        <label for="api-debug" class="checkbox-label">
+          Modo de debug (não recomendado para produção)
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="flex gap-2">
+  <button class="btn btn-primary btn-lg" id="save-btn" onclick="saveSettings()">
+    <i class="fas fa-save"></i>
+    Salvar Configurações
+  </button>
+  <button class="btn btn-secondary btn-lg" onclick="validateSettings()">
+    <i class="fas fa-check-circle"></i>
+    Validar
+  </button>
+  <button class="btn btn-danger btn-lg" onclick="resetSettings()">
+    <i class="fas fa-undo"></i>
+    Resetar
+  </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const API_BASE_URL = 'http://localhost:8080';
+  let currentSettings = null;
+
+  // Show alert message
+  function showAlert(message, type = 'info') {
+    const container = document.getElementById('alert-container');
+    const alertClass = `alert-${type}`;
+    const iconMap = {
+      success: 'check-circle',
+      error: 'exclamation-circle',
+      warning: 'exclamation-triangle',
+      info: 'info-circle'
+    };
+
+    container.innerHTML = `
+        <div class="alert ${alertClass}">
+          <i class="fas fa-${iconMap[type]}"></i>
+          <div>${message}</div>
+        </div>
+      `;
+
+    setTimeout(() => {
+      container.innerHTML = '';
+    }, 5000);
+  }
+
+  // Get form data
+  function getFormData() {
+    return {
+      telegram: {
+        token: document.getElementById('telegram-token').value || null,
+        chat_id: document.getElementById('telegram-chat-id').value || null,
+        parse_mode: document.getElementById('telegram-parse-mode').value,
+        attach_responses_auto: document.getElementById('telegram-attach-auto').checked,
+        attachment_format: document.getElementById('telegram-attachment-format').value
+      },
+      scraping: {
+        headless: document.getElementById('scraping-headless').checked,
+        timeout: parseInt(document.getElementById('scraping-timeout').value),
+        delay_min: parseFloat(document.getElementById('scraping-delay-min').value),
+        delay_max: parseFloat(document.getElementById('scraping-delay-max').value),
+        max_retries: parseInt(document.getElementById('scraping-max-retries').value),
+        page_load_timeout: parseInt(document.getElementById('scraping-page-load-timeout').value),
+        implicit_wait: parseInt(document.getElementById('scraping-implicit-wait').value),
+        explicit_wait: parseInt(document.getElementById('scraping-explicit-wait').value)
+      },
+      api: {
+        host: document.getElementById('api-host').value,
+        port: parseInt(document.getElementById('api-port').value),
+        debug: document.getElementById('api-debug').checked,
+        workers: parseInt(document.getElementById('api-workers').value)
+      }
+    };
+  }
+
+  // Populate form with settings
+  function populateForm(settings) {
+    // Telegram
+    if (settings.telegram.token) document.getElementById('telegram-token').value = settings.telegram.token;
+    if (settings.telegram.chat_id) document.getElementById('telegram-chat-id').value = settings.telegram.chat_id;
+    document.getElementById('telegram-parse-mode').value = settings.telegram.parse_mode || 'Markdown';
+    document.getElementById('telegram-attach-auto').checked = settings.telegram.attach_responses_auto !== false;
+    document.getElementById('telegram-attachment-format').value = settings.telegram.attachment_format || 'txt';
+
+    // Scraping
+    document.getElementById('scraping-headless').checked = settings.scraping.headless !== false;
+    document.getElementById('scraping-timeout').value = settings.scraping.timeout || 60;
+    document.getElementById('scraping-delay-min').value = settings.scraping.delay_min || 2.0;
+    document.getElementById('scraping-delay-max').value = settings.scraping.delay_max || 4.0;
+    document.getElementById('scraping-max-retries').value = settings.scraping.max_retries || 5;
+    document.getElementById('scraping-page-load-timeout').value = settings.scraping.page_load_timeout || 45;
+    document.getElementById('scraping-implicit-wait').value = settings.scraping.implicit_wait || 20;
+    document.getElementById('scraping-explicit-wait').value = settings.scraping.explicit_wait || 30;
+
+    // API
+    document.getElementById('api-host').value = settings.api.host || '0.0.0.0';
+    document.getElementById('api-port').value = settings.api.port || 8080;
+    document.getElementById('api-debug').checked = settings.api.debug === true;
+    document.getElementById('api-workers').value = settings.api.workers || 1;
+  }
+
+  // Load settings
+  async function loadSettings() {
+    try {
+      showAlert('Carregando configurações...', 'info');
+
+      const response = await fetch(`${API_BASE_URL}/settings`);
+      const data = await response.json();
+
+      if (data.success && data.settings) {
+        currentSettings = data.settings;
+        populateForm(data.settings);
+        showAlert('Configurações carregadas com sucesso!', 'success');
+      } else {
+        throw new Error(data.message || 'Falha ao carregar configurações');
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      showAlert(`Erro ao carregar configurações: ${error.message}`, 'error');
+    }
+  }
+
+  // Validate settings
+  async function validateSettings() {
+    try {
+      const settings = getFormData();
+
+      const response = await fetch(`${API_BASE_URL}/settings/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showAlert('✓ Configurações válidas!', 'success');
+      } else {
+        showAlert(`Erro de validação: ${data.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('Validation error:', error);
+      showAlert(`Erro ao validar: ${error.message}`, 'error');
+    }
+  }
+
+  // Save settings
+  async function saveSettings() {
+    try {
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner"></span> Salvando...';
+
+      // Validate first
+      const isValid = await validateSettingsInternal();
+      if (!isValid) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Configurações';
+        return;
+      }
+
+      const settings = getFormData();
+
+      const response = await fetch(`${API_BASE_URL}/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showAlert('✓ ' + data.message, 'success');
+        currentSettings = settings;
+      } else {
+        throw new Error(data.message);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      showAlert(`Erro ao salvar: ${error.message}`, 'error');
+    } finally {
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Configurações';
+    }
+  }
+
+  // Internal validation (returns boolean)
+  async function validateSettingsInternal() {
+    try {
+      const settings = getFormData();
+
+      const response = await fetch(`${API_BASE_URL}/settings/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+      });
+
+      const data = await response.json();
+      return data.success;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Reset settings
+  function resetSettings() {
+    if (confirm('Tem certeza que deseja resetar as configurações?')) {
+      if (currentSettings) {
+        populateForm(currentSettings);
+        showAlert('Configurações resetadas', 'info');
+      } else {
+        loadSettings();
+      }
+    }
+  }
+
+  // Load settings on page load
+  document.addEventListener('DOMContentLoaded', function () {
+    loadSettings();
+  });
+</script>
+{% endblock %}

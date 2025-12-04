@@ -112,6 +112,62 @@ class StatisticsResponse(BaseModel):
     platform_stats: Dict[str, Any]
 
 
+class TelegramSettingsModel(BaseModel):
+    """Telegram configuration model."""
+
+    token: Optional[str] = Field(None, description="Telegram bot token")
+    chat_id: Optional[str] = Field(None, description="Telegram chat ID")
+    parse_mode: str = Field(default="Markdown", description="Message parse mode")
+    attach_responses_auto: bool = Field(
+        default=True, description="Auto-attach responses file"
+    )
+    attachment_format: str = Field(default="txt", description="Attachment format")
+
+
+class ScrapingSettingsModel(BaseModel):
+    """Scraping configuration model."""
+
+    headless: bool = Field(default=True, description="Run browser in headless mode")
+    timeout: int = Field(default=60, ge=10, le=300, description="Operation timeout")
+    delay_min: float = Field(
+        default=2.0, ge=0.1, le=10.0, description="Minimum delay between actions"
+    )
+    delay_max: float = Field(
+        default=4.0, ge=0.1, le=10.0, description="Maximum delay between actions"
+    )
+    max_retries: int = Field(default=5, ge=1, le=10, description="Maximum retries")
+    page_load_timeout: int = Field(
+        default=45, ge=10, le=120, description="Page load timeout"
+    )
+    implicit_wait: int = Field(default=20, ge=5, le=60, description="Implicit wait")
+    explicit_wait: int = Field(default=30, ge=5, le=120, description="Explicit wait")
+
+
+class APISettingsModel(BaseModel):
+    """API configuration model."""
+
+    host: str = Field(default="0.0.0.0", description="API host")
+    port: int = Field(default=8080, ge=1024, le=65535, description="API port")
+    debug: bool = Field(default=False, description="Debug mode")
+    workers: int = Field(default=1, ge=1, le=8, description="Number of workers")
+
+
+class SettingsModel(BaseModel):
+    """Complete settings model."""
+
+    telegram: TelegramSettingsModel = Field(..., description="Telegram settings")
+    scraping: ScrapingSettingsModel = Field(..., description="Scraping settings")
+    api: APISettingsModel = Field(..., description="API settings")
+
+
+class SettingsResponse(BaseModel):
+    """Response model for settings operations."""
+
+    success: bool
+    message: str
+    settings: Optional[SettingsModel] = None
+
+
 class DoctoraliaAPI:
     """
     FastAPI-based REST API for Doctoralia scraper operations.
@@ -164,6 +220,7 @@ class DoctoraliaAPI:
         self._setup_analysis_routes()
         self._setup_monitoring_routes()
         self._setup_task_management_routes()
+        self._setup_settings_routes()
 
     def _setup_basic_routes(self) -> None:
         """Setup basic API routes."""
@@ -287,6 +344,24 @@ class DoctoraliaAPI:
             """Delete a completed task."""
             return self._handle_delete_task(task_id)
 
+    def _setup_settings_routes(self) -> None:
+        """Setup settings management routes."""
+
+        @self.app.get("/settings", response_model=SettingsResponse)
+        async def get_settings():
+            """Get current application settings."""
+            return self._handle_get_settings()
+
+        @self.app.put("/settings", response_model=SettingsResponse)
+        async def update_settings(settings: SettingsModel):
+            """Update application settings."""
+            return self._handle_update_settings(settings)
+
+        @self.app.post("/settings/validate", response_model=SettingsResponse)
+        async def validate_settings(settings: SettingsModel):
+            """Validate settings without saving."""
+            return self._handle_validate_settings(settings)
+
     def _execute_scraping_task(self, task_id: str, request: ScrapeRequest) -> None:
         """Execute scraping task in background."""
         try:
@@ -300,11 +375,6 @@ class DoctoraliaAPI:
                 result = self._scrape_single_url(url, request)
                 if result:
                     results.append(result)
-
-                # Simulate processing time
-                import time
-
-                time.sleep(2)
 
             self._complete_task_successfully(task_id, results)
 
@@ -327,55 +397,44 @@ class DoctoraliaAPI:
     def _scrape_single_url(
         self, url: str, request: ScrapeRequest
     ) -> Optional[Dict[str, Any]]:
-        """Scrape a single doctor URL."""
+        """Scrape a single doctor URL using DoctoraliaScraper."""
         try:
-            if not self.scraper_factory:
+            # Use DoctoraliaScraper directly like main.py does
+            if not DoctoraliaScraper:
+                if self.logger:
+                    self.logger.error("DoctoraliaScraper not available")
                 return None
 
-            scraper = self.scraper_factory.create_scraper(url, self.config, self.logger)
-            if not scraper:
+            scraper = DoctoraliaScraper(self.config, self.logger)
+            data = scraper.scrape_reviews(url)
+
+            if not data:
+                if self.logger:
+                    self.logger.warning(f"No data returned for {url}")
                 return None
 
-            # Navigate to the page
-            if not scraper.navigate_to_page(url):
-                return None
+            # Format result matching what dashboard expects
+            doctor_name = data.get("doctor", {}).get("name", "Unknown")
+            reviews = data.get("reviews", [])
 
-            # Extract doctor information
-            doctor_info = scraper.extract_doctor_info()
+            # Limit reviews if max_reviews specified
+            if request.max_reviews and len(reviews) > request.max_reviews:
+                reviews = reviews[:request.max_reviews]
 
-            # Extract reviews if requested
-            reviews = []
-            if request.include_reviews:
-                reviews = scraper.extract_reviews()
-                if request.max_reviews:
-                    reviews = reviews[: request.max_reviews]
-
-            # Combine results
             return {
                 "doctor": {
-                    "name": doctor_info.name,
-                    "specialty": doctor_info.specialty,
-                    "location": doctor_info.location,
-                    "rating": doctor_info.rating,
+                    "name": doctor_name,
+                    "specialty": data.get("doctor", {}).get("specialty", ""),
+                    "location": data.get("doctor", {}).get("location", ""),
+                    "rating": data.get("summary", {}).get("average_rating", 0),
                     "total_reviews": len(reviews),
-                    "platform": doctor_info.platform,
-                    "profile_url": doctor_info.profile_url,
-                    "verified": doctor_info.verified,
+                    "platform": data.get("platform", "doctoralia"),
+                    "profile_url": url,
+                    "verified": True,
                 },
-                "reviews": [
-                    {
-                        "author": review.author,
-                        "rating": review.rating,
-                        "comment": review.comment,
-                        "date": review.date,
-                        "doctor_reply": review.doctor_reply,
-                        "review_id": review.review_id,
-                        "verified": review.verified,
-                        "helpful_votes": review.helpful_votes,
-                        "platform": review.platform,
-                    }
-                    for review in reviews
-                ],
+                "reviews": reviews,
+                "summary": data.get("summary", {}),
+                "scraped_at": data.get("scraped_at"),
             }
 
         except Exception as e:
@@ -533,7 +592,7 @@ class DoctoraliaAPI:
             raise HTTPException(status_code=404, detail="Task not found")
 
         task = self.tasks[task_id]
-        return TaskStatus(**task)
+        return TaskStatus(task_id=task_id, **task)
 
     def _handle_list_tasks(self, status: Optional[str]) -> List[TaskStatus]:
         """Handle task listing."""
@@ -653,6 +712,178 @@ class DoctoraliaAPI:
 
         del self.tasks[task_id]
         return {"message": "Task deleted successfully"}
+
+    def _handle_get_settings(self) -> SettingsResponse:
+        """Get current settings."""
+        try:
+            if not self.config or not AppConfig:
+                return SettingsResponse(
+                    success=False,
+                    message="Configuration not available",
+                    settings=None,
+                )
+
+            # Convert AppConfig to SettingsModel
+            settings = SettingsModel(
+                telegram=TelegramSettingsModel(
+                    token=self.config.telegram.token,
+                    chat_id=self.config.telegram.chat_id,
+                    parse_mode=self.config.telegram.parse_mode,
+                    attach_responses_auto=self.config.telegram.attach_responses_auto,
+                    attachment_format=self.config.telegram.attachment_format,
+                ),
+                scraping=ScrapingSettingsModel(
+                    headless=self.config.scraping.headless,
+                    timeout=self.config.scraping.timeout,
+                    delay_min=self.config.scraping.delay_min,
+                    delay_max=self.config.scraping.delay_max,
+                    max_retries=self.config.scraping.max_retries,
+                    page_load_timeout=self.config.scraping.page_load_timeout,
+                    implicit_wait=self.config.scraping.implicit_wait,
+                    explicit_wait=self.config.scraping.explicit_wait,
+                ),
+                api=APISettingsModel(
+                    host=self.config.api.host,
+                    port=self.config.api.port,
+                    debug=self.config.api.debug,
+                    workers=self.config.api.workers,
+                ),
+            )
+
+            return SettingsResponse(
+                success=True, message="Settings retrieved successfully", settings=settings
+            )
+
+        except Exception as e:
+            return SettingsResponse(
+                success=False,
+                message=f"Failed to get settings: {str(e)}",
+                settings=None,
+            )
+
+    def _handle_update_settings(self, settings: SettingsModel) -> SettingsResponse:
+        """Update and save settings."""
+        try:
+            if not self.config or not AppConfig:
+                return SettingsResponse(
+                    success=False,
+                    message="Configuration not available",
+                    settings=None,
+                )
+
+            # Validate settings
+            validation_result = self._validate_settings_internal(settings)
+            if not validation_result["valid"]:
+                return SettingsResponse(
+                    success=False,
+                    message=f"Validation failed: {', '.join(validation_result['errors'])}",
+                    settings=None,
+                )
+
+            # Update config object
+            self.config.telegram.token = settings.telegram.token
+            self.config.telegram.chat_id = settings.telegram.chat_id
+            self.config.telegram.parse_mode = settings.telegram.parse_mode
+            self.config.telegram.attach_responses_auto = (
+                settings.telegram.attach_responses_auto
+            )
+            self.config.telegram.attachment_format = settings.telegram.attachment_format
+
+            self.config.scraping.headless = settings.scraping.headless
+            self.config.scraping.timeout = settings.scraping.timeout
+            self.config.scraping.delay_min = settings.scraping.delay_min
+            self.config.scraping.delay_max = settings.scraping.delay_max
+            self.config.scraping.max_retries = settings.scraping.max_retries
+            self.config.scraping.page_load_timeout = settings.scraping.page_load_timeout
+            self.config.scraping.implicit_wait = settings.scraping.implicit_wait
+            self.config.scraping.explicit_wait = settings.scraping.explicit_wait
+
+            self.config.api.host = settings.api.host
+            self.config.api.port = settings.api.port
+            self.config.api.debug = settings.api.debug
+            self.config.api.workers = settings.api.workers
+
+            # Save to file
+            self.config.save()
+
+            if self.logger:
+                self.logger.info("Settings updated successfully")
+
+            return SettingsResponse(
+                success=True,
+                message="Settings updated successfully. Restart required for some changes to take effect.",
+                settings=settings,
+            )
+
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to update settings: {e}")
+            return SettingsResponse(
+                success=False,
+                message=f"Failed to update settings: {str(e)}",
+                settings=None,
+            )
+
+    def _handle_validate_settings(self, settings: SettingsModel) -> SettingsResponse:
+        """Validate settings without saving."""
+        try:
+            validation_result = self._validate_settings_internal(settings)
+
+            if validation_result["valid"]:
+                return SettingsResponse(
+                    success=True,
+                    message="Settings are valid",
+                    settings=settings,
+                )
+            else:
+                return SettingsResponse(
+                    success=False,
+                    message=f"Validation failed: {', '.join(validation_result['errors'])}",
+                    settings=None,
+                )
+
+        except Exception as e:
+            return SettingsResponse(
+                success=False,
+                message=f"Validation error: {str(e)}",
+                settings=None,
+            )
+
+    def _validate_settings_internal(self, settings: SettingsModel) -> Dict[str, Any]:
+        """Internal settings validation."""
+        errors = []
+
+        # Validate scraping settings
+        if settings.scraping.delay_min > settings.scraping.delay_max:
+            errors.append("delay_min cannot be greater than delay_max")
+
+        if settings.scraping.delay_min < 0 or settings.scraping.delay_max < 0:
+            errors.append("Delays cannot be negative")
+
+        if settings.scraping.timeout < 10:
+            errors.append("Timeout must be at least 10 seconds")
+
+        if settings.scraping.max_retries < 1:
+            errors.append("max_retries must be at least 1")
+
+        # Validate API settings
+        if settings.api.port < 1024 or settings.api.port > 65535:
+            errors.append("API port must be between 1024 and 65535")
+
+        if settings.api.workers < 1:
+            errors.append("Workers must be at least 1")
+
+        # Validate Telegram settings (if enabled)
+        if settings.telegram.token and not settings.telegram.chat_id:
+            errors.append("chat_id is required when telegram token is provided")
+
+        if settings.telegram.parse_mode not in ["", "Markdown", "MarkdownV2", "HTML"]:
+            errors.append("Invalid parse_mode")
+
+        if settings.telegram.attachment_format not in ["txt", "json", "csv"]:
+            errors.append("Invalid attachment_format")
+
+        return {"valid": len(errors) == 0, "errors": errors}
 
     def run(self, host: str = None, port: int = None) -> None:
         """Run the API server."""
