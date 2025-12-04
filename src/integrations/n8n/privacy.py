@@ -5,7 +5,7 @@ Privacy and security utilities for n8n integration.
 import hashlib
 import os
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 def mask_pii(text: str) -> str:
@@ -89,7 +89,7 @@ def sanitize_doctor_data(doctor: Dict[str, Any]) -> Dict[str, Any]:
     return sanitized
 
 
-def apply_data_retention(redis_conn, job_id: str, ttl: int = None):
+def apply_data_retention(redis_conn, job_id: str, ttl: Optional[int] = None):
     """
     Apply data retention policy to job results.
 
@@ -114,7 +114,7 @@ class RateLimiter:
     Rate limiter for API requests.
     """
 
-    def __init__(self, redis_conn, max_requests: int = None, window: int = None):
+    def __init__(self, redis_conn, max_requests: Optional[int] = None, window: Optional[int] = None):
         """
         Initialize rate limiter.
 

@@ -25,8 +25,15 @@ fi
 send_telegram() {
   local text="$1"
   if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && -n "${TELEGRAM_CHAT_ID:-}" ]]; then
+    # Escapar caracteres especiais para Markdown
+    text="${text//\\/\\\\}"
+    text="${text//\`/\\\`}"
+
     curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-      -d chat_id="${TELEGRAM_CHAT_ID}" -d text="${text}" -d disable_web_page_preview=true >/dev/null || true
+      -d chat_id="${TELEGRAM_CHAT_ID}" \
+      -d text="${text}" \
+      -d parse_mode="Markdown" \
+      -d disable_web_page_preview=true >/dev/null || true
   fi
 }
 
@@ -100,7 +107,16 @@ trap 'rc=$?; flock -u 9 2>/dev/null || true; rm -f "$LOCK_FILE" 2>/dev/null || t
 
 if [[ ! -x "$VENV_PYTHON" ]]; then
   log "ERROR: venv interpreter not found at $VENV_PYTHON"
-  send_telegram "🔴 Doctoralia: venv missing at $VENV_PYTHON on $(hostname)"
+  send_telegram "❌ *Doctoralia - Erro de Configuração*
+
+⚠️ *Problema:* Ambiente Python não encontrado
+
+📍 *Detalhes Técnicos*
+• Localização esperada: \`$VENV_PYTHON\`
+• Servidor: $(hostname)
+
+🔧 *Solução:*
+Execute \`make install\` ou \`poetry install\` no diretório do projeto para recriar o ambiente."
   write_status "failure" 0 "venv missing"
   exit 1
 fi
@@ -108,12 +124,32 @@ fi
 ln -sf "$(basename "$RUN_LOG")" "$LOG_DIR/latest.log"
 
 log "🚀 Starting Doctoralia full workflow"
-send_telegram "⏳ Doctoralia: job started at $(date '+%F %T')"
+send_telegram "🔄 *Doctoralia - Scraping Automático Iniciado*
+
+⏱️ *Horário:* $(date '+%d/%m/%Y às %H:%M:%S')
+🎯 *Ação:* Coletando comentários e gerando respostas
+🤖 *Status:* Processamento em andamento...
+
+⏳ Aguarde a conclusão do processo."
 write_status "starting" 0 ""
 
 if ! wait_for_network; then
   log "ERROR: Network not available after waiting. Aborting."
-  send_telegram "🔴 Doctoralia: network unavailable, aborting"
+  send_telegram "❌ *Doctoralia - Erro de Conectividade*
+
+🌐 *Problema:* Sem acesso à internet
+
+📍 *Detalhes*
+• Site testado: doctoralia.com.br
+• Tentativas: 30 (timeout após 2.5min)
+• Horário: $(date '+%d/%m/%Y às %H:%M:%S')
+
+🔧 *Verifique:*
+1. Conexão com a internet
+2. Firewall ou proxy
+3. Status do site Doctoralia
+
+⏰ O sistema tentará novamente no próximo agendamento."
   write_status "failure" 0 "network unavailable"
   exit 2
 fi
@@ -153,7 +189,19 @@ while (( attempt < max_attempts )); do
   rc="$(echo "$output" | awk -F= '/^__RC__=/ {print $2}' | tail -1)"
   if [[ "$rc" == "0" ]]; then
     log "✅ Workflow completed successfully"
-    send_telegram "✅ Doctoralia: SUCCESS on attempt $attempt at $(date '+%F %T')"
+    send_telegram "✅ *Doctoralia - Processo Concluído com Sucesso*
+
+📊 *Resumo da Execução*
+• Horário: $(date '+%d/%m/%Y às %H:%M:%S')
+• Tentativas necessárias: $attempt de $max_attempts
+• Status: Completo sem erros
+
+🎯 *Resultado*
+• Comentários coletados e processados
+• Respostas geradas e salvas
+• Arquivos disponíveis em \`data/responses/\`
+
+🔔 As respostas estão prontas para serem utilizadas no Doctoralia!"
     write_status "success" "$attempt" "ok"
     exit 0
   fi
@@ -175,6 +223,23 @@ while (( attempt < max_attempts )); do
 done
 
 log "❌ All attempts failed"
-send_telegram "🔴 Doctoralia: FAILED after $max_attempts attempts at $(date '+%F %T'). Check logs: $(hostname):$RUN_LOG"
+send_telegram "❌ *Doctoralia - Falha no Processo Automático*
+
+⚠️ *Problema Detectado*
+• Horário: $(date '+%d/%m/%Y às %H:%M:%S')
+• Tentativas realizadas: $max_attempts
+• Status: Falha após múltiplas tentativas
+
+📝 *Detalhes*
+• Servidor: $(hostname)
+• Log: \`$(basename "$RUN_LOG")\`
+• Diretório: \`$LOG_DIR\`
+
+🔧 *Próximos Passos*
+1. Verifique os logs para detalhes do erro
+2. Confirme se o site está acessível
+3. Tente executar manualmente se necessário
+
+⏰ O sistema tentará novamente no próximo agendamento."
 write_status "failure" "$max_attempts" "max attempts failed"
 exit 3

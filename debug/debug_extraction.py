@@ -7,16 +7,16 @@ import os
 import sys
 import time
 
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+# Add project root to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import our scraper to test extraction functions
-sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
-from scraper import DoctoraliaScraper
+from bs4 import BeautifulSoup  # noqa: E402
+from selenium import webdriver  # noqa: E402
+from selenium.webdriver.chrome.options import Options  # noqa: E402
+from selenium.webdriver.common.by import By  # noqa: E402
+from selenium.webdriver.support import expected_conditions as EC  # noqa: E402
+from selenium.webdriver.support.ui import WebDriverWait  # noqa: E402
+from src.scraper import DoctoraliaScraper  # noqa: E402
 
 
 def test_extraction_directly():

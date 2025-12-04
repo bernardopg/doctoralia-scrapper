@@ -12,7 +12,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
 
-def find_review_selector():
+def find_review_selector() -> None:
     # Configurar Chrome
     options = Options()
     options.add_argument("--headless")
@@ -40,14 +40,16 @@ def find_review_selector():
         if reviews_section and isinstance(reviews_section, Tag):
             # Procurar por elementos que contenham nomes de pacientes
             # Usar recursão para encontrar strings que contenham "Gabriela"
-            name_elements = []
+            name_elements: list[str] = []
             try:
                 for element in reviews_section.recursiveChildGenerator():
                     if isinstance(element, str) and "Gabriela" in element:
-                        name_elements.append(element)
+                        name_elements.append(str(element))
             except AttributeError:
                 # Fallback: procurar de forma diferente se recursiveChildGenerator não funcionar
-                print("Método recursiveChildGenerator falhou, usando abordagem alternativa")
+                print(
+                    "Método recursiveChildGenerator falhou, usando abordagem alternativa"
+                )
                 name_elements = []
 
             print(f"Elementos com 'Gabriela': {len(name_elements)}")
@@ -78,7 +80,7 @@ def find_review_selector():
                                     or "profissional" in container_text.lower()
                                     or len(container_text) > 200
                                 ):
-                                    print(f"    👉 POSSÍVEL CONTAINER DA REVIEW!")
+                                    print("    👉 POSSÍVEL CONTAINER DA REVIEW!")
                                     print(
                                         f"    Seletor sugerido: {current.name}.{'.'.join(classes)}"
                                     )
@@ -111,7 +113,7 @@ def find_review_selector():
                     )
                     print(f"  Tem conteúdo de review: {has_review_content}")
                     if has_review_content:
-                        print(f"  ⭐ CANDIDATO PROMISSOR!")
+                        print("  ⭐ CANDIDATO PROMISSOR!")
                         print(f"  Amostra: {text[:150]}...")
             except Exception as e:
                 print(f"{selector}: ERRO - {e}")
@@ -140,7 +142,7 @@ def find_review_selector():
                 print(f"  Tem comentário: {has_comment}")
 
                 if has_author and has_comment:
-                    print(f"  ⭐ POSSÍVEL REVIEW INDIVIDUAL!")
+                    print("  ⭐ POSSÍVEL REVIEW INDIVIDUAL!")
                     print(
                         f"  Seletor: .opinions-list > {child.name}"
                         + (f".{'.'.join(classes)}" if classes else "")

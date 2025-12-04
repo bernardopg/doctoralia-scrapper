@@ -1,8 +1,13 @@
 # 🏥 Doctoralia Scraper
 
-Automação profissional para monitorar, analisar e responder avaliações médicas (Doctoralia e futuras fontes) com scraping resiliente, geração inteligente de respostas, API REST, integração n8n e observabilidade.
+Automação profissional para monitorar, analisar e responder avaliações médicas
+(Doctoralia e futuras fontes) com scraping resiliente, geração inteligente de
+respostas, API REST, integração n8n e observabilidade.
 
-[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org) [![Status](https://img.shields.io/badge/status-ativo-success.svg)](#-%EF%B8%8F-comandos-make-top-10) [![Coverage](https://img.shields.io/badge/tests-%E2%89%A585%25-yellow.svg)](#-%F0%9F%A7%AA-testes--qualidade) [![License](https://img.shields.io/badge/license-Privado-red.svg)](LICENSE.md)
+[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
+[![Status](https://img.shields.io/badge/status-ativo-success.svg)](#comandos-make-top-10)
+[![Coverage](https://img.shields.io/badge/tests-%E2%89%A585%25-yellow.svg)](#-testes--qualidade)
+[![License](https://img.shields.io/badge/license-Privado-red.svg)](LICENSE.md)
 
 ## ✨ Principais Capacidades
 

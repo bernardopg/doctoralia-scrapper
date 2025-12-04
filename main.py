@@ -153,6 +153,25 @@ class DoctoraliaCLI:
                 file_path = scraper.save_data(data)
                 if file_path:
                     logger.info(f"💾 Dados com respostas salvos em: {file_path}")
+
+                # Enviar respostas via Telegram
+                if self.config.telegram.enabled:
+                    notifier = TelegramNotifier(self.config, logger)
+                    responses_data = [
+                        {
+                            "author": r.get("author", "Anônimo"),
+                            "comment": r.get("comment", ""),
+                            "response": r.get("generated_response", ""),
+                            "date": r.get("date", ""),
+                            "rating": r.get("rating", ""),
+                            "review_id": r.get("id", ""),
+                        }
+                        for r in reviews_to_process
+                    ]
+                    if notifier.send_responses_generated(responses_data):
+                        logger.info("📨 Respostas enviadas via Telegram")
+                    else:
+                        logger.warning("⚠️ Falha ao enviar respostas via Telegram")
             else:
                 logger.info("ℹ️ Todas as avaliações já possuem respostas")
 
@@ -261,11 +280,10 @@ class DoctoraliaCLI:
         """Executa diagnóstico completo."""
         logger.info("🔍 Executando diagnóstico completo...")
 
-        diagnostic = SystemDiagnostic()
-        report = diagnostic.run_full_diagnostic()
+        diagnostic_runner = SystemDiagnostic()
+        diagnostic_runner.run_full_diagnostic()
 
-        logger.info("📊 Relatório de diagnóstico:")
-        logger.info(json.dumps(report, indent=2, ensure_ascii=False))
+        logger.info("📊 Diagnóstico concluído.")
 
     def dashboard(self):
         """Inicia dashboard web."""

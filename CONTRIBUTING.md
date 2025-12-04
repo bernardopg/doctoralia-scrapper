@@ -1,4 +1,4 @@
-## 🤝 Contribuindo
+# 🤝 Contribuindo
 
 Guia curto para colaboração eficiente e consistente.
 

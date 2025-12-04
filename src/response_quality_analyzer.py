@@ -212,7 +212,7 @@ class ResponseQualityAnalyzer:
     def _calculate_sentiment(self, text: str) -> float:
         """Calculate sentiment score using VADER."""
         scores = self.sia.polarity_scores(text)
-        return scores["compound"]  # -1 to 1
+        return float(scores["compound"])  # -1 to 1
 
     def _calculate_length_score(self, text: str) -> float:
         """Calculate score based on response length."""

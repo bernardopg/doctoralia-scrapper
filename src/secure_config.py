@@ -85,7 +85,7 @@ class SecureConfig:
                 decrypted_data[key] = self.decrypt_sensitive_data(value)
             elif isinstance(value, str) and value.startswith(ENCRYPTED_PREFIX):
                 try:
-                    encrypted_value = value[len(ENCRYPTED_PREFIX) :]  # Remove prefix
+                    encrypted_value = value[len(ENCRYPTED_PREFIX):]  # Remove prefix
                     decrypted_data[key] = self.fernet.decrypt(
                         encrypted_value.encode()
                     ).decode()

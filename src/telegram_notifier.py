@@ -264,36 +264,55 @@ class TelegramNotifier:
                             }
                         )
             else:
-                # txt
+                # txt - formato limpo e fácil de copiar
                 with open(file_path, "w", encoding="utf-8") as f:
-                    f.write("=" * 80 + "\n")
-                    f.write("           RESPOSTAS DOCTORALIA - ARQUIVO CONSOLIDADO\n")
-                    f.write("=" * 80 + "\n")
-                    f.write(
-                        f"GERADO EM: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n"
-                    )
-                    f.write(f"TOTAL DE RESPOSTAS: {len(responses)}\n")
-                    f.write("=" * 80 + "\n\n")
+                    f.write("╔" + "═" * 58 + "╗\n")
+                    f.write("║" + " " * 12 + "RESPOSTAS DOCTORALIA" + " " * 26 + "║\n")
+                    f.write("║" + " " * 12 + "Dra. Bruna Pinto Gomes" + " " * 24 + "║\n")
+                    f.write("╚" + "═" * 58 + "╝\n\n")
+                    f.write(f"📅 Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}\n")
+                    f.write(f"📊 Total: {len(responses)} respostas\n")
+                    f.write("\n" + "─" * 60 + "\n")
 
                     for i, r in enumerate(responses, 1):
-                        f.write(f"{'=' * 20} RESPOSTA {i:02d} {'=' * 20}\n")
-                        f.write(f"AUTOR: {r.get('author', '')}\n")
-                        f.write(f"COMENTÁRIO ORIGINAL: {r.get('comment', '')}\n")
-                        f.write(f"DATA: {r.get('date', '')}\n")
-                        f.write(f"NOTA: {r.get('rating', '')}\n")
-                        f.write(f"ID: {r.get('review_id', '')}\n")
-                        f.write("-" * 60 + "\n")
-                        f.write("RESPOSTA SUGERIDA:\n\n")
-                        f.write(r.get("response", ""))
-                        f.write("\n\n" + "=" * 60 + "\n\n")
+                        author = r.get("author", "Paciente")
+                        comment = r.get("comment", "")
+                        date_str = r.get("date", "")
+                        rating = r.get("rating", "")
+                        response_text = r.get("response", "")
 
-                    f.write("INSTRUÇÕES:\n")
-                    f.write(
-                        "1. Copie cada resposta e cole no comentário correspondente no Doctoralia\n"
-                    )
-                    f.write("2. Verifique se o autor corresponde antes de colar\n")
-                    f.write("3. Personalize se necessário antes de publicar\n")
-                    f.write("\n" + "=" * 80 + "\n")
+                        # Formatar data se disponível
+                        if date_str and "T" in str(date_str):
+                            try:
+                                from datetime import datetime as dt
+                                dt_obj = dt.fromisoformat(date_str.replace("-03:00", ""))
+                                date_formatted = dt_obj.strftime("%d/%m/%Y")
+                            except Exception:
+                                date_formatted = str(date_str)[:10]
+                        else:
+                            date_formatted = str(date_str)[:10] if date_str else ""
+
+                        f.write(f"\n┌─ RESPOSTA {i:02d} ─────────────────────────────────────────┐\n")
+                        f.write(f"│ 👤 {author}\n")
+                        if date_formatted:
+                            f.write(f"│ 📆 {date_formatted}")
+                            if rating:
+                                f.write(f"  ⭐ {rating}/5")
+                            f.write("\n")
+                        f.write("│\n")
+                        f.write("│ 💬 Comentário:\n")
+                        f.write(f'│ "{comment}"\n')
+                        f.write("│\n")
+                        f.write("│ ✏️ Resposta para copiar:\n")
+                        f.write("└" + "─" * 55 + "┘\n\n")
+                        f.write(response_text)
+                        f.write("\n\n" + "─" * 60 + "\n")
+
+                    f.write("\n📋 INSTRUÇÕES:\n")
+                    f.write("   1. Copie a resposta (texto após \"Resposta para copiar\")\n")
+                    f.write("   2. Cole no Doctoralia no comentário correspondente\n")
+                    f.write("   3. Personalize se necessário antes de publicar\n")
+                    f.write("\n" + "═" * 60 + "\n")
 
             self.logger.info(f"📁 Arquivo de anexo criado: {file_path.name}")
             return file_path
