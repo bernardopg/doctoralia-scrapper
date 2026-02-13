@@ -1,5 +1,5 @@
 annotated-types==0.7.0 ; python_version >= "3.10"
-anyio==3.7.1 ; python_version >= "3.10"
+anyio==4.12.1 ; python_version >= "3.10"
 async-timeout==5.0.1 ; python_full_version < "3.11.3" and python_version >= "3.10"
 attrs==23.2.0 ; python_version >= "3.10"
 beautifulsoup4==4.13.4 ; python_version >= "3.10"
