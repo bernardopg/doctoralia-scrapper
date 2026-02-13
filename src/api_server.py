@@ -380,8 +380,12 @@ class DoctoraliaAPI:
                 base_progress = (i / total_urls) * 100
                 url_weight = 100.0 / total_urls
                 self.tasks[task_id]["progress"] = base_progress
-                self.tasks[task_id]["message"] = f"Processando {i + 1}/{total_urls}: {url}"
-                result = self._scrape_single_url(url, request, task_id, base_progress, url_weight)
+                self.tasks[task_id][
+                    "message"
+                ] = f"Processando {i + 1}/{total_urls}: {url}"
+                result = self._scrape_single_url(
+                    url, request, task_id, base_progress, url_weight
+                )
                 if result:
                     results.append(result)
 
@@ -404,8 +408,12 @@ class DoctoraliaAPI:
         self.tasks[task_id]["message"] = f"Processing {current + 1}/{total}: {url}"
 
     def _scrape_single_url(
-        self, url: str, request: ScrapeRequest,
-        task_id: Optional[str] = None, base_progress: float = 0.0, url_weight: float = 100.0
+        self,
+        url: str,
+        request: ScrapeRequest,
+        task_id: Optional[str] = None,
+        base_progress: float = 0.0,
+        url_weight: float = 100.0,
     ) -> Optional[Dict[str, Any]]:
         """Scrape a single doctor URL using DoctoraliaScraper."""
         try:
@@ -448,7 +456,9 @@ class DoctoraliaAPI:
                         msg = "Processando..."
 
                     progress = base_progress + url_weight * pct
-                    self.tasks[task_id]["progress"] = min(progress, base_progress + url_weight * 0.99)
+                    self.tasks[task_id]["progress"] = min(
+                        progress, base_progress + url_weight * 0.99
+                    )
                     self.tasks[task_id]["message"] = msg
 
                 scraper.progress_callback = on_progress
@@ -469,7 +479,7 @@ class DoctoraliaAPI:
 
             # Limit reviews if max_reviews specified
             if request.max_reviews and len(reviews) > request.max_reviews:
-                reviews = reviews[:request.max_reviews]
+                reviews = reviews[: request.max_reviews]
 
             return {
                 "doctor": {
@@ -816,7 +826,9 @@ class DoctoraliaAPI:
             )
 
             return SettingsResponse(
-                success=True, message="Settings retrieved successfully", settings=settings
+                success=True,
+                message="Settings retrieved successfully",
+                settings=settings,
             )
 
         except Exception as e:
@@ -956,9 +968,17 @@ class DoctoraliaAPI:
 
         # Use config values if available, otherwise defaults
         if host is None:
-            host = self.config.api.host if self.config and hasattr(self.config, 'api') else "0.0.0.0"
+            host = (
+                self.config.api.host
+                if self.config and hasattr(self.config, "api")
+                else "0.0.0.0"
+            )
         if port is None:
-            port = self.config.api.port if self.config and hasattr(self.config, 'api') else 8000
+            port = (
+                self.config.api.port
+                if self.config and hasattr(self.config, "api")
+                else 8000
+            )
 
         if self.logger:
             self.logger.info(f"Starting API server on http://{host}:{port}")

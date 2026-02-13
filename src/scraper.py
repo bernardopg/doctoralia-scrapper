@@ -395,10 +395,13 @@ class DoctoraliaScraper:
 
                 # Report progress via callback
                 if self.progress_callback:
-                    self.progress_callback("loading_reviews", {
-                        "clicks": clicks_realizados,
-                        "reviews_loaded": reviews_after,
-                    })
+                    self.progress_callback(
+                        "loading_reviews",
+                        {
+                            "clicks": clicks_realizados,
+                            "reviews_loaded": reviews_after,
+                        },
+                    )
 
                 # Extract reviews periodically to avoid losing data on redirect
                 # Every 3 clicks or when we have >50 reviews, get current data
@@ -690,7 +693,9 @@ class DoctoraliaScraper:
             # CRITICAL: Extract reviews immediately to avoid redirect
             self.logger.info("🔍 Processando comentários com BeautifulSoup...")
             if self.progress_callback:
-                self.progress_callback("processing_reviews", {"clicks": clicks_realizados})
+                self.progress_callback(
+                    "processing_reviews", {"clicks": clicks_realizados}
+                )
             reviews_data = self._extract_all_reviews()
 
             # If extraction failed due to redirect but we have backup data, use it

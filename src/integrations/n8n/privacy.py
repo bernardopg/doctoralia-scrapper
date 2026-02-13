@@ -114,7 +114,12 @@ class RateLimiter:
     Rate limiter for API requests.
     """
 
-    def __init__(self, redis_conn, max_requests: Optional[int] = None, window: Optional[int] = None):
+    def __init__(
+        self,
+        redis_conn,
+        max_requests: Optional[int] = None,
+        window: Optional[int] = None,
+    ):
         """
         Initialize rate limiter.
 

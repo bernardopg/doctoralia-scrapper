@@ -6,7 +6,13 @@ from typing import List
 import pytest
 
 import main as cli_main  # noqa: E402
-from config.settings import AppConfig, DelayConfig, ScrapingConfig, TelegramConfig
+from config.settings import (
+    APIConfig,
+    AppConfig,
+    DelayConfig,
+    ScrapingConfig,
+    TelegramConfig,
+)
 
 EXAMPLE_URL = (
     "https://www.doctoralia.com.br/bruna-pinto-gomes/ginecologista/belo-horizonte"
@@ -35,6 +41,12 @@ def mock_config(tmp_path: Path, monkeypatch):
             error_recovery=0.0,
             rate_limit_retry=0.0,
             page_load_retry=0.0,
+        ),
+        api=APIConfig(
+            host="127.0.0.1",
+            port=8000,
+            debug=False,
+            workers=1,
         ),
         base_dir=tmp_path,
         data_dir=tmp_path / "data",

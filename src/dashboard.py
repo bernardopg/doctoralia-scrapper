@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
+from flask import Flask, jsonify, render_template, request
+from flask_cors import CORS
 
 # Ensure project root is in sys.path for proper imports
 _project_root = str(Path(__file__).resolve().parent.parent)
@@ -31,10 +33,6 @@ except ImportError:
     PerformanceMonitor = None
     ResponseQualityAnalyzer = None
     ScraperFactory = None
-
-# Import Flask modules
-from flask import Flask, jsonify, render_template, request
-from flask_cors import CORS
 
 
 class DashboardApp:
@@ -99,9 +97,7 @@ class DashboardApp:
         """
         try:
             url = f"{self.api_base_url}{endpoint}"
-            response = requests.request(
-                method, url, timeout=self.api_timeout, **kwargs
-            )
+            response = requests.request(method, url, timeout=self.api_timeout, **kwargs)
             if response.status_code == 200:
                 return response.json()
             else:
@@ -287,7 +283,14 @@ class DashboardApp:
                 result = self._call_api("/scrape", method="POST", json=data)
                 if result:
                     return jsonify(result)
-                return jsonify({"error": "API não disponível. Execute 'make api' para iniciar."}), 503
+                return (
+                    jsonify(
+                        {
+                            "error": "API não disponível. Execute 'make api' para iniciar."
+                        }
+                    ),
+                    503,
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -298,7 +301,10 @@ class DashboardApp:
                 result = self._call_api(f"/tasks/{task_id}")
                 if result:
                     return jsonify(result)
-                return jsonify({"error": "API não disponível ou task não encontrada"}), 503
+                return (
+                    jsonify({"error": "API não disponível ou task não encontrada"}),
+                    503,
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -346,9 +352,7 @@ class DashboardApp:
             """Proxy POST settings validate request to main API."""
             try:
                 data = request.get_json(force=True, silent=True)
-                result = self._call_api(
-                    "/settings/validate", method="POST", json=data
-                )
+                result = self._call_api("/settings/validate", method="POST", json=data)
                 if result is not None:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
@@ -390,7 +394,10 @@ class DashboardApp:
                         },
                     )
                 else:
-                    return jsonify({"error": f"Formato '{format_type}' não suportado"}), 400
+                    return (
+                        jsonify({"error": f"Formato '{format_type}' não suportado"}),
+                        400,
+                    )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -612,9 +619,8 @@ class DashboardApp:
                 data = json.load(f)
 
             # Support both flat format (scraper.save_data) and nested format
-            doctor_name = (
-                data.get("doctor_name")
-                or data.get("doctor", {}).get("name", "Unknown")
+            doctor_name = data.get("doctor_name") or data.get("doctor", {}).get(
+                "name", "Unknown"
             )
             reviews = data.get("reviews", [])
             reviews_count = data.get("total_reviews", 0) or len(reviews)
@@ -682,7 +688,11 @@ class DashboardApp:
                 # Extract doctor name and date from filename
                 parts = json_file.stem.split("_", 2)
                 date_str = parts[0] if len(parts) > 0 else ""
-                doctor_name = parts[2].replace("_", " ").title() if len(parts) > 2 else json_file.stem
+                doctor_name = (
+                    parts[2].replace("_", " ").title()
+                    if len(parts) > 2
+                    else json_file.stem
+                )
 
                 files.append(
                     {
@@ -691,9 +701,11 @@ class DashboardApp:
                         "size": stat.st_size,
                         "size_human": self._format_file_size(stat.st_size),
                         "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                        "date_str": f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                        if len(date_str) >= 8
-                        else "",
+                        "date_str": (
+                            f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                            if len(date_str) >= 8
+                            else ""
+                        ),
                     }
                 )
             except Exception:

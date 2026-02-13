@@ -268,9 +268,13 @@ class TelegramNotifier:
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write("╔" + "═" * 58 + "╗\n")
                     f.write("║" + " " * 12 + "RESPOSTAS DOCTORALIA" + " " * 26 + "║\n")
-                    f.write("║" + " " * 12 + "Dra. Bruna Pinto Gomes" + " " * 24 + "║\n")
+                    f.write(
+                        "║" + " " * 12 + "Dra. Bruna Pinto Gomes" + " " * 24 + "║\n"
+                    )
                     f.write("╚" + "═" * 58 + "╝\n\n")
-                    f.write(f"📅 Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}\n")
+                    f.write(
+                        f"📅 Gerado em: {datetime.now().strftime('%d/%m/%Y às %H:%M')}\n"
+                    )
                     f.write(f"📊 Total: {len(responses)} respostas\n")
                     f.write("\n" + "─" * 60 + "\n")
 
@@ -285,14 +289,19 @@ class TelegramNotifier:
                         if date_str and "T" in str(date_str):
                             try:
                                 from datetime import datetime as dt
-                                dt_obj = dt.fromisoformat(date_str.replace("-03:00", ""))
+
+                                dt_obj = dt.fromisoformat(
+                                    date_str.replace("-03:00", "")
+                                )
                                 date_formatted = dt_obj.strftime("%d/%m/%Y")
                             except Exception:
                                 date_formatted = str(date_str)[:10]
                         else:
                             date_formatted = str(date_str)[:10] if date_str else ""
 
-                        f.write(f"\n┌─ RESPOSTA {i:02d} ─────────────────────────────────────────┐\n")
+                        f.write(
+                            f"\n┌─ RESPOSTA {i:02d} ─────────────────────────────────────────┐\n"
+                        )
                         f.write(f"│ 👤 {author}\n")
                         if date_formatted:
                             f.write(f"│ 📆 {date_formatted}")
@@ -309,7 +318,9 @@ class TelegramNotifier:
                         f.write("\n\n" + "─" * 60 + "\n")
 
                     f.write("\n📋 INSTRUÇÕES:\n")
-                    f.write("   1. Copie a resposta (texto após \"Resposta para copiar\")\n")
+                    f.write(
+                        '   1. Copie a resposta (texto após "Resposta para copiar")\n'
+                    )
                     f.write("   2. Cole no Doctoralia no comentário correspondente\n")
                     f.write("   3. Personalize se necessário antes de publicar\n")
                     f.write("\n" + "═" * 60 + "\n")

@@ -28,8 +28,9 @@ def update_chromedriver():
 def update_nltk_resources():
     """Atualiza recursos NLTK necessários."""
     try:
-        import nltk
         import ssl
+
+        import nltk
 
         # Bypass SSL verification issues
         try:
