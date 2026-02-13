@@ -1,35 +1,44 @@
 # Multi-stage Dockerfile for Doctoralia Scrapper with n8n integration
-FROM python:3.11-slim AS base
+FROM python:3.11-slim AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# Install system dependencies
+# Build dependencies are only needed in the builder stage.
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
     build-essential \
-    curl \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements first for better caching
+# Build wheels once to keep the final image smaller and with fewer OS packages.
 COPY requirements.txt requirements-optimized.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir redis rq
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
-# Copy application code
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+WORKDIR /app
+
+COPY requirements.txt requirements-optimized.txt ./
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
+    rm -rf /wheels
+
 COPY src ./src
 COPY config ./config
 COPY templates ./templates
 
-# Create necessary directories
 RUN mkdir -p logs
 
 # API service (default)

@@ -1,7 +1,7 @@
 # Dependências Essenciais para Produção
 beautifulsoup4>=4.13.0
 requests>=2.32.0
-selenium>=4.34.0
+selenium>=4.38.0
 webdriver-manager>=4.0.0
 lxml>=5.4.0
 schedule>=1.2.0
@@ -9,13 +9,13 @@ python-dotenv>=1.0.0
 psutil>=6.0.0
 
 # API e Web Framework
-fastapi>=0.104.0
+fastapi>=0.129.0
 uvicorn[standard]>=0.24.0
 pydantic>=2.5.0
 flask>=3.0.0
 flask-cors>=4.0.0
 
 # Dependências de segurança e utilitárias
-certifi>=2024.0.0
+certifi>=2026.1.4
 charset-normalizer>=3.0.0
-urllib3>=2.0.0
+urllib3>=2.6.3
