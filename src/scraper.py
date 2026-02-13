@@ -101,6 +101,10 @@ class DoctoraliaScraper:
         self._cache: Dict[str, Any] = {}
         self._last_url: Optional[str] = None
 
+        # Optional progress callback: fn(phase, detail) where phase is a string
+        # and detail is a dict with context info (e.g. clicks, reviews_loaded)
+        self.progress_callback: Optional[Any] = None
+
     def get_random_user_agent(self) -> str:
         user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -389,6 +393,13 @@ class DoctoraliaScraper:
                     reviews_after,
                 )
 
+                # Report progress via callback
+                if self.progress_callback:
+                    self.progress_callback("loading_reviews", {
+                        "clicks": clicks_realizados,
+                        "reviews_loaded": reviews_after,
+                    })
+
                 # Extract reviews periodically to avoid losing data on redirect
                 # Every 3 clicks or when we have >50 reviews, get current data
                 if clicks_realizados % 3 == 0 or reviews_after > 50:
@@ -653,6 +664,8 @@ class DoctoraliaScraper:
 
             # Load page with rate limiting
             self.logger.info("🌐 Acessando página: %s", url)
+            if self.progress_callback:
+                self.progress_callback("page_loading", {"url": url})
             self.rate_limiter.wait_if_needed()
             self.driver.get(url)
             WebDriverWait(self.driver, self.config.scraping.explicit_wait).until(
@@ -662,6 +675,8 @@ class DoctoraliaScraper:
 
             # Extract doctor information
             self.logger.info("👨‍⚕️ Extraindo nome do médico...")
+            if self.progress_callback:
+                self.progress_callback("extracting_info", {"url": url})
             doctor_name = self.extract_doctor_name()
             if doctor_name:
                 self.logger.info("Médico identificado: %s", doctor_name)
@@ -674,6 +689,8 @@ class DoctoraliaScraper:
 
             # CRITICAL: Extract reviews immediately to avoid redirect
             self.logger.info("🔍 Processando comentários com BeautifulSoup...")
+            if self.progress_callback:
+                self.progress_callback("processing_reviews", {"clicks": clicks_realizados})
             reviews_data = self._extract_all_reviews()
 
             # If extraction failed due to redirect but we have backup data, use it

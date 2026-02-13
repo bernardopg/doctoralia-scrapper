@@ -4,6 +4,7 @@ Provides programmatic access to scraping, analysis, and monitoring features.
 """
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
@@ -14,6 +15,11 @@ from typing import Optional
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# Ensure project root is in sys.path for proper imports
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 # Import our modules
 try:
@@ -365,14 +371,17 @@ class DoctoraliaAPI:
     def _execute_scraping_task(self, task_id: str, request: ScrapeRequest) -> None:
         """Execute scraping task in background."""
         try:
-            self._update_task_status(task_id, "running", "Starting scraping operation")
+            self._update_task_status(task_id, "running", "Iniciando scraping...")
 
             results = []
             total_urls = len(request.doctor_urls)
 
             for i, url in enumerate(request.doctor_urls):
-                self._update_task_progress(task_id, i, total_urls, url)
-                result = self._scrape_single_url(url, request)
+                base_progress = (i / total_urls) * 100
+                url_weight = 100.0 / total_urls
+                self.tasks[task_id]["progress"] = base_progress
+                self.tasks[task_id]["message"] = f"Processando {i + 1}/{total_urls}: {url}"
+                result = self._scrape_single_url(url, request, task_id, base_progress, url_weight)
                 if result:
                     results.append(result)
 
@@ -395,7 +404,8 @@ class DoctoraliaAPI:
         self.tasks[task_id]["message"] = f"Processing {current + 1}/{total}: {url}"
 
     def _scrape_single_url(
-        self, url: str, request: ScrapeRequest
+        self, url: str, request: ScrapeRequest,
+        task_id: Optional[str] = None, base_progress: float = 0.0, url_weight: float = 100.0
     ) -> Optional[Dict[str, Any]]:
         """Scrape a single doctor URL using DoctoraliaScraper."""
         try:
@@ -406,12 +416,52 @@ class DoctoraliaAPI:
                 return None
 
             scraper = DoctoraliaScraper(self.config, self.logger)
+
+            # Set up progress callback if we have a task_id
+            if task_id:
+                # Progress ranges per phase within the url_weight allocation:
+                # page_loading:      5% - 10%
+                # extracting_info:  10% - 15%
+                # loading_reviews:  15% - 90% (incremental based on clicks)
+                # processing_reviews: 90% - 95%
+                max_expected_clicks = 20  # Estimate for scaling progress
+
+                def on_progress(phase: str, detail: dict) -> None:
+                    if phase == "page_loading":
+                        pct = 0.07
+                        msg = "Carregando página..."
+                    elif phase == "extracting_info":
+                        pct = 0.12
+                        msg = "Extraindo informações do médico..."
+                    elif phase == "loading_reviews":
+                        clicks = detail.get("clicks", 0)
+                        reviews = detail.get("reviews_loaded", 0)
+                        # Scale from 15% to 88% based on clicks
+                        click_ratio = min(clicks / max_expected_clicks, 1.0)
+                        pct = 0.15 + click_ratio * 0.73
+                        msg = f"Carregando reviews... ({reviews} encontrados, {clicks} cliques)"
+                    elif phase == "processing_reviews":
+                        pct = 0.92
+                        msg = "Processando reviews..."
+                    else:
+                        pct = 0.5
+                        msg = "Processando..."
+
+                    progress = base_progress + url_weight * pct
+                    self.tasks[task_id]["progress"] = min(progress, base_progress + url_weight * 0.99)
+                    self.tasks[task_id]["message"] = msg
+
+                scraper.progress_callback = on_progress
+
             data = scraper.scrape_reviews(url)
 
             if not data:
                 if self.logger:
                     self.logger.warning(f"No data returned for {url}")
                 return None
+
+            # Persist to disk so stats/dashboard can read it
+            scraper.save_data(data)
 
             # Format result matching what dashboard expects
             doctor_name = data.get("doctor", {}).get("name", "Unknown")
@@ -469,7 +519,7 @@ class DoctoraliaAPI:
 
         try:
             if self.config and hasattr(self.config, "data_dir"):
-                data_dir = Path(self.config.data_dir) / "scraped_data"
+                data_dir = Path(self.config.data_dir)
                 if data_dir.exists():
                     json_files = list(data_dir.glob("*.json"))
                     stats["data_files"] = [f.name for f in json_files]
@@ -532,11 +582,26 @@ class DoctoraliaAPI:
             with open(json_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
+            # Support both flat format (from scraper.save_data) and nested format
+            reviews = data.get("reviews", [])
+            reviews_count = data.get("total_reviews", 0) or len(reviews)
+
+            # Try nested format first, fall back to flat
+            if "summary" in data:
+                avg_rating = data["summary"].get("average_rating", 0.0)
+            else:
+                # Calculate from reviews
+                ratings = [r.get("rating", 0) for r in reviews if r.get("rating")]
+                avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
+
+            platform = data.get("platform", "doctoralia")
+            scraped_at = data.get("scraped_at") or data.get("extraction_timestamp")
+
             return {
-                "reviews_count": data.get("summary", {}).get("total_reviews", 0),
-                "avg_rating": data.get("summary", {}).get("average_rating", 0.0),
-                "platform": data.get("platform", "unknown"),
-                "scraped_at": data.get("scraped_at"),
+                "reviews_count": reviews_count,
+                "avg_rating": avg_rating,
+                "platform": platform,
+                "scraped_at": scraped_at,
             }
 
         except Exception as e:

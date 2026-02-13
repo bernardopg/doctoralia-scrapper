@@ -18,18 +18,22 @@
     <div class="card-body">
       <div class="report-summary">
         <div class="summary-item">
-          <div class="summary-label">Total de Relatórios</div>
-          <div class="summary-value">0</div>
+          <div class="summary-label">Total de Arquivos</div>
+          <div class="summary-value" id="total-files">-</div>
         </div>
         <div class="summary-item">
           <div class="summary-label">Gerados Hoje</div>
-          <div class="summary-value">0</div>
+          <div class="summary-value" id="today-files">-</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Total de Reviews</div>
+          <div class="summary-value" id="total-reviews">-</div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">Médicos</div>
+          <div class="summary-value" id="unique-doctors">-</div>
         </div>
       </div>
-      <button class="btn btn-primary w-100" style="margin-top: 20px;">
-        <i class="fas fa-plus"></i>
-        Gerar Novo Relatório
-      </button>
     </div>
   </div>
 
@@ -46,11 +50,11 @@
         Exporte os dados coletados em diferentes formatos para análise externa.
       </p>
       <div class="export-options">
-        <button class="btn btn-secondary w-100" style="margin-bottom: 10px;">
+        <button class="btn btn-secondary w-100" style="margin-bottom: 10px;" onclick="exportData('csv')">
           <i class="fas fa-file-csv"></i>
           Exportar CSV
         </button>
-        <button class="btn btn-secondary w-100">
+        <button class="btn btn-secondary w-100" onclick="exportData('json')">
           <i class="fas fa-file-code"></i>
           Exportar JSON
         </button>
@@ -60,31 +64,37 @@
 </div>
 
 <div class="card">
-  <div class="card-header">
+  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
     <h3 class="card-title">
       <i class="fas fa-folder-open"></i>
       Arquivos Disponíveis
     </h3>
+    <button class="btn btn-secondary btn-sm" onclick="loadFiles()">
+      <i class="fas fa-sync-alt"></i>
+      Atualizar
+    </button>
   </div>
   <div class="card-body">
     <div class="table-responsive">
       <table class="table">
         <thead>
           <tr>
-            <th>Nome do Arquivo</th>
-            <th>Tipo</th>
-            <th>Tamanho</th>
+            <th>Médico</th>
             <th>Data</th>
-            <th>Ações</th>
+            <th>Tamanho</th>
+            <th>Arquivo</th>
           </tr>
         </thead>
         <tbody id="files-table-body">
           <tr>
-            <td colspan="5" class="text-center text-secondary">Nenhum arquivo encontrado</td>
+            <td colspan="4" class="text-center text-secondary">
+              <i class="fas fa-spinner fa-spin"></i> Carregando...
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+    <div id="pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
   </div>
 </div>
 
@@ -138,12 +148,134 @@
     color: var(--text-primary, #fff);
     font-size: 14px;
   }
+
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .page-btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color, #3a3a3c);
+    background: var(--bg-secondary, #2c2c2e);
+    color: var(--text-primary, #fff);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .page-btn:hover {
+    background: var(--bg-tertiary, #3a3a3c);
+  }
+
+  .page-btn.active {
+    background: var(--primary, #0a84ff);
+    border-color: var(--primary, #0a84ff);
+  }
+
+  .file-name {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text-secondary, #8e8e93);
+  }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  // Placeholder for future implementation
-  console.log('Reports page loaded');
+  let allFiles = [];
+  const PAGE_SIZE = 20;
+  let currentPage = 1;
+
+  async function loadSummary() {
+    try {
+      const response = await fetch('/api/reports/summary');
+      const data = await response.json();
+
+      document.getElementById('total-files').textContent = data.total_files || 0;
+      document.getElementById('today-files').textContent = data.today_files || 0;
+      document.getElementById('total-reviews').textContent = data.total_reviews || 0;
+      document.getElementById('unique-doctors').textContent = data.unique_doctors || 0;
+    } catch (error) {
+      console.error('Error loading summary:', error);
+    }
+  }
+
+  async function loadFiles() {
+    const tbody = document.getElementById('files-table-body');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
+
+    try {
+      const response = await fetch('/api/reports/files');
+      const data = await response.json();
+
+      allFiles = data.files || [];
+      currentPage = 1;
+      renderFilesPage();
+    } catch (error) {
+      console.error('Error loading files:', error);
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary">Erro ao carregar arquivos</td></tr>';
+    }
+  }
+
+  function renderFilesPage() {
+    const tbody = document.getElementById('files-table-body');
+    const totalPages = Math.ceil(allFiles.length / PAGE_SIZE);
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageFiles = allFiles.slice(start, start + PAGE_SIZE);
+
+    if (pageFiles.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary">Nenhum arquivo encontrado</td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = pageFiles.map(file => `
+      <tr>
+        <td><strong>${file.doctor}</strong></td>
+        <td>${file.date_str}</td>
+        <td>${file.size_human}</td>
+        <td class="file-name">${file.name}</td>
+      </tr>
+    `).join('');
+
+    // Pagination
+    if (totalPages > 1) {
+      let paginationHtml = '';
+      if (currentPage > 1) {
+        paginationHtml += `<button class="page-btn" onclick="goToPage(${currentPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
+      }
+
+      const startPage = Math.max(1, currentPage - 2);
+      const endPage = Math.min(totalPages, currentPage + 2);
+
+      for (let i = startPage; i <= endPage; i++) {
+        paginationHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+
+      if (currentPage < totalPages) {
+        paginationHtml += `<button class="page-btn" onclick="goToPage(${currentPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
+      }
+
+      paginationHtml += `<span style="color: var(--text-secondary); font-size: 13px; align-self: center; margin-left: 8px;">${allFiles.length} arquivos</span>`;
+      document.getElementById('pagination').innerHTML = paginationHtml;
+    } else {
+      document.getElementById('pagination').innerHTML = `<span style="color: var(--text-secondary); font-size: 13px;">${allFiles.length} arquivos</span>`;
+    }
+  }
+
+  function goToPage(page) {
+    currentPage = page;
+    renderFilesPage();
+  }
+
+  function exportData(format) {
+    window.location.href = `/api/reports/export/${format}`;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    loadSummary();
+    loadFiles();
+  });
 </script>
 {% endblock %}

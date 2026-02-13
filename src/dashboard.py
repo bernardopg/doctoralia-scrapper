@@ -5,11 +5,17 @@ Provides real-time monitoring, analytics, and management interface.
 
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
+
+# Ensure project root is in sys.path for proper imports
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 # Import our modules
 try:
@@ -312,10 +318,97 @@ class DashboardApp:
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
+        @self.app.route("/api/settings")
+        def proxy_get_settings():
+            """Proxy GET settings request to main API."""
+            try:
+                result = self._call_api("/settings")
+                if result is not None:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/settings", methods=["PUT"])
+        def proxy_update_settings():
+            """Proxy PUT settings request to main API."""
+            try:
+                data = request.get_json(force=True, silent=True)
+                result = self._call_api("/settings", method="PUT", json=data)
+                if result is not None:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/settings/validate", methods=["POST"])
+        def proxy_validate_settings():
+            """Proxy POST settings validate request to main API."""
+            try:
+                data = request.get_json(force=True, silent=True)
+                result = self._call_api(
+                    "/settings/validate", method="POST", json=data
+                )
+                if result is not None:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/reports/files")
+        def get_report_files():
+            """List available data files for reports."""
+            try:
+                files = self._get_data_files()
+                return jsonify({"files": files})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/reports/export/<format_type>")
+        def export_data(format_type):
+            """Export scraped data in specified format."""
+            try:
+                from flask import Response
+
+                data = self._get_export_data()
+                if format_type == "json":
+                    content = json.dumps(data, ensure_ascii=False, indent=2)
+                    return Response(
+                        content,
+                        mimetype="application/json",
+                        headers={
+                            "Content-Disposition": "attachment; filename=doctoralia_export.json"
+                        },
+                    )
+                elif format_type == "csv":
+                    content = self._convert_to_csv(data)
+                    return Response(
+                        content,
+                        mimetype="text/csv; charset=utf-8",
+                        headers={
+                            "Content-Disposition": "attachment; filename=doctoralia_export.csv"
+                        },
+                    )
+                else:
+                    return jsonify({"error": f"Formato '{format_type}' não suportado"}), 400
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/reports/summary")
+        def get_report_summary():
+            """Get report summary statistics."""
+            try:
+                summary = self._get_report_summary()
+                return jsonify(summary)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
     def _handle_quality_analysis(self):
         """Handle quality analysis request."""
         try:
-            data = request.get_json()
+            data = request.get_json(force=True, silent=True)
+            if data is None:
+                return jsonify({"error": "Invalid JSON in request body"}), 400
             response_text = data.get("response", "")
             original_review = data.get("original_review", "")
 
@@ -349,7 +442,7 @@ class DashboardApp:
 
         try:
             if self.config and hasattr(self.config, "data_dir"):
-                data_dir = Path(self.config.data_dir) / "scraped_data"
+                data_dir = Path(self.config.data_dir)
                 if data_dir.exists():
                     self._process_data_files(stats, data_dir)
         except Exception as e:
@@ -402,9 +495,18 @@ class DashboardApp:
                 data = json.load(f)
 
             doctors_count += 1
-            reviews_count = data.get("summary", {}).get("total_reviews", 0)
-            avg_rating = data.get("summary", {}).get("average_rating", 0.0)
-            platform = data.get("platform", "unknown")
+
+            # Support both flat format (scraper.save_data) and nested format
+            reviews = data.get("reviews", [])
+            reviews_count = data.get("total_reviews", 0) or len(reviews)
+
+            if "summary" in data:
+                avg_rating = data["summary"].get("average_rating", 0.0)
+            else:
+                ratings = [r.get("rating", 0) for r in reviews if r.get("rating")]
+                avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
+
+            platform = data.get("platform", "doctoralia")
 
             total_reviews += reviews_count
             if avg_rating > 0:
@@ -413,7 +515,7 @@ class DashboardApp:
             self._update_platform_stats(platforms, platform, reviews_count)
 
             # Track last scrape time
-            scraped_at = data.get("scraped_at")
+            scraped_at = data.get("scraped_at") or data.get("extraction_timestamp")
             if scraped_at:
                 self._update_last_scrape_time(stats, scraped_at)
 
@@ -483,11 +585,11 @@ class DashboardApp:
 
         return activities
 
-    def _get_data_directory(self) -> Optional[Path]:
+    def _get_data_directory(self) -> Path:
         """Get the data directory path."""
         if self.config and hasattr(self.config, "data_dir"):
-            return Path(self.config.data_dir) / "scraped_data"
-        return None
+            return Path(self.config.data_dir)
+        return Path("data")
 
     def _get_recent_json_files(self, data_dir: Path) -> List[Path]:
         """Get the most recent JSON files."""
@@ -509,13 +611,29 @@ class DashboardApp:
             with open(json_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
+            # Support both flat format (scraper.save_data) and nested format
+            doctor_name = (
+                data.get("doctor_name")
+                or data.get("doctor", {}).get("name", "Unknown")
+            )
+            reviews = data.get("reviews", [])
+            reviews_count = data.get("total_reviews", 0) or len(reviews)
+
+            if "summary" in data:
+                average_rating = data["summary"].get("average_rating", 0.0)
+            else:
+                ratings = [r.get("rating", 0) for r in reviews if r.get("rating")]
+                average_rating = sum(ratings) / len(ratings) if ratings else 0.0
+
+            scraped_at = data.get("scraped_at") or data.get("extraction_timestamp")
+
             return {
                 "filename": json_file.name,
-                "doctor_name": data.get("doctor", {}).get("name", "Unknown"),
-                "platform": data.get("platform", "unknown"),
-                "reviews_count": data.get("summary", {}).get("total_reviews", 0),
-                "average_rating": data.get("summary", {}).get("average_rating", 0.0),
-                "scraped_at": data.get("scraped_at"),
+                "doctor_name": doctor_name,
+                "platform": data.get("platform", "doctoralia"),
+                "reviews_count": reviews_count,
+                "average_rating": average_rating,
+                "scraped_at": scraped_at,
                 "file_size": json_file.stat().st_size,
             }
 
@@ -547,6 +665,143 @@ class DashboardApp:
             logs = [f"Error reading logs: {e}"]
 
         return logs
+
+    def _get_data_files(self) -> List[Dict[str, Any]]:
+        """List available data files with metadata."""
+        files = []
+        data_dir = self._get_data_directory()
+
+        if not data_dir.exists():
+            return files
+
+        for json_file in sorted(
+            data_dir.glob("*.json"), key=os.path.getmtime, reverse=True
+        ):
+            try:
+                stat = json_file.stat()
+                # Extract doctor name and date from filename
+                parts = json_file.stem.split("_", 2)
+                date_str = parts[0] if len(parts) > 0 else ""
+                doctor_name = parts[2].replace("_", " ").title() if len(parts) > 2 else json_file.stem
+
+                files.append(
+                    {
+                        "name": json_file.name,
+                        "doctor": doctor_name,
+                        "size": stat.st_size,
+                        "size_human": self._format_file_size(stat.st_size),
+                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                        "date_str": f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                        if len(date_str) >= 8
+                        else "",
+                    }
+                )
+            except Exception:
+                continue
+
+        return files
+
+    def _get_export_data(self) -> List[Dict[str, Any]]:
+        """Get all scraped data for export."""
+        data_dir = self._get_data_directory()
+        all_data = []
+
+        if not data_dir.exists():
+            return all_data
+
+        for json_file in sorted(data_dir.glob("*.json"), key=os.path.getmtime):
+            try:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    file_data = json.load(f)
+                    all_data.append(file_data)
+            except Exception:
+                continue
+
+        return all_data
+
+    def _convert_to_csv(self, data: List[Dict[str, Any]]) -> str:
+        """Convert scraped data to CSV format."""
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header
+        writer.writerow(
+            [
+                "doctor_name",
+                "extraction_date",
+                "review_id",
+                "author",
+                "rating",
+                "date",
+                "comment",
+                "generated_response",
+            ]
+        )
+
+        for entry in data:
+            doctor_name = entry.get("doctor_name", "")
+            extraction_ts = entry.get("extraction_timestamp", "")
+            reviews = entry.get("reviews", [])
+
+            for review in reviews:
+                writer.writerow(
+                    [
+                        doctor_name,
+                        extraction_ts,
+                        review.get("id", ""),
+                        review.get("author", ""),
+                        review.get("rating", ""),
+                        review.get("date", ""),
+                        review.get("comment", ""),
+                        review.get("generated_response", ""),
+                    ]
+                )
+
+        return output.getvalue()
+
+    @staticmethod
+    def _format_file_size(size_bytes: int) -> str:
+        """Format file size in human-readable format."""
+        if size_bytes < 1024:
+            return f"{size_bytes} B"
+        elif size_bytes < 1024 * 1024:
+            return f"{size_bytes / 1024:.1f} KB"
+        else:
+            return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+    def _get_report_summary(self) -> Dict[str, Any]:
+        """Get summary statistics for reports page."""
+        data_dir = self._get_data_directory()
+        total_files = 0
+        today_files = 0
+        total_reviews = 0
+        doctors = set()
+        today = datetime.now().strftime("%Y%m%d")
+
+        if data_dir.exists():
+            for json_file in data_dir.glob("*.json"):
+                total_files += 1
+                if json_file.name.startswith(today):
+                    today_files += 1
+                try:
+                    with open(json_file, "r", encoding="utf-8") as f:
+                        file_data = json.load(f)
+                        doctor_name = file_data.get("doctor_name", "")
+                        if doctor_name:
+                            doctors.add(doctor_name)
+                        total_reviews += len(file_data.get("reviews", []))
+                except Exception:
+                    continue
+
+        return {
+            "total_files": total_files,
+            "today_files": today_files,
+            "total_reviews": total_reviews,
+            "unique_doctors": len(doctors),
+        }
 
     def run(self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False) -> None:
         """Run the Flask dashboard server."""

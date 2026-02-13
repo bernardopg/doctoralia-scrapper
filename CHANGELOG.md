@@ -8,13 +8,31 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [Unreleased]
 
 ### 🚀 Adicionado
-- Novas features em desenvolvimento
+- **Página de Relatórios funcional** (`reports.html`)
+  - Resumo com total de arquivos, reviews e médicos
+  - Listagem de arquivos de dados com paginação
+  - Exportação de dados em CSV e JSON
+  - Endpoints: `/api/reports/summary`, `/api/reports/files`, `/api/reports/export/<format>`
+- **Proxy de settings no Dashboard**
+  - Rotas proxy: `GET/PUT /api/settings`, `POST /api/settings/validate`
+  - Dashboard agora centraliza todas as chamadas à API
+- **Progresso em tempo real para scraping**
+  - Callback de progresso no `DoctoraliaScraper` com fases (page_loading, extracting_info, loading_reviews, processing_reviews)
+  - Polling automático a cada 2s na página de histórico
+  - Barra de progresso animada com mensagens descritivas
+- **Persistência de dados no scraping via API**
+  - Dados de scraping são salvos automaticamente em `data/`
 
 ### 🔄 Alterado
-- Melhorias em andamento
+- `settings.html` agora usa proxy do Dashboard (`/api/...`) em vez de URL hardcoded da API
+- `history.html` com polling automático para tasks ativas (inicia/para conforme necessário)
+- Suporte a formato dual de dados (flat e nested) no Dashboard e API server
 
 ### 🐛 Corrigido
-- Bugs em correção
+- Fix `sys.path` em `api_server.py` e `dashboard.py` para resolução correta de imports
+- Fix caminho de dados: `data/` em vez de `data/scraped_data/`
+- Fix `request.get_json()` com `force=True` para robustez no quality-analysis
+- Fix dependência NLTK `punkt_tab` para análise de qualidade
 
 ---
 

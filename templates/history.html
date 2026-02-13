@@ -94,55 +94,102 @@
     background: rgba(255, 59, 48, 0.15);
     color: #ff3b30;
   }
+
+  .progress-bar-container {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--primary-color, #0a84ff);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .progress-bar-animated {
+    background: linear-gradient(
+      90deg,
+      var(--primary-color, #0a84ff) 0%,
+      #5ac8fa 50%,
+      var(--primary-color, #0a84ff) 100%
+    );
+    background-size: 200% 100%;
+    animation: progress-shine 1.5s ease infinite;
+  }
+
+  @keyframes progress-shine {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
+  let pollInterval = null;
+
   async function loadTasks() {
     const tbody = document.getElementById('tasks-table-body');
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
 
     try {
-      // In a real scenario, we would fetch from /api/tasks
-      // For now, let's try to fetch from the API proxy if it exists, or mock it
-      const response = await fetch('/api/tasks'); // We need to implement this route in dashboard.py
+      const response = await fetch('/api/tasks');
 
       let tasks = [];
       if (response.ok) {
         tasks = await response.json();
       } else {
-        // Fallback or error
-        console.warn('Failed to fetch tasks, using mock data');
+        console.warn('Failed to fetch tasks');
         tasks = [];
       }
 
       if (tasks.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Nenhuma tarefa encontrada</td></tr>';
+        stopPolling();
         return;
       }
 
-      tbody.innerHTML = tasks.map(task => `
+      const hasActiveTasks = tasks.some(t => t.status === 'running' || t.status === 'pending');
+
+      tbody.innerHTML = tasks.map(task => {
+        const progressPct = Math.round(task.progress);
+        const isActive = task.status === 'running' || task.status === 'pending';
+        const statusLabel = {
+          'pending': 'Pendente',
+          'running': 'Em andamento',
+          'completed': 'Concluído',
+          'failed': 'Falhou'
+        }[task.status] || task.status;
+
+        return `
         <tr>
-          <td><span style="font-family: monospace;">${task.task_id}</span></td>
-          <td><span class="status-badge status-${task.status}">${task.status}</span></td>
+          <td><span style="font-family: monospace; font-size: 12px;">${task.task_id}</span></td>
+          <td><span class="status-badge status-${task.status}">${statusLabel}</span></td>
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
-              <div class="progress-bar-container" style="width: 100px; height: 6px;">
-                <div class="progress-bar" style="width: ${task.progress}%"></div>
+              <div class="progress-bar-container" style="width: 120px; height: 8px;">
+                <div class="progress-bar${isActive ? ' progress-bar-animated' : ''}" style="width: ${progressPct}%"></div>
               </div>
-              <span style="font-size: 12px;">${Math.round(task.progress)}%</span>
+              <span style="font-size: 12px; min-width: 35px;">${progressPct}%</span>
             </div>
           </td>
-          <td>${task.message}</td>
-          <td>${new Date(task.created_at).toLocaleString()}</td>
+          <td style="font-size: 13px;">${task.message || '-'}</td>
+          <td style="font-size: 13px;">${new Date(task.created_at).toLocaleString('pt-BR')}</td>
           <td>
             <button class="icon-btn" title="Ver Detalhes" onclick="viewTask('${task.task_id}')">
               <i class="fas fa-eye"></i>
             </button>
           </td>
-        </tr>
-      `).join('');
+        </tr>`;
+      }).join('');
+
+      // Auto-poll while there are active tasks
+      if (hasActiveTasks) {
+        startPolling();
+      } else {
+        stopPolling();
+      }
 
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -150,10 +197,27 @@
     }
   }
 
+  function startPolling() {
+    if (!pollInterval) {
+      pollInterval = setInterval(loadTasks, 2000);
+    }
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
   function viewTask(taskId) {
     alert('Detalhes da tarefa: ' + taskId);
   }
 
-  document.addEventListener('DOMContentLoaded', loadTasks);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadTasks();
+    // Start polling initially, will auto-stop if no active tasks
+    startPolling();
+  });
 </script>
 {% endblock %}
