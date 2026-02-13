@@ -84,7 +84,7 @@ urllib3 = "^2.6.3"
 webdriver-manager = "^4.0.2"
 websocket-client = "^1.8.0"
 wsproto = "^1.2.0"
-attrs = "^23.1.0" # Version from your lock file, adjusted for poetry
+attrs = "^25.4.0" # Version from your lock file, adjusted for poetry
 fastapi = "^0.104.1"
 uvicorn = {extras = ["standard"], version = "^0.24.0"}
 pydantic = "^2.5.0"
