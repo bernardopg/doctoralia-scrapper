@@ -658,8 +658,8 @@ curl http://localhost:8000/v1/metrics | jq '.requests'
 
 ## Documentação Adicional
 
-- **n8n Integration**: Ver `docs/n8n.md` e `docs/n8n-integration.md`
-- **Deployment**: Ver `docs/deployment.md` e `docs/production-deployment.md`
+- **n8n Integration**: Ver `docs/n8n.md`
+- **Deployment**: Ver `docs/deployment.md`
 - **Operations**: Ver `docs/operations.md`
 - **Development**: Ver `docs/development.md`
 

@@ -1,6 +1,6 @@
-# 🚀 Quickstart
+# Quickstart
 
-Este guia mostra o fluxo mínimo para colocar o sistema em funcionamento em poucos minutos.
+Este guia mostra o fluxo mínimo para colocar o sistema em funcionamento.
 
 ## 1. Pré-requisitos
 
@@ -19,13 +19,12 @@ make install
 
 ## 3. Configuração Essencial
 
-Copie o template e ajuste se necessário:
-
 ```bash
+cp .env.example .env
 cp config/config.example.json config/config.json
 ```
 
-Edite campos de `telegram` apenas se for usar notificações.
+Edite `.env` com `API_KEY` e, opcionalmente, credenciais do Telegram.
 
 ## 4. Primeiro Scraping
 
@@ -33,12 +32,12 @@ Edite campos de `telegram` apenas se for usar notificações.
 make run-url URL=https://www.doctoralia.com.br/medico/exemplo/especialidade/cidade
 ```
 
-Saída esperada: registro da extração em `data/extractions/` + logs em `logs/main.log` (ou data/logs dependendo da configuração).
+Saída esperada: JSON da extração em `data/` + logs em `logs/`.
 
 ## 5. Geração de Respostas (Opcional)
 
 ```bash
-make generate   # gera respostas para avaliações sem resposta
+make generate
 ```
 
 ## 6. Dashboard
@@ -53,38 +52,59 @@ make dashboard   # http://localhost:5000
 make api         # http://localhost:8000/docs
 ```
 
+Teste rápido:
+
+```bash
+curl -X POST http://localhost:8000/v1/scrape:run \
+  -H "X-API-Key: SUA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"doctor_url": "https://www.doctoralia.com.br/medico/exemplo", "include_analysis": true}'
+```
+
 ## 8. Execução Contínua
 
 ```bash
-make daemon
-make status
-make stop
+make daemon      # Loop de scraping agendado
+make status      # Estado atual
+make stop        # Parar daemon
 ```
 
-## 9. Estrutura Produzida
+## 9. Modo Docker (Recomendado para Produção)
 
-```text
-data/
-  extractions/<timestamp>_...  # JSONs da execução
-  responses/                   # Respostas geradas
-  logs/                        # Logs rotacionados
+```bash
+cp .env.example .env
+# Edite .env com suas chaves
+
+docker-compose up -d
+docker-compose ps
 ```
+
+Serviços disponíveis:
+- **API**: http://localhost:8000/docs
+- **n8n**: http://localhost:5678
+- **Selenium VNC**: http://localhost:7900
+
+Para importar workflows n8n: abra o n8n e importe os JSONs de `examples/n8n/`.
 
 ## 10. Troubleshooting Rápido
 
 | Sintoma | Ação |
 |---------|------|
 | Chrome/WebDriver erro | Verificar versão do Chrome, reinstalar driver |
-| Timeout frequente | Aumentar `scraping.timeout` em config.json |
-| Bloqueio/site lento | Ajustar `delay_min/delay_max` |
-| Sem avaliações detectadas | Validar URL; testar no navegador manualmente |
+| Timeout frequente | Aumentar `scraping.timeout` em `config/config.json` |
+| Bloqueio/site lento | Ajustar `delay_min`/`delay_max` no config |
+| Sem avaliações detectadas | Validar URL no navegador manualmente |
+| Connection refused (Docker) | `docker-compose ps` e verificar logs |
+| Invalid API key | Conferir `API_KEY` no `.env` e reiniciar: `docker-compose restart api` |
 
 ## 11. Próximos Passos
 
-- Ler `docs/api.md` para integração
-- Configurar workflows n8n `docs/n8n.md`
-- Monitorar saúde e métricas `docs/operations.md`
-- Práticas de desenvolvimento `docs/development.md`
+- Referência da API: `docs/api.md`
+- Workflows n8n: `docs/n8n.md`
+- Operações e monitoramento: `docs/operations.md`
+- Deploy em produção: `docs/deployment.md`
+- Desenvolvimento: `docs/development.md`
 
 ---
-Para dúvidas rápidas: `python scripts/system_diagnostic.py` ou ver logs em `data/logs/`.
+
+Para diagnóstico rápido: `python scripts/system_diagnostic.py` ou `make health`.

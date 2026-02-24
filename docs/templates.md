@@ -70,7 +70,7 @@ TELEGRAM_TEMPLATES = {
 |------|------|
 | Neutralidade | Evitar nomes ou dados sensíveis em logs |
 | Consistência | Revisar tom textual periodicamente |
-| Evolução | Registrar mudanças em `docs/changelog.md` |
+| Evolução | Registrar mudanças em `CHANGELOG.md` |
 | Escalabilidade | Introduzir camada de seleção com pesos |
 
 ## Extensões Futuras

@@ -261,4 +261,4 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 - n8n workflows: `docs/n8n.md` + `examples/n8n/`
 - Deployment guide: `docs/deployment.md`
 - Operations runbook: `docs/operations.md`
-- Changelog: `docs/changelog.md`
+- Changelog: `CHANGELOG.md`

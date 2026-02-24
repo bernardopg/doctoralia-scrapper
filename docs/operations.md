@@ -10,8 +10,8 @@ Centralizar práticas de operação, saúde, logs, automação e recuperação.
 |----------|-----|
 | `/v1/health` | Verifica serviço básico |
 | `/v1/ready` | Checa dependências (Redis, etc.) |
-| `/v1/statistics` | Métricas de agregação |
-| `/v1/performance` | Últimas medições de performance |
+| `/v1/statistics` | Estatísticas de scraping agregadas |
+| `/v1/metrics` | Métricas de performance da API |
 
 ## Logs
 
