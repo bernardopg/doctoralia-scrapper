@@ -127,7 +127,7 @@ class DashboardApp:
 
     def _get_api_statistics(self) -> Optional[Dict[str, Any]]:
         """Get statistics from main API."""
-        return self._call_api("/v1/metrics")
+        return self._call_api("/v1/statistics")
 
     def setup_routes(self) -> None:
         """Setup Flask routes."""

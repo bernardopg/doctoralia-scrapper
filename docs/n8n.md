@@ -1,6 +1,6 @@
 # Integração n8n
 
-Guia completo para integrar o Doctoralia Scrapper com workflows n8n.
+Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 
 ## Pré-Requisitos
 

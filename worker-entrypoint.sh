@@ -7,7 +7,7 @@ set -e
 
 # Load environment variables from .env if it exists (for local development)
 if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
+    set -a; . ./.env; set +a
 fi
 
 # Validate required environment variables

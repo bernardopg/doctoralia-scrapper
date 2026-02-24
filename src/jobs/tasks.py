@@ -116,6 +116,11 @@ def _run_response_generation(
         try:
             response_text = generator.generate_response(review)
         except Exception:
+            logger.exception(
+                "Error generating response for review %s at index %d",
+                review.get("id", idx),
+                idx,
+            )
             response_text = ""
         responses.append(
             {

@@ -231,7 +231,7 @@ class DoctoraliaCLI:
             logger.error(f"❌ Environment validation failed: {e}")
             sys.exit(1)
 
-        logger.info(f"🔄 Iniciando daemon (intervalo: {interval}s, debug: {debug})")
+        logger.info(f"🔄 Iniciando daemon (intervalo: {interval}min, debug: {debug})")
 
         # Use existing DaemonController implementation
         controller = DaemonController()

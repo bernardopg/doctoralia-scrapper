@@ -3,7 +3,6 @@ Secure configuration management with encryption for sensitive data.
 """
 
 import base64
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -44,12 +43,25 @@ class SecureConfig:
 
         return password
 
+    def _get_or_create_salt(self) -> bytes:
+        """Get existing salt or create and persist a new random one."""
+        salt_file = self.config_file.parent / ".config_salt"
+
+        if salt_file.exists():
+            with open(salt_file, "rb") as f:
+                return f.read()
+
+        salt = os.urandom(16)
+        with open(salt_file, "wb") as f:
+            f.write(salt)
+
+        os.chmod(salt_file, 0o600)
+        return salt
+
     def _create_fernet(self) -> Fernet:
-        """Create Fernet cipher from password with deterministic salt."""
+        """Create Fernet cipher from password with persisted random salt."""
         password_bytes = self.password.encode()
-        # Use a deterministic salt derived from the password so the same
-        # password always produces the same key (required for decryption).
-        salt = hashlib.sha256(password_bytes).digest()[:16]
+        salt = self._get_or_create_salt()
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
