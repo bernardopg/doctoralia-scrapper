@@ -41,12 +41,21 @@ COPY templates ./templates
 
 RUN mkdir -p logs
 
+# Install curl for health checks (minimal footprint)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
 # API service (default)
 FROM base AS api
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/v1/health || exit 1
 CMD ["uvicorn", "src.api.v1.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # Worker service
 FROM base AS worker
 COPY worker-entrypoint.sh /
 RUN chmod +x /worker-entrypoint.sh
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import redis, os; r=redis.from_url(os.environ.get('REDIS_URL','redis://localhost:6379/0')); r.ping()" || exit 1
 CMD ["/worker-entrypoint.sh"]

@@ -177,7 +177,7 @@ class BaseMedicalScraper(ABC):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{self.platform_name}_{doctor_data.name.replace(' ', '_')}_{timestamp}.json"
 
-            data_dir = Path(self.config.data_dir) / "scraped_data"
+            data_dir = Path(self.config.data_dir)
             data_dir.mkdir(parents=True, exist_ok=True)
 
             output_file = data_dir / filename
@@ -242,8 +242,8 @@ class BaseMedicalScraper(ABC):
         self.cleanup()
 
 
-class DoctoraliaScraper(BaseMedicalScraper):
-    """Scraper for Doctoralia.com.br"""
+class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
+    """Scraper for Doctoralia.com.br (multi-site variant)"""
 
     def get_platform_name(self) -> str:
         return "doctoralia"
@@ -431,7 +431,7 @@ class ScraperFactory:
         Create the appropriate scraper for the given URL.
         """
         scrapers = [
-            DoctoraliaScraper,
+            DoctoraliaMultiSiteScraper,
         ]
 
         for scraper_class in scrapers:

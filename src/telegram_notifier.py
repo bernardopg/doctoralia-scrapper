@@ -7,16 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
-
-# Importar templates
-try:
-    from config.telegram_templates import TelegramTemplates
-except ImportError:
-    # Fallback para importação relativa
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).parent.parent))
-    from config.telegram_templates import TelegramTemplates
+from config.telegram_templates import TelegramTemplates
 
 
 class TelegramNotifier:

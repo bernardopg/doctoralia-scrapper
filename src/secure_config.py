@@ -3,6 +3,7 @@ Secure configuration management with encryption for sensitive data.
 """
 
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -44,9 +45,11 @@ class SecureConfig:
         return password
 
     def _create_fernet(self) -> Fernet:
-        """Create Fernet cipher from password."""
+        """Create Fernet cipher from password with deterministic salt."""
         password_bytes = self.password.encode()
-        salt = os.urandom(16)  # Random salt for better security
+        # Use a deterministic salt derived from the password so the same
+        # password always produces the same key (required for decryption).
+        salt = hashlib.sha256(password_bytes).digest()[:16]
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -156,15 +159,20 @@ class ConfigValidator:
         if not token or not chat_id:
             return False
 
-        # Basic validation for Telegram token format
-        if not token.startswith(("bot", ENCRYPTED_PREFIX.rstrip(":"))):
+        # Skip validation for encrypted values
+        if token.startswith(ENCRYPTED_PREFIX):
+            return True
+
+        # Telegram bot tokens have format: <bot_id>:<hash> (e.g., 123456:ABC-DEF...)
+        if ":" not in token:
             return False
 
-        # Basic validation for chat ID (should be numeric or start with @)
+        # Basic validation for chat ID (numeric, possibly negative for groups, or @username)
+        if chat_id.startswith(ENCRYPTED_PREFIX):
+            return True
         if not (
-            chat_id.isdigit()
+            chat_id.lstrip("-").isdigit()
             or chat_id.startswith("@")
-            or chat_id.startswith(ENCRYPTED_PREFIX.rstrip(":"))
         ):
             return False
 

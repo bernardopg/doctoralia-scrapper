@@ -14,14 +14,30 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - redis
-      - selenium
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - ./logs:/app/logs
     networks:
       - doctoralia-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
 
   worker:
     build:
@@ -36,12 +52,28 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
-      - redis
-      - selenium
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_healthy
     volumes:
       - ./logs:/app/logs
     networks:
       - doctoralia-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis,os; r=redis.from_url(os.environ.get('REDIS_URL','redis://localhost:6379/0')); r.ping()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
   redis:
     image: redis:7-alpine
@@ -51,6 +83,20 @@ services:
       - redis-data:/data
     networks:
       - doctoralia-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
 
   selenium:
     image: selenium/standalone-chrome:latest
@@ -62,6 +108,20 @@ services:
       - SE_VNC_NO_PASSWORD=1
     networks:
       - doctoralia-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
 
   n8n:
     image: n8nio/n8n:latest
@@ -78,9 +138,24 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - doctoralia-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
 
 volumes:
   redis-data:

@@ -181,7 +181,7 @@ dashboard: ## Inicia dashboard web (Priority 4)
 
 api: ## Inicia API REST (Priority 4)
 	@echo "$(BLUE)Iniciando API REST...$(NC)"
-	$(PYTHON) src/api_server.py
+	$(PYTHON) -c "from src.api.v1.main import start_api; start_api()"
 
 api-docs: ## Abre documentação da API no navegador
 	@echo "$(BLUE)Abrindo documentação da API...$(NC)"

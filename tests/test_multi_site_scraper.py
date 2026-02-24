@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from src.multi_site_scraper import (
-    DoctoraliaScraper,
+    DoctoraliaMultiSiteScraper,
     DoctorData,
     ReviewData,
     ScraperFactory,
@@ -14,7 +14,7 @@ def test_factory_returns_doctoralia_scraper():
     scraper = ScraperFactory.create_scraper(
         "https://www.doctoralia.com.br/medico/test", MockConfig(), MagicMock()
     )
-    assert isinstance(scraper, DoctoraliaScraper)
+    assert isinstance(scraper, DoctoraliaMultiSiteScraper)
 
 
 def test_factory_unknown_returns_none():
@@ -31,7 +31,7 @@ def test_supported_platforms():
 def test_save_data(tmp_path: Path):
     config = MockConfig()
     config.data_dir = tmp_path
-    scraper = DoctoraliaScraper(config, MagicMock())
+    scraper = DoctoraliaMultiSiteScraper(config, MagicMock())
     doctor = DoctorData(
         name="Dra Teste",
         specialty="Ginecologia",

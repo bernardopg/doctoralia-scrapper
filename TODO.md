@@ -4,30 +4,42 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ---
 
-## Prioridade Alta
+## 🔴 Prioridade Alta — Refatoração Estrutural
 
-### Bugs e Correções Críticas
+### Correções Críticas (src/)
 
-- [ ] Criar `worker-entrypoint.sh` referenciado no Dockerfile (build do worker falha sem ele)
-- [ ] Corrigir health check do Selenium na API (`src/api/v1/main.py`) que retorna `status=True` hardcoded sem verificar conexão real
-- [ ] Validar `.env` no startup dos serviços (falha silenciosa quando variáveis obrigatórias estão ausentes)
-- [ ] Corrigir `circuit_breaker.py` que levanta `Exception` genérica em vez de `CircuitBreakerOpenException`
+- [x] Renomear `DoctoraliaScraper` em `multi_site_scraper.py` → `DoctoraliaMultiSiteScraper` (conflito de nomes com `scraper.py`)
+- [x] Corrigir `src/jobs/tasks.py` — construtores sem args obrigatórios, métodos inexistentes (`scrape_doctor_reviews` → `scrape_reviews`), assinatura errada do `ResponseGenerator`
+- [x] Remover `src/api_server.py` (API legada duplicada) — toda funcionalidade já existe em `src/api/v1/main.py`
+- [x] Mover modelos Pydantic exclusivos de `api_server.py` (Settings, Quality Analysis) para `src/api/schemas/settings.py`
+- [x] Migrar endpoints úteis de `api_server.py` que não existem em `src/api/v1/` (quality analysis, settings, statistics) para a API v1
+
+### Duplicação de Código
+
+- [x] Extrair lógica de estatísticas duplicada (`_get_scraper_stats`, `_process_data_files`, `_update_platform_stats`) de `api_server.py` e `dashboard.py` para um serviço compartilhado (`src/services/stats.py`)
+- [x] Mover `EnhancedErrorHandler` de `performance_monitor.py` para `error_handling.py` (onde já existe `retry_with_backoff` — duas implementações de retry)
+- [x] Remover código de exemplo morto no nível do módulo em `circuit_breaker.py` (`scraping_circuit`, `api_circuit`, `scrape_page_protected`, `call_external_api`)
+- [x] Remover código de exemplo morto em `error_handling.py` (`scrape_with_retry` — nunca usado)
+
+### Imports e Estrutura de Pacote
+
+- [x] Eliminar hacks de `sys.path.insert()` em `api_server.py`, `dashboard.py`, `telegram_notifier.py`
+- [ ] Padronizar imports: escolher entre relativos (`from .scraper`) ou absolutos (`from src.scraper`) consistentemente
+- [x] Remover try/except com fallback para `None` nos imports de `api_server.py` e `dashboard.py` — mascara erros reais
 
 ### Docker e Deploy
 
-- [ ] Adicionar health checks (liveness/readiness probes) no Dockerfile e docker-compose
-- [ ] Definir resource limits (CPU/memória) no docker-compose para cada serviço
+- [x] Adicionar health checks (liveness/readiness probes) no Dockerfile e docker-compose
+- [x] Definir resource limits (CPU/memória) no docker-compose para cada serviço
 - [ ] Configurar HTTPS/TLS no deploy (certificados, reverse proxy)
 - [ ] Adicionar logging aggregation (ELK stack ou Loki)
 
 ---
 
-## Prioridade Média
+## 🟡 Prioridade Média
 
 ### Dashboard e Web UI
 
-- [ ] Adicionar testes para as rotas Flask do Dashboard
-- [ ] Implementar gráficos de tendência no dashboard (evolução de reviews ao longo do tempo)
 - [ ] Adicionar distribuição de sentimento nos relatórios
 - [ ] Implementar comparação temporal de métricas (semana atual vs anterior)
 - [ ] Adicionar filtro por médico e período na página de relatórios
@@ -54,12 +66,11 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ### Testes
 
-- [ ] Criar testes end-to-end do workflow completo (scrape -> analyze -> generate -> notify)
-- [ ] Adicionar testes para rotas do Dashboard Flask
+- [ ] Criar testes end-to-end do workflow completo (scrape → analyze → generate → notify)
 - [ ] Implementar testes de carga/stress para a API
 - [ ] Adicionar testes de memory leak para execuções longas
 - [ ] Criar testes de integração com Redis real (não mockado)
-- [ ] Adicionar testes para os endpoints de reports e settings proxy
+- [x] Adicionar testes para os endpoints de reports e settings proxy
 
 ### Scripts e Automação
 
@@ -70,7 +81,7 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ---
 
-## Prioridade Baixa
+## 🔵 Prioridade Baixa
 
 ### Integrações
 
@@ -105,8 +116,12 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ---
 
-## Concluído
+## ✅ Concluído
 
+- [x] Criar `worker-entrypoint.sh` referenciado no Dockerfile
+- [x] Corrigir health check do Selenium na API (`src/api/v1/main.py`)
+- [x] Validar `.env` no startup dos serviços
+- [x] Corrigir `circuit_breaker.py` — `CircuitBreakerOpenException` em vez de `Exception` genérica
 - [x] Fix `sys.path` para resolução de imports em `api_server.py` e `dashboard.py`
 - [x] Implementar progresso em tempo real no scraping via callbacks
 - [x] Adicionar polling automático na página de histórico
@@ -118,6 +133,20 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 - [x] Adicionar rotas proxy para settings no dashboard
 - [x] Fix `request.get_json()` com `force=True` no quality-analysis
 - [x] Download automático do NLTK `punkt_tab`
+- [x] Adicionar testes para as rotas Flask do Dashboard
+- [x] Implementar gráficos de tendência no dashboard
+- [x] Renomear `DoctoraliaScraper` em `multi_site_scraper.py` → `DoctoraliaMultiSiteScraper`
+- [x] Corrigir `src/jobs/tasks.py` — construtores, métodos e assinaturas
+- [x] Remover `src/api_server.py` — modelos e endpoints migrados para API v1
+- [x] Criar `src/api/schemas/settings.py` com modelos de Settings e Quality Analysis
+- [x] Migrar endpoints de quality analysis, statistics e settings para `/v1/`
+- [x] Criar `src/services/stats.py` — serviço compartilhado de estatísticas (elimina duplicação)
+- [x] Mover `EnhancedErrorHandler` para `error_handling.py`
+- [x] Eliminar hacks de `sys.path.insert()` em `dashboard.py` e `telegram_notifier.py`
+- [x] Remover try/except com fallback para `None` nos imports do `dashboard.py`
+- [x] Adicionar health checks (liveness/readiness) no Dockerfile e docker-compose
+- [x] Definir resource limits (CPU/memória) no docker-compose para todos os serviços
+- [x] Adicionar testes para reports (files, summary, export JSON/CSV) e settings proxy (503 quando API indisponível)
 
 ---
 
@@ -125,5 +154,6 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 - **Python**: Projeto roda em Python 3.14 (Arch Linux); lxml 6.0.2+ necessário
 - **Dados**: 272 arquivos JSON em `data/`, ~10.880 reviews coletados
-- **Cobertura de testes**: ~85% (105 test methods em 18 arquivos)
-- **Serviços**: API (FastAPI :8080), Dashboard (Flask :5000), Redis (:6379), Selenium (:4444)
+- **Cobertura de testes**: ~87% (132 test methods em 18 arquivos)
+- **Serviços**: API (FastAPI :8000), Dashboard (Flask :5000), Redis (:6379), Selenium (:4444)
+- **Estrutura recomendada para `src/`**: reorganizar em subpacotes temáticos (core, responses, notifications, monitoring, infrastructure) — ver seção de Refatoração Estrutural

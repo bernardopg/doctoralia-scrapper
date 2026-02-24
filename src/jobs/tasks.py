@@ -3,9 +3,10 @@ Async job tasks for scraping and processing.
 """
 
 import json
+import logging
 import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -13,6 +14,8 @@ from urllib3.util.retry import Retry
 
 from src.api.v1.deps import create_webhook_signature
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
+
+logger = logging.getLogger(__name__)
 
 
 def post_callback(url: str, payload: Dict, job_id: Optional[str] = None) -> bool:
@@ -56,8 +59,77 @@ def post_callback(url: str, payload: Dict, job_id: Optional[str] = None) -> bool
         response.raise_for_status()
         return True
     except Exception as e:
-        print(f"Callback failed: {e}")
+        logger.error(f"Callback failed: {e}")
         return False
+
+
+def _run_sentiment_analysis(reviews_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Run sentiment analysis on reviews and return analysis data."""
+    from src.response_quality_analyzer import ResponseQualityAnalyzer
+
+    analyzer = ResponseQualityAnalyzer()
+    sentiments = []
+
+    for review in reviews_data:
+        review_text = review.get("comment", "")
+        if review_text:
+            sia_scores = analyzer.sia.polarity_scores(review_text)
+            sentiments.append(
+                {
+                    "compound": sia_scores.get("compound", 0.0),
+                    "pos": sia_scores.get("pos", 0.0),
+                    "neu": sia_scores.get("neu", 0.0),
+                    "neg": sia_scores.get("neg", 0.0),
+                }
+            )
+
+    if sentiments:
+        avg_sentiment = {
+            "compound": sum(s["compound"] for s in sentiments) / len(sentiments),
+            "pos": sum(s["pos"] for s in sentiments) / len(sentiments),
+            "neu": sum(s["neu"] for s in sentiments) / len(sentiments),
+            "neg": sum(s["neg"] for s in sentiments) / len(sentiments),
+        }
+    else:
+        avg_sentiment = {"compound": 0, "pos": 0, "neu": 0, "neg": 0}
+
+    return {
+        "summary": f"Analyzed {len(reviews_data)} reviews",
+        "sentiment": avg_sentiment,
+        "quality_score": avg_sentiment["compound"] * 100,
+        "flags": [],
+    }
+
+
+def _run_response_generation(
+    reviews_data: List[Dict[str, Any]], request_data: Dict
+) -> Dict[str, Any]:
+    """Generate responses for reviews and return generation data."""
+    from config.settings import AppConfig
+    from src.response_generator import ResponseGenerator
+
+    config = AppConfig.load()
+    generator = ResponseGenerator(config, logger)
+    responses = []
+
+    for idx, review in enumerate(reviews_data):
+        try:
+            response_text = generator.generate_response(review)
+        except Exception:
+            response_text = ""
+        responses.append(
+            {
+                "review_id": str(review.get("id", idx)),
+                "text": response_text,
+                "language": request_data.get("language", "pt"),
+            }
+        )
+
+    return {
+        "template_id": request_data.get("response_template_id"),
+        "responses": responses,
+        "model": {"type": "rule-based"},
+    }
 
 
 def scrape_and_process(
@@ -71,14 +143,19 @@ def scrape_and_process(
     start_time = datetime.now()
 
     try:
-        # Import scraper
+        # Import scraper and config
+        from config.settings import AppConfig
         from src.scraper import DoctoraliaScraper
 
-        # Initialize scraper
-        scraper = DoctoraliaScraper()
+        # Initialize scraper with required config
+        config = AppConfig.load()
+        scraper = DoctoraliaScraper(config, logger)
 
-        # Run scraping
-        scraper_result = scraper.scrape_doctor_reviews(request_data["doctor_url"])
+        # Run scraping (correct method name)
+        scraper_result = scraper.scrape_reviews(request_data["doctor_url"])
+
+        if not scraper_result:
+            raise RuntimeError("Scraper returned no data")
 
         # Extract data
         doctor_data, reviews_data = extract_scraper_result(scraper_result)
@@ -86,61 +163,12 @@ def scrape_and_process(
         # Run analysis if requested
         analysis_data = None
         if request_data.get("include_analysis"):
-            from src.response_quality_analyzer import ResponseQualityAnalyzer
-
-            analyzer = ResponseQualityAnalyzer()
-            sentiments = []
-
-            for review in reviews_data:
-                sentiment = analyzer.analyze_sentiment(review.get("comment", ""))
-                sentiments.append(sentiment)
-
-            # Aggregate sentiment
-            if sentiments:
-                avg_sentiment = {
-                    "compound": sum(s["compound"] for s in sentiments)
-                    / len(sentiments),
-                    "pos": sum(s["pos"] for s in sentiments) / len(sentiments),
-                    "neu": sum(s["neu"] for s in sentiments) / len(sentiments),
-                    "neg": sum(s["neg"] for s in sentiments) / len(sentiments),
-                }
-            else:
-                avg_sentiment = {"compound": 0, "pos": 0, "neu": 0, "neg": 0}
-
-            analysis_data = {
-                "summary": f"Analyzed {len(reviews_data)} reviews",
-                "sentiment": avg_sentiment,
-                "quality_score": avg_sentiment["compound"] * 100,
-                "flags": [],
-            }
+            analysis_data = _run_sentiment_analysis(reviews_data)
 
         # Run generation if requested
         generation_data = None
         if request_data.get("include_generation"):
-            from src.response_generator import ResponseGenerator
-
-            generator = ResponseGenerator()
-            responses = []
-
-            for idx, review in enumerate(reviews_data):
-                response_text = generator.generate_response(
-                    review.get("comment", ""),
-                    template_id=request_data.get("response_template_id"),
-                    language=request_data.get("language", "pt"),
-                )
-                responses.append(
-                    {
-                        "review_id": str(idx),
-                        "text": response_text,
-                        "language": request_data.get("language", "pt"),
-                    }
-                )
-
-            generation_data = {
-                "template_id": request_data.get("response_template_id"),
-                "responses": responses,
-                "model": {"type": "template"},
-            }
+            generation_data = _run_response_generation(reviews_data, request_data)
 
         # Create unified result
         result = make_unified_result(
@@ -171,11 +199,7 @@ def scrape_and_process(
             end_time=datetime.now(),
         )
 
-        # Log the exception for observability (avoid unused variable)
-        try:
-            print(f"scrape_and_process failed: {e}")
-        except Exception:
-            pass
+        logger.error(f"scrape_and_process failed: {e}")
 
         # Send error callback if URL provided
         if callback_url:
