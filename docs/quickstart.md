@@ -52,14 +52,13 @@ make dashboard   # http://localhost:5000
 make api         # http://localhost:8000/docs
 ```
 
-Teste rápido:
+Teste rápido (substitua pela sua chave configurada no `.env`):
 
 ```bash
-curl -X POST http://localhost:8000/v1/scrape:run \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"doctor_url": "https://www.doctoralia.com.br/medico/exemplo", "include_analysis": true}'
+make run-url URL="https://www.doctoralia.com.br/medico/exemplo/especialidade/cidade"
 ```
+
+Ou via API diretamente — consulte `docs/api.md` para exemplos com autenticação.
 
 ## 8. Execução Contínua
 

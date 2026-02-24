@@ -245,7 +245,7 @@ X-API-Key: sua_chave_secreta
 ```bash
 # Scraping síncrono
 curl -X POST http://localhost:8000/v1/scrape:run \
-  -H "X-API-Key: sua_chave" \
+  -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "doctor_url": "https://www.doctoralia.com.br/medico/exemplo",
