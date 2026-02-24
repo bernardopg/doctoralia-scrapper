@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
+
 from config.telegram_templates import TelegramTemplates
 
 
