@@ -170,10 +170,7 @@ class ConfigValidator:
         # Basic validation for chat ID (numeric, possibly negative for groups, or @username)
         if chat_id.startswith(ENCRYPTED_PREFIX):
             return True
-        if not (
-            chat_id.lstrip("-").isdigit()
-            or chat_id.startswith("@")
-        ):
+        if not (chat_id.lstrip("-").isdigit() or chat_id.startswith("@")):
             return False
 
         return True

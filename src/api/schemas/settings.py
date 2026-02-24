@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 # ---- Quality Analysis ----
 
+
 class QualityAnalysisRequest(BaseModel):
     """Request model for quality analysis."""
 
@@ -41,6 +42,7 @@ class QualityAnalysisResponse(BaseModel):
 
 # ---- Statistics ----
 
+
 class StatisticsResponse(BaseModel):
     """Response model for scraper statistics."""
 
@@ -53,6 +55,7 @@ class StatisticsResponse(BaseModel):
 
 
 # ---- Settings ----
+
 
 class TelegramSettingsModel(BaseModel):
     """Telegram configuration model."""

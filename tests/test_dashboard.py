@@ -313,7 +313,13 @@ def test_api_reports_export_csv(mock_get_export_data, client):
             "doctor_name": "Dr. Test",
             "extraction_timestamp": "2025-10-01T10:00:00",
             "reviews": [
-                {"id": "1", "author": "Ana", "rating": 5, "date": "2025-09-30", "comment": "Great"}
+                {
+                    "id": "1",
+                    "author": "Ana",
+                    "rating": 5,
+                    "date": "2025-09-30",
+                    "comment": "Great",
+                }
             ],
         }
     ]

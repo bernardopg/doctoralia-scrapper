@@ -36,9 +36,7 @@ class DashboardApp:
                 pass
 
         self.config = config
-        self.logger = logger or (
-            setup_logger("dashboard", config) if config else None
-        )
+        self.logger = logger or (setup_logger("dashboard", config) if config else None)
 
         # Configure API connection
         api_host = "0.0.0.0"
@@ -348,7 +346,9 @@ class DashboardApp:
             """Proxy POST settings validate request to main API."""
             try:
                 data = request.get_json(force=True, silent=True)
-                result = self._call_api("/v1/settings/validate", method="POST", json=data)
+                result = self._call_api(
+                    "/v1/settings/validate", method="POST", json=data
+                )
                 if result is not None:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503

@@ -639,6 +639,7 @@ async def metrics_endpoint():
 # Statistics endpoint
 # ---------------------------------------------------------------------------
 
+
 @app.get(
     "/v1/statistics",
     response_model=StatisticsResponse,
@@ -660,6 +661,7 @@ async def get_statistics():
 # Quality Analysis endpoints
 # ---------------------------------------------------------------------------
 
+
 @app.post(
     "/v1/analyze/quality",
     response_model=QualityAnalysisResponse,
@@ -671,9 +673,7 @@ async def analyze_quality(request: QualityAnalysisRequest):
     from src.response_quality_analyzer import ResponseQualityAnalyzer
 
     analyzer = ResponseQualityAnalyzer()
-    analysis = analyzer.analyze_response(
-        request.response_text, request.original_review
-    )
+    analysis = analyzer.analyze_response(request.response_text, request.original_review)
     METRICS["analysis_total"] += 1
     return QualityAnalysisResponse(
         score=analysis.score.to_dict(),
@@ -718,6 +718,7 @@ async def analyze_quality_batch(request: BatchQualityAnalysisRequest):
 # ---------------------------------------------------------------------------
 # Settings endpoints
 # ---------------------------------------------------------------------------
+
 
 def _load_config():
     """Load AppConfig (helper to avoid repetition)."""
