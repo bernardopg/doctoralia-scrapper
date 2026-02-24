@@ -56,7 +56,7 @@ Teste rápido:
 
 ```bash
 curl -X POST http://localhost:8000/v1/scrape:run \
-  -H "X-API-Key: SUA_API_KEY" \
+  -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"doctor_url": "https://www.doctoralia.com.br/medico/exemplo", "include_analysis": true}'
 ```
