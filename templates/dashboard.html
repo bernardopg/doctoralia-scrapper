@@ -99,6 +99,21 @@
       </div>
     </div>
   </div>
+
+  <!-- Trends Chart Card -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-chart-line"></i>
+        Evolução de Reviews
+      </h3>
+    </div>
+    <div class="card-body">
+      <div style="height: 300px; position: relative;">
+        <canvas id="trendsChart"></canvas>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Quality Analysis Card -->
@@ -126,6 +141,9 @@
 
 {% block scripts %}
 <script>
+  let performanceChart = null;
+  let trendsChart = null;
+
   // Load stats
   async function loadStats() {
     try {
@@ -390,6 +408,96 @@
     };
   }
 
+  async function loadTrends() {
+    try {
+      const response = await fetch('/api/trends');
+      const result = await response.json();
+      const data = result.data || result;
+      updateTrendsChart(data);
+    } catch (error) {
+      console.error('Error loading trends:', error);
+    }
+  }
+
+  function updateTrendsChart(data) {
+    const chartElement = document.getElementById('trendsChart');
+    if (!chartElement) {
+      return;
+    }
+
+    const dates = data.dates || [];
+    const reviews = data.reviews || [];
+    const scrapes = data.scrapes || [];
+
+    if (trendsChart) {
+      trendsChart.destroy();
+    }
+
+    if (dates.length === 0) {
+      chartElement.parentElement.innerHTML = `
+          <div class="text-center" style="padding: 40px 20px; color: var(--text-secondary);">
+            <i class="fas fa-chart-line" style="font-size: 48px; opacity: 0.2;"></i>
+            <p style="margin-top: 16px;">Sem tendência disponível</p>
+            <p style="font-size: 12px;">Execute scrapes em dias diferentes para visualizar evolução</p>
+          </div>
+        `;
+      return;
+    }
+
+    trendsChart = new Chart(chartElement.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: dates,
+        datasets: [
+          {
+            label: 'Reviews por dia',
+            data: reviews,
+            borderColor: '#0A84FF',
+            backgroundColor: 'rgba(10, 132, 255, 0.15)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3
+          },
+          {
+            label: 'Scrapes por dia',
+            data: scrapes,
+            borderColor: '#34C759',
+            backgroundColor: 'rgba(52, 199, 89, 0.12)',
+            fill: false,
+            tension: 0.3,
+            pointRadius: 3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              font: {
+                family: '-apple-system, BlinkMacSystemFont, SF Pro Display',
+                size: 13
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              maxTicksLimit: 8
+            }
+          },
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
   // Load recent activity
   async function loadRecentActivity() {
     try {
@@ -512,6 +620,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     loadStats();
     loadPerformance();
+    loadTrends();
     loadRecentActivity();
   });
 </script>

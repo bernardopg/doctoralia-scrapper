@@ -27,11 +27,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Import performance monitoring
-try:
-    from .performance_monitor import EnhancedErrorHandler, PerformanceMonitor
-except ImportError:
-    from performance_monitor import EnhancedErrorHandler, PerformanceMonitor
+from src.error_handling import EnhancedErrorHandler
+from src.performance_monitor import PerformanceMonitor
 
 
 class RateLimiter:
@@ -621,7 +618,6 @@ class DoctoraliaScraper:
                         if isinstance(tag, Tag):
                             result = tag
                             break
-                        break
             # HTML string
             elif isinstance(element, str):
                 soup = BeautifulSoup(element, "html.parser")

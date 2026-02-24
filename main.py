@@ -33,6 +33,7 @@ from scripts.health_check import HealthChecker as LegacyHealthChecker
 from scripts.system_diagnostic import SystemDiagnostic
 from src.api.v1.main import start_api
 from src.dashboard import start_dashboard
+from src.env_validator import EnvironmentValidator, EnvironmentValidationError
 from src.health_checker import HealthChecker  # Async health checker
 from src.response_generator import ResponseGenerator
 from src.scraper import DoctoraliaScraper
@@ -223,7 +224,14 @@ class DoctoraliaCLI:
 
     def daemon(self, interval: int = 30, debug: bool = False):
         """Inicia o daemon de monitoramento."""
-        logger.info(f"🔄 Iniciando daemon (intervalo: {interval}s, debug: {debug})")
+        # Validate environment variables for daemon
+        try:
+            EnvironmentValidator.validate_for_service("shared")
+        except EnvironmentValidationError as e:
+            logger.error(f"❌ Environment validation failed: {e}")
+            sys.exit(1)
+
+        logger.info(f"🔄 Iniciando daemon (intervalo: {interval}min, debug: {debug})")
 
         # Use existing DaemonController implementation
         controller = DaemonController()
@@ -287,11 +295,25 @@ class DoctoraliaCLI:
 
     def dashboard(self):
         """Inicia dashboard web."""
+        # Validate environment variables for dashboard
+        try:
+            EnvironmentValidator.validate_for_service("shared")
+        except EnvironmentValidationError as e:
+            logger.error(f"❌ Environment validation failed: {e}")
+            sys.exit(1)
+
         logger.info("🌐 Iniciando dashboard...")
         start_dashboard()
 
     def api(self):
         """Inicia API REST."""
+        # Validate environment variables for API
+        try:
+            EnvironmentValidator.validate_for_service("api")
+        except EnvironmentValidationError as e:
+            logger.error(f"❌ Environment validation failed: {e}")
+            sys.exit(1)
+
         logger.info("🔌 Iniciando API REST...")
         start_api()
 
@@ -355,7 +377,7 @@ def main():
     # Comando daemon
     daemon_parser = subparsers.add_parser("daemon", help="Inicia daemon")
     daemon_parser.add_argument(
-        "--interval", type=int, default=30, help="Intervalo em segundos"
+        "--interval", type=int, default=30, help="Intervalo em minutos"
     )
     daemon_parser.add_argument("--debug", action="store_true", help="Modo debug")
 

@@ -7,11 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from src.performance_monitor import (
-    EnhancedErrorHandler,
-    PerformanceMetrics,
-    PerformanceMonitor,
-)
+from src.error_handling import EnhancedErrorHandler
+from src.performance_monitor import PerformanceMetrics, PerformanceMonitor
 from src.scraper import RateLimiter
 from src.secure_config import ConfigValidator, SecureConfig
 

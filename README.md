@@ -245,7 +245,7 @@ X-API-Key: sua_chave_secreta
 ```bash
 # Scraping síncrono
 curl -X POST http://localhost:8000/v1/scrape:run \
-  -H "X-API-Key: sua_chave" \
+  -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "doctor_url": "https://www.doctoralia.com.br/medico/exemplo",
@@ -439,15 +439,15 @@ Contribuições são bem-vindas! Por favor, leia nosso guia:
 
 | Documento | Descrição |
 |-----------|-----------|
-| [📖 Guia Rápido](docs/quickstart.md) | Início rápido passo a passo |
-| [🏗️ Arquitetura](docs/overview.md) | Visão geral do sistema |
-| [🔌 API Reference](docs/api.md) | Documentação completa da API |
-| [🔄 n8n Integration](docs/n8n.md) | Workflows e integrações |
-| [🚀 Deploy](docs/deployment.md) | Guia de deploy para produção |
-| [⚙️ Operações](docs/operations.md) | Monitoramento e manutenção |
-| [👨‍💻 Desenvolvimento](docs/development.md) | Setup do ambiente de dev |
-| [📝 Templates](docs/templates.md) | Customização de templates |
-| [📆 Changelog](CHANGELOG.md) | Histórico de mudanças |
+| [Guia Rápido](docs/quickstart.md) | Início rápido passo a passo |
+| [Arquitetura](docs/overview.md) | Visão geral do sistema |
+| [API Reference](docs/api.md) | Documentação completa da API |
+| [n8n Integration](docs/n8n.md) | Workflows e integrações n8n |
+| [Deploy](docs/deployment.md) | Guia de deploy para produção |
+| [Operações](docs/operations.md) | Monitoramento e manutenção |
+| [Desenvolvimento](docs/development.md) | Setup do ambiente de dev |
+| [Templates](docs/templates.md) | Customização de templates |
+| [Changelog](CHANGELOG.md) | Histórico de mudanças |
 
 ---
 

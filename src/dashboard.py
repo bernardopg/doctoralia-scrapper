@@ -5,7 +5,6 @@ Provides real-time monitoring, analytics, and management interface.
 
 import json
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -14,25 +13,12 @@ import requests
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 
-# Ensure project root is in sys.path for proper imports
-_project_root = str(Path(__file__).resolve().parent.parent)
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
-
-# Import our modules
-try:
-    from config.settings import AppConfig
-    from src.logger import setup_logger
-    from src.multi_site_scraper import ScraperFactory
-    from src.performance_monitor import PerformanceMonitor
-    from src.response_quality_analyzer import ResponseQualityAnalyzer
-except ImportError:
-    # Handle import errors gracefully
-    AppConfig = None
-    setup_logger = None
-    PerformanceMonitor = None
-    ResponseQualityAnalyzer = None
-    ScraperFactory = None
+from config.settings import AppConfig
+from src.logger import setup_logger
+from src.multi_site_scraper import ScraperFactory
+from src.performance_monitor import PerformanceMonitor
+from src.response_quality_analyzer import ResponseQualityAnalyzer
+from src.services.stats import StatsService
 
 
 class DashboardApp:
@@ -42,16 +28,14 @@ class DashboardApp:
 
     def __init__(self, config: Any = None, logger: Any = None) -> None:
         # Load config if not provided
-        if config is None and AppConfig is not None:
+        if config is None:
             try:
                 config = AppConfig.load()
             except Exception:
-                pass  # Fail gracefully if config can't be loaded
+                pass
 
         self.config = config
-        self.logger = logger or (
-            setup_logger("dashboard", config) if (setup_logger and config) else None
-        )
+        self.logger = logger or (setup_logger("dashboard", config) if config else None)
 
         # Configure API connection
         api_host = "0.0.0.0"
@@ -71,12 +55,12 @@ class DashboardApp:
         )
         CORS(self.app)
 
-        self.performance_monitor = (
-            PerformanceMonitor(self.logger) if PerformanceMonitor else None
-        )
-        self.quality_analyzer = (
-            ResponseQualityAnalyzer() if ResponseQualityAnalyzer else None
-        )
+        self.performance_monitor = PerformanceMonitor(self.logger)
+        self.quality_analyzer = ResponseQualityAnalyzer()
+
+        # Shared stats service
+        data_dir = self._get_data_directory()
+        self.stats_service = StatsService(data_dir, self.logger)
 
         self.setup_routes()
 
@@ -123,7 +107,7 @@ class DashboardApp:
 
     def _get_api_health(self) -> Dict[str, Any]:
         """Get health status from main API."""
-        api_data = self._call_api("/health")
+        api_data = self._call_api("/v1/health")
         if api_data:
             return {
                 "status": "connected",
@@ -139,11 +123,11 @@ class DashboardApp:
 
     def _get_api_metrics(self) -> Optional[Dict[str, Any]]:
         """Get performance metrics from main API."""
-        return self._call_api("/performance")
+        return self._call_api("/v1/metrics")
 
     def _get_api_statistics(self) -> Optional[Dict[str, Any]]:
         """Get statistics from main API."""
-        return self._call_api("/statistics")
+        return self._call_api("/v1/statistics")
 
     def setup_routes(self) -> None:
         """Setup Flask routes."""
@@ -239,6 +223,15 @@ class DashboardApp:
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
+        @self.app.route("/api/trends")
+        def get_trends():
+            """Get trend data for charts."""
+            try:
+                trends: Dict[str, Any] = self._get_trend_data()
+                return jsonify({"source": "local", "data": trends})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
         @self.app.route("/api/recent-activity")
         def get_recent_activity():
             """Get recent scraping activity."""
@@ -280,7 +273,7 @@ class DashboardApp:
             """Proxy scraping request to main API."""
             try:
                 data = request.get_json()
-                result = self._call_api("/scrape", method="POST", json=data)
+                result = self._call_api("/v1/scrape:run", method="POST", json=data)
                 if result:
                     return jsonify(result)
                 return (
@@ -298,7 +291,7 @@ class DashboardApp:
         def proxy_task_status(task_id):
             """Proxy task status request to main API."""
             try:
-                result = self._call_api(f"/tasks/{task_id}")
+                result = self._call_api(f"/v1/jobs/{task_id}")
                 if result:
                     return jsonify(result)
                 return (
@@ -313,7 +306,7 @@ class DashboardApp:
             """Proxy task list request to main API."""
             try:
                 status = request.args.get("status")
-                endpoint = "/tasks"
+                endpoint = "/v1/jobs"
                 if status:
                     endpoint += f"?status={status}"
 
@@ -328,7 +321,7 @@ class DashboardApp:
         def proxy_get_settings():
             """Proxy GET settings request to main API."""
             try:
-                result = self._call_api("/settings")
+                result = self._call_api("/v1/settings")
                 if result is not None:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
@@ -340,7 +333,7 @@ class DashboardApp:
             """Proxy PUT settings request to main API."""
             try:
                 data = request.get_json(force=True, silent=True)
-                result = self._call_api("/settings", method="PUT", json=data)
+                result = self._call_api("/v1/settings", method="PUT", json=data)
                 if result is not None:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
@@ -352,7 +345,9 @@ class DashboardApp:
             """Proxy POST settings validate request to main API."""
             try:
                 data = request.get_json(force=True, silent=True)
-                result = self._call_api("/settings/validate", method="POST", json=data)
+                result = self._call_api(
+                    "/v1/settings/validate", method="POST", json=data
+                )
                 if result is not None:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
@@ -443,138 +438,30 @@ class DashboardApp:
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    def _get_trend_data(self) -> Dict[str, Any]:
+        """Get trend data (reviews over time)."""
+        try:
+            return self.stats_service.get_trend_data()
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Error getting trend data: {e}")
+            return {"dates": [], "reviews": [], "scrapes": []}
+
     def _get_scraper_stats(self) -> Dict[str, Any]:
         """Get comprehensive scraper statistics."""
-        stats = self._initialize_stats_dict()
-
         try:
-            if self.config and hasattr(self.config, "data_dir"):
-                data_dir = Path(self.config.data_dir)
-                if data_dir.exists():
-                    self._process_data_files(stats, data_dir)
+            return self.stats_service.get_scraper_stats()
         except Exception as e:
-            self._log_error(f"Error getting scraper stats: {e}")
-
-        return stats
-
-    def _initialize_stats_dict(self) -> Dict[str, Any]:
-        """Initialize the statistics dictionary."""
-        return {
-            "total_scraped_doctors": 0,
-            "total_reviews": 0,
-            "average_rating": 0.0,
-            "last_scrape_time": None,
-            "data_files": [],
-            "platform_stats": {},
-        }
-
-    def _process_data_files(self, stats: Dict[str, Any], data_dir: Path) -> None:
-        """Process data files to extract statistics."""
-        json_files = list(data_dir.glob("*.json"))
-        stats["data_files"] = [f.name for f in json_files]
-
-        total_reviews = 0
-        total_rating = 0.0
-        doctors_count = 0
-        platforms = {}
-
-        for json_file in json_files:
-            total_reviews, total_rating, doctors_count = self._process_single_file(
-                json_file, stats, platforms, total_reviews, total_rating, doctors_count
-            )
-
-        self._finalize_stats(
-            stats, total_reviews, total_rating, doctors_count, platforms
-        )
-
-    def _process_single_file(
-        self,
-        json_file: Path,
-        stats: Dict[str, Any],
-        platforms: Dict[str, Any],
-        total_reviews: int,
-        total_rating: float,
-        doctors_count: int,
-    ) -> tuple[int, float, int]:
-        """Process a single data file."""
-        try:
-            with open(json_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-
-            doctors_count += 1
-
-            # Support both flat format (scraper.save_data) and nested format
-            reviews = data.get("reviews", [])
-            reviews_count = data.get("total_reviews", 0) or len(reviews)
-
-            if "summary" in data:
-                avg_rating = data["summary"].get("average_rating", 0.0)
-            else:
-                ratings = [r.get("rating", 0) for r in reviews if r.get("rating")]
-                avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
-
-            platform = data.get("platform", "doctoralia")
-
-            total_reviews += reviews_count
-            if avg_rating > 0:
-                total_rating += avg_rating
-
-            self._update_platform_stats(platforms, platform, reviews_count)
-
-            # Track last scrape time
-            scraped_at = data.get("scraped_at") or data.get("extraction_timestamp")
-            if scraped_at:
-                self._update_last_scrape_time(stats, scraped_at)
-
-        except Exception as e:
-            self._log_warning(f"Error reading {json_file}: {e}")
-
-        return total_reviews, total_rating, doctors_count
-
-    def _update_platform_stats(
-        self, platforms: Dict[str, Any], platform: str, reviews_count: int
-    ) -> None:
-        """Update platform statistics."""
-        if platform not in platforms:
-            platforms[platform] = {"doctors": 0, "reviews": 0}
-        platforms[platform]["doctors"] += 1
-        platforms[platform]["reviews"] += reviews_count
-
-    def _update_last_scrape_time(self, stats: Dict[str, Any], scraped_at: str) -> None:
-        """Update the last scrape time if newer."""
-        try:
-            scrape_time = datetime.fromisoformat(scraped_at.replace("Z", "+00:00"))
-            current_last = stats["last_scrape_time"]
-            if not current_last or scrape_time > datetime.fromisoformat(
-                current_last.replace("Z", "+00:00")
-            ):
-                stats["last_scrape_time"] = scraped_at
-        except Exception:
-            pass  # Ignore datetime parsing errors
-
-    def _finalize_stats(
-        self,
-        stats: Dict[str, Any],
-        total_reviews: int,
-        total_rating: float,
-        doctors_count: int,
-        platforms: Dict[str, Any],
-    ) -> None:
-        """Finalize statistics calculations."""
-        stats["total_scraped_doctors"] = doctors_count
-        stats["total_reviews"] = total_reviews
-        stats["average_rating"] = total_rating / max(doctors_count, 1)
-        stats["platform_stats"] = platforms
-
-    def _log_error(self, message: str) -> None:
-        """Log error message if logger is available."""
-        if self.logger:
-            self.logger.error(message)
-
-    def _log_warning(self, message: str) -> None:
-        """Log warning message if logger is available."""
-        if self.logger:
-            self.logger.warning(message)
+            if self.logger:
+                self.logger.error(f"Error getting scraper stats: {e}")
+            return {
+                "total_scraped_doctors": 0,
+                "total_reviews": 0,
+                "average_rating": 0.0,
+                "last_scrape_time": None,
+                "data_files": [],
+                "platform_stats": {},
+            }
 
     def _get_recent_activities(self) -> List[Dict[str, Any]]:
         """Get recent scraping activities."""
@@ -674,7 +561,7 @@ class DashboardApp:
 
     def _get_data_files(self) -> List[Dict[str, Any]]:
         """List available data files with metadata."""
-        files = []
+        files: List[Dict[str, Any]] = []
         data_dir = self._get_data_directory()
 
         if not data_dir.exists():
@@ -716,7 +603,7 @@ class DashboardApp:
     def _get_export_data(self) -> List[Dict[str, Any]]:
         """Get all scraped data for export."""
         data_dir = self._get_data_directory()
-        all_data = []
+        all_data: List[Dict[str, Any]] = []
 
         if not data_dir.exists():
             return all_data
@@ -837,27 +724,6 @@ def start_dashboard(
     app.run(host=host, port=port, debug=debug)
 
 
-def create_dashboard_template():
-    """Create the dashboard HTML template file."""
-    template_dir = Path(__file__).parent.parent / "templates"
-    template_dir.mkdir(exist_ok=True)
-
-    template_file = template_dir / "dashboard.html"
-    if not template_file.exists():
-        # Copy template content if it doesn't exist
-        source_template = Path(__file__).parent.parent / "templates" / "dashboard.html"
-        if source_template.exists():
-            import shutil
-
-            shutil.copy2(source_template, template_file)
-
-    print(f"Dashboard template created at: {template_file}")
-
-
 if __name__ == "__main__":
-    # Create template and run dashboard
-    create_dashboard_template()
-
-    # Initialize and run dashboard
     dashboard = DashboardApp()
     dashboard.run(debug=True)

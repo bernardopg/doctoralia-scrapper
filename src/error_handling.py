@@ -95,6 +95,81 @@ def retry_with_backoff(
     return decorator
 
 
+class EnhancedErrorHandler:
+    """
+    Enhanced error handling with retry logic and detailed logging.
+    """
+
+    def __init__(
+        self, logger: Optional[logging.Logger] = None, max_retries: int = 3
+    ) -> None:
+        self.logger = logger or logging.getLogger(__name__)
+        self.max_retries = max_retries
+
+    def execute_with_retry(
+        self, func: Any, *args: Any, operation_name: str = "operation", **kwargs: Any
+    ) -> Any:
+        """
+        Execute a function with retry logic and enhanced error handling.
+        """
+        import time
+
+        last_exception = None
+
+        for attempt in range(self.max_retries):
+            try:
+                self.logger.debug(
+                    f"Attempting {operation_name} (attempt {attempt + 1}/{self.max_retries})"
+                )
+                result = func(*args, **kwargs)
+                if attempt > 0:
+                    self.logger.info(
+                        f"{operation_name} succeeded on attempt {attempt + 1}"
+                    )
+                return result
+
+            except Exception as e:
+                last_exception = e
+                self.logger.warning(
+                    f"Attempt {attempt + 1} failed for {operation_name}: {str(e)}"
+                )
+
+                # Don't retry on certain types of errors
+                if self._is_fatal_error(e):
+                    self.logger.error(
+                        f"Fatal error in {operation_name}, not retrying: {str(e)}"
+                    )
+                    break
+
+                # Wait before retry (exponential backoff)
+                if attempt < self.max_retries - 1:
+                    wait_time = 2**attempt  # 1s, 2s, 4s
+                    self.logger.info(f"Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+
+        # All retries exhausted
+        if last_exception:
+            error_msg = f"{operation_name} failed after {self.max_retries} attempts: {str(last_exception)}"
+            self.logger.error(error_msg)
+            raise last_exception
+        else:
+            error_msg = f"{operation_name} failed after {self.max_retries} attempts: Unknown error"
+            self.logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    def _is_fatal_error(self, exception: Exception) -> bool:
+        """Determine if an error is fatal and shouldn't be retried."""
+        fatal_errors = (
+            ValueError,  # Invalid input
+            TypeError,  # Type errors
+            AttributeError,  # Missing attributes
+            ImportError,  # Import errors
+            KeyboardInterrupt,  # User interruption
+        )
+
+        return isinstance(exception, fatal_errors)
+
+
 class ErrorReporter:
     """Reporter de erros para telemetria"""
 
@@ -124,21 +199,3 @@ class ErrorReporter:
         self.logger.info(
             f"Operation succeeded: {operation}", extra={"context": context or {}}
         )
-
-
-# Exemplo de uso nos scrapers
-@retry_with_backoff(max_retries=3, exceptions=(RateLimitError,))
-def scrape_with_retry(url: str, scraper):
-    """Scraping com retry automático"""
-    try:
-        return scraper.scrape_page(url)
-    except Exception as e:
-        # Transforma exceções genéricas em ScrapingErrors
-        if "rate limit" in str(e).lower():
-            raise RateLimitError()
-        elif "404" in str(e):
-            raise PageNotFoundError(url)
-        else:
-            raise ScrapingError(
-                f"Failed to scrape {url}: {e}", severity=ErrorSeverity.HIGH
-            )

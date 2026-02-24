@@ -20,9 +20,9 @@ except LookupError:
     nltk.download("vader_lexicon", quiet=True)
 
 try:
-    nltk.data.find("punkt")
+    nltk.data.find("tokenizers/punkt_tab")
 except LookupError:
-    nltk.download("punkt", quiet=True)
+    nltk.download("punkt_tab", quiet=True)
 
 
 @dataclass
@@ -168,18 +168,18 @@ class ResponseQualityAnalyzer:
             "actionability": 0.15,
         }
 
-        # Calculate overall score (weighted average)
+        # Normalize sentiment score to 0-100 scale for overall calculation
+        normalized_sentiment = (sentiment_score + 1) * 50
+
+        # Calculate overall score (weighted average, all on 0-100 scale)
         overall_score = (
-            sentiment_score * weights["sentiment"]
+            normalized_sentiment * weights["sentiment"]
             + length_score * weights["length"]
             + empathy_score * weights["empathy"]
             + clarity_score * weights["clarity"]
             + professionalism_score * weights["professionalism"]
             + actionability_score * weights["actionability"]
         )
-
-        # Normalize sentiment score to 0-100 scale for overall calculation
-        # normalized_sentiment = (sentiment_score + 1) * 50
 
         score = QualityScore(
             overall_score=round(overall_score, 2),

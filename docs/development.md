@@ -29,7 +29,7 @@ override? pip install -r requirements.txt
 | `src/multi_site_scraper.py` | Extensão futura multi-plataforma |
 | `src/response_generator.py` | Geração baseada em templates |
 | `src/response_quality_analyzer.py` | Métricas de sentimento/qualidade |
-| `src/api.py` | FastAPI / endpoints |
+| `src/api/v1/main.py` | FastAPI / endpoints |
 | `src/performance_monitor.py` | Métricas internas |
 | `src/telegram_notifier.py` | Envio de notificações |
 

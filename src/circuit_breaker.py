@@ -8,6 +8,16 @@ from enum import Enum
 from typing import Any, Callable, Tuple, Type, Union
 
 
+class CircuitBreakerOpenException(Exception):
+    """Exceção levantada quando o circuit breaker está aberto (OPEN)"""
+
+    def __init__(self, recovery_timeout: float):
+        self.recovery_timeout = recovery_timeout
+        super().__init__(
+            f"Circuit breaker is OPEN. Retry after {recovery_timeout:.1f}s"
+        )
+
+
 class CircuitState(Enum):
     """Estados do circuit breaker"""
 
@@ -34,7 +44,7 @@ class CircuitBreaker:
         self.expected_exception = expected_exception
 
         self.failure_count = 0
-        self.last_failure_time = 0
+        self.last_failure_time = 0.0
         self.state = CircuitState.CLOSED
         self._lock = threading.Lock()
 
@@ -48,9 +58,7 @@ class CircuitBreaker:
                         self.state = CircuitState.HALF_OPEN
                         self.failure_count = 0
                     else:
-                        raise Exception(
-                            f"Circuit breaker is OPEN. Retry after {self.recovery_timeout}s"
-                        )
+                        raise CircuitBreakerOpenException(self.recovery_timeout)
 
                 try:
                     result = func(*args, **kwargs)
@@ -83,7 +91,7 @@ class CircuitBreaker:
         """Reset circuit breaker state to initial values"""
         with self._lock:
             self.failure_count = 0
-            self.last_failure_time = 0
+            self.last_failure_time = 0.0
             self.state = CircuitState.CLOSED
 
     @property
@@ -97,26 +105,3 @@ class CircuitBreaker:
                 0, self.recovery_timeout - (time.time() - self.last_failure_time)
             ),
         }
-
-
-# Exemplo de uso no scraper
-scraping_circuit = CircuitBreaker(
-    failure_threshold=3, recovery_timeout=30.0, expected_exception=Exception
-)
-
-
-@scraping_circuit
-def scrape_page_protected(url: str):
-    """Scraping protegido por circuit breaker"""
-    # Lógica de scraping aqui
-    pass
-
-
-# Para APIs externas
-api_circuit = CircuitBreaker(failure_threshold=5, recovery_timeout=60.0)
-
-
-@api_circuit
-def call_external_api():
-    """Chamada para API externa protegida"""
-    pass

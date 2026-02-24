@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Optional  # noqa: F401 (kept for future extensibility)
+from typing import Any, Optional  # noqa: F401 (kept for future extensibility)
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -28,6 +28,14 @@ from src.api.schemas.requests import (
     WebhookRequest,
     WebhookResponse,
 )
+from src.api.schemas.settings import (
+    BatchQualityAnalysisRequest,
+    QualityAnalysisRequest,
+    QualityAnalysisResponse,
+    SettingsModel,
+    SettingsResponse,
+    StatisticsResponse,
+)
 from src.api.v1.deps import require_api_key, verify_webhook_signature
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 from src.jobs.queue import get_queue
@@ -39,7 +47,7 @@ API_START_TIME = datetime.now()
 
 # In-memory (process local) metrics - simple lightweight instrumentation.
 # For multi-process deployment, replace with Prometheus client or Redis aggregation.
-METRICS = {
+METRICS: dict[str, Any] = {
     "requests_total": 0,
     "requests_in_progress": 0,
     "requests_failed_total": 0,
@@ -278,9 +286,35 @@ async def readiness_check():
         status=nltk_ok, latency_ms=None, error=nltk_error, details=None
     )
 
-    # Selenium placeholder (could attempt driver check with timeout)
+    # Selenium readiness check with real connection test
+    selenium_ok = False
+    selenium_error = None
+    selenium_latency = None
+    try:
+        import urllib.request
+        from urllib.error import URLError
+
+        selenium_url = os.getenv("SELENIUM_REMOTE_URL", "http://localhost:4444/wd/hub")
+        start = time.perf_counter()
+
+        # Create a simple HTTP request to check if Selenium is responding
+        try:
+            status_endpoint = f"{selenium_url.rstrip('/')}/status"
+            # Use timeout to avoid blocking health checks
+            urllib.request.urlopen(status_endpoint, timeout=5)
+            selenium_latency = int((time.perf_counter() - start) * 1000)
+            selenium_ok = True
+        except URLError as e:
+            selenium_error = f"Connection failed: {str(e)[:200]}"
+    except ImportError:
+        selenium_error = "urllib not available"
+    except Exception as exc:  # pragma: no cover - network/config dependent
+        selenium_error = str(exc)[:200]
     components["selenium"] = ReadyComponent(
-        status=True, latency_ms=None, error=None, details=None
+        status=selenium_ok,
+        latency_ms=selenium_latency,
+        error=selenium_error,
+        details=None,
     )
 
     overall_ready = all(c.status for c in components.values())
@@ -577,7 +611,7 @@ def _percentile(data: list[int], pct: float) -> Optional[float]:  # helper
 @app.get("/v1/metrics", tags=["Metrics"])  # lightweight metrics endpoint
 async def metrics_endpoint():
     """Return basic process-level metrics (NOT Prometheus format)."""
-    durations = METRICS["request_durations_ms"]
+    durations: list[int] = METRICS["request_durations_ms"]  # type: ignore
     body = {
         "version": API_VERSION,
         "uptime_s": int((datetime.now() - API_START_TIME).total_seconds()),
@@ -599,3 +633,254 @@ async def metrics_endpoint():
         },
     }
     return body
+
+
+# ---------------------------------------------------------------------------
+# Statistics endpoint
+# ---------------------------------------------------------------------------
+
+
+@app.get(
+    "/v1/statistics",
+    response_model=StatisticsResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Monitoring"],
+)
+async def get_statistics():
+    """Get comprehensive scraping statistics from data files."""
+    from config.settings import AppConfig
+    from src.services.stats import StatsService
+
+    config = AppConfig.load()
+    svc = StatsService(config.data_dir)
+    stats = svc.get_scraper_stats()
+    return StatisticsResponse(**stats)
+
+
+# ---------------------------------------------------------------------------
+# Quality Analysis endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.post(
+    "/v1/analyze/quality",
+    response_model=QualityAnalysisResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Analysis"],
+)
+async def analyze_quality(request: QualityAnalysisRequest):
+    """Analyze the quality of a doctor's response."""
+    from src.response_quality_analyzer import ResponseQualityAnalyzer
+
+    analyzer = ResponseQualityAnalyzer()
+    analysis = analyzer.analyze_response(request.response_text, request.original_review)
+    METRICS["analysis_total"] += 1
+    return QualityAnalysisResponse(
+        score=analysis.score.to_dict(),
+        strengths=analysis.strengths,
+        weaknesses=analysis.weaknesses,
+        suggestions=analysis.suggestions,
+        keywords=analysis.keywords,
+        sentiment=analysis.sentiment,
+        readability_score=analysis.readability_score,
+    )
+
+
+@app.post(
+    "/v1/analyze/quality/batch",
+    response_model=list[QualityAnalysisResponse],
+    dependencies=[Depends(require_api_key)],
+    tags=["Analysis"],
+)
+async def analyze_quality_batch(request: BatchQualityAnalysisRequest):
+    """Analyze the quality of multiple doctor's responses."""
+    from src.response_quality_analyzer import ResponseQualityAnalyzer
+
+    analyzer = ResponseQualityAnalyzer()
+    results: list[QualityAnalysisResponse] = []
+    for item in request.analyses:
+        analysis = analyzer.analyze_response(item.response_text, item.original_review)
+        results.append(
+            QualityAnalysisResponse(
+                score=analysis.score.to_dict(),
+                strengths=analysis.strengths,
+                weaknesses=analysis.weaknesses,
+                suggestions=analysis.suggestions,
+                keywords=analysis.keywords,
+                sentiment=analysis.sentiment,
+                readability_score=analysis.readability_score,
+            )
+        )
+    METRICS["analysis_total"] += len(results)
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Settings endpoints
+# ---------------------------------------------------------------------------
+
+
+def _load_config():
+    """Load AppConfig (helper to avoid repetition)."""
+    from config.settings import AppConfig
+
+    return AppConfig.load()
+
+
+def _config_to_settings_model(config) -> SettingsModel:
+    """Convert an AppConfig object to a SettingsModel."""
+    from src.api.schemas.settings import (
+        APISettingsModel,
+        ScrapingSettingsModel,
+        TelegramSettingsModel,
+    )
+
+    return SettingsModel(
+        telegram=TelegramSettingsModel(
+            token=config.telegram.token,
+            chat_id=config.telegram.chat_id,
+            parse_mode=config.telegram.parse_mode,
+            attach_responses_auto=config.telegram.attach_responses_auto,
+            attachment_format=config.telegram.attachment_format,
+        ),
+        scraping=ScrapingSettingsModel(
+            headless=config.scraping.headless,
+            timeout=config.scraping.timeout,
+            delay_min=config.scraping.delay_min,
+            delay_max=config.scraping.delay_max,
+            max_retries=config.scraping.max_retries,
+            page_load_timeout=config.scraping.page_load_timeout,
+            implicit_wait=config.scraping.implicit_wait,
+            explicit_wait=config.scraping.explicit_wait,
+        ),
+        api=APISettingsModel(
+            host=config.api.host,
+            port=config.api.port,
+            debug=config.api.debug,
+            workers=config.api.workers,
+        ),
+    )
+
+
+def _validate_settings(settings: SettingsModel) -> dict:
+    """Validate settings and return {valid: bool, errors: list[str]}."""
+    errors: list[str] = []
+
+    if settings.scraping.delay_min > settings.scraping.delay_max:
+        errors.append("delay_min cannot be greater than delay_max")
+    if settings.scraping.timeout < 10:
+        errors.append("Timeout must be at least 10 seconds")
+    if settings.scraping.max_retries < 1:
+        errors.append("max_retries must be at least 1")
+    if settings.api.port < 1024 or settings.api.port > 65535:
+        errors.append("API port must be between 1024 and 65535")
+    if settings.api.workers < 1:
+        errors.append("Workers must be at least 1")
+    if settings.telegram.token and not settings.telegram.chat_id:
+        errors.append("chat_id is required when telegram token is provided")
+    if settings.telegram.parse_mode not in ("", "Markdown", "MarkdownV2", "HTML"):
+        errors.append("Invalid parse_mode")
+    if settings.telegram.attachment_format not in ("txt", "json", "csv"):
+        errors.append("Invalid attachment_format")
+
+    return {"valid": len(errors) == 0, "errors": errors}
+
+
+@app.get(
+    "/v1/settings",
+    response_model=SettingsResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Settings"],
+)
+async def get_settings():
+    """Get current application settings."""
+    try:
+        config = _load_config()
+        return SettingsResponse(
+            success=True,
+            message="Settings retrieved successfully",
+            settings=_config_to_settings_model(config),
+        )
+    except Exception as exc:
+        return SettingsResponse(
+            success=False,
+            message=f"Failed to get settings: {exc}",
+            settings=None,
+        )
+
+
+@app.put(
+    "/v1/settings",
+    response_model=SettingsResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Settings"],
+)
+async def update_settings(settings: SettingsModel):
+    """Update and persist application settings."""
+    try:
+        validation = _validate_settings(settings)
+        if not validation["valid"]:
+            return SettingsResponse(
+                success=False,
+                message=f"Validation failed: {', '.join(validation['errors'])}",
+                settings=None,
+            )
+
+        config = _load_config()
+
+        # Apply changes
+        config.telegram.token = settings.telegram.token
+        config.telegram.chat_id = settings.telegram.chat_id
+        config.telegram.parse_mode = settings.telegram.parse_mode
+        config.telegram.attach_responses_auto = settings.telegram.attach_responses_auto
+        config.telegram.attachment_format = settings.telegram.attachment_format
+
+        config.scraping.headless = settings.scraping.headless
+        config.scraping.timeout = settings.scraping.timeout
+        config.scraping.delay_min = settings.scraping.delay_min
+        config.scraping.delay_max = settings.scraping.delay_max
+        config.scraping.max_retries = settings.scraping.max_retries
+        config.scraping.page_load_timeout = settings.scraping.page_load_timeout
+        config.scraping.implicit_wait = settings.scraping.implicit_wait
+        config.scraping.explicit_wait = settings.scraping.explicit_wait
+
+        config.api.host = settings.api.host
+        config.api.port = settings.api.port
+        config.api.debug = settings.api.debug
+        config.api.workers = settings.api.workers
+
+        config.save()
+
+        return SettingsResponse(
+            success=True,
+            message="Settings updated successfully. Restart required for some changes to take effect.",
+            settings=settings,
+        )
+    except Exception as exc:
+        return SettingsResponse(
+            success=False,
+            message=f"Failed to update settings: {exc}",
+            settings=None,
+        )
+
+
+@app.post(
+    "/v1/settings/validate",
+    response_model=SettingsResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Settings"],
+)
+async def validate_settings_endpoint(settings: SettingsModel):
+    """Validate settings without saving."""
+    validation = _validate_settings(settings)
+    if validation["valid"]:
+        return SettingsResponse(
+            success=True,
+            message="Settings are valid",
+            settings=settings,
+        )
+    return SettingsResponse(
+        success=False,
+        message=f"Validation failed: {', '.join(validation['errors'])}",
+        settings=None,
+    )

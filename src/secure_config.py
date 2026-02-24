@@ -43,10 +43,25 @@ class SecureConfig:
 
         return password
 
+    def _get_or_create_salt(self) -> bytes:
+        """Get existing salt or create and persist a new random one."""
+        salt_file = self.config_file.parent / ".config_salt"
+
+        if salt_file.exists():
+            with open(salt_file, "rb") as f:
+                return f.read()
+
+        salt = os.urandom(16)
+        with open(salt_file, "wb") as f:
+            f.write(salt)
+
+        os.chmod(salt_file, 0o600)
+        return salt
+
     def _create_fernet(self) -> Fernet:
-        """Create Fernet cipher from password."""
+        """Create Fernet cipher from password with persisted random salt."""
         password_bytes = self.password.encode()
-        salt = os.urandom(16)  # Random salt for better security
+        salt = self._get_or_create_salt()
 
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
@@ -156,16 +171,18 @@ class ConfigValidator:
         if not token or not chat_id:
             return False
 
-        # Basic validation for Telegram token format
-        if not token.startswith(("bot", ENCRYPTED_PREFIX.rstrip(":"))):
+        # Skip validation for encrypted values
+        if token.startswith(ENCRYPTED_PREFIX):
+            return True
+
+        # Telegram bot tokens have format: <bot_id>:<hash> (e.g., 123456:ABC-DEF...)
+        if ":" not in token:
             return False
 
-        # Basic validation for chat ID (should be numeric or start with @)
-        if not (
-            chat_id.isdigit()
-            or chat_id.startswith("@")
-            or chat_id.startswith(ENCRYPTED_PREFIX.rstrip(":"))
-        ):
+        # Basic validation for chat ID (numeric, possibly negative for groups, or @username)
+        if chat_id.startswith(ENCRYPTED_PREFIX):
+            return True
+        if not (chat_id.lstrip("-").isdigit() or chat_id.startswith("@")):
             return False
 
         return True

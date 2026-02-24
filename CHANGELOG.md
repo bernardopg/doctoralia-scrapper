@@ -8,31 +8,45 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ## [Unreleased]
 
 ### 🚀 Adicionado
+- **Serviço compartilhado de estatísticas** (`src/services/stats.py`) — elimina duplicação entre API e Dashboard
+- **Endpoints migrados para API v1**: `/v1/statistics`, `/v1/analyze/quality`, `/v1/settings`
+- **Schemas Pydantic para settings** (`src/api/schemas/settings.py`)
+- **Health checks** no Dockerfile e docker-compose para todos os serviços
+- **Resource limits** (CPU/memória) no docker-compose
+- **Testes para reports e settings proxy** (11 novos testes)
 - **Página de Relatórios funcional** (`reports.html`)
   - Resumo com total de arquivos, reviews e médicos
   - Listagem de arquivos de dados com paginação
   - Exportação de dados em CSV e JSON
-  - Endpoints: `/api/reports/summary`, `/api/reports/files`, `/api/reports/export/<format>`
 - **Proxy de settings no Dashboard**
   - Rotas proxy: `GET/PUT /api/settings`, `POST /api/settings/validate`
   - Dashboard agora centraliza todas as chamadas à API
 - **Progresso em tempo real para scraping**
-  - Callback de progresso no `DoctoraliaScraper` com fases (page_loading, extracting_info, loading_reviews, processing_reviews)
+  - Callback de progresso no `DoctoraliaScraper`
   - Polling automático a cada 2s na página de histórico
-  - Barra de progresso animada com mensagens descritivas
 - **Persistência de dados no scraping via API**
-  - Dados de scraping são salvos automaticamente em `data/`
 
 ### 🔄 Alterado
 - `settings.html` agora usa proxy do Dashboard (`/api/...`) em vez de URL hardcoded da API
-- `history.html` com polling automático para tasks ativas (inicia/para conforme necessário)
-- Suporte a formato dual de dados (flat e nested) no Dashboard e API server
+- `history.html` com polling automático para tasks ativas
+- Suporte a formato dual de dados (flat e nested) no Dashboard
+- `EnhancedErrorHandler` movido de `performance_monitor.py` para `error_handling.py`
+- `DoctoraliaScraper` renomeado para `DoctoraliaMultiSiteScraper` em `multi_site_scraper.py`
+- Documentação consolidada: n8n (3 arquivos -> 1), deployment (2 -> 1), quickstart (2 -> 1)
+
+### 🗑️ Removido
+- `src/api_server.py` — API legada removida, funcionalidade migrada para `src/api/v1/`
+- Hacks de `sys.path.insert()` em `dashboard.py` e `telegram_notifier.py`
+- Código de exemplo morto em `circuit_breaker.py` e `error_handling.py`
+- Documentação duplicada: `n8n-integration.md`, `n8n-workflows-guide.md`, `production-deployment.md`, `quick-start-guide.md`, `AUTOMATED_SETUP.md`
 
 ### 🐛 Corrigido
-- Fix `sys.path` em `api_server.py` e `dashboard.py` para resolução correta de imports
+- Fix construtores e métodos em `src/jobs/tasks.py`
+- Fix `sys.path` em `dashboard.py` para resolução correta de imports
 - Fix caminho de dados: `data/` em vez de `data/scraped_data/`
 - Fix `request.get_json()` com `force=True` para robustez no quality-analysis
 - Fix dependência NLTK `punkt_tab` para análise de qualidade
+- Fix referências incorretas na documentação (endpoints, paths de arquivos)
 
 ---
 
