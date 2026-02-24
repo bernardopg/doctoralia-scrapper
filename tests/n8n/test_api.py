@@ -273,11 +273,13 @@ class TestWebhookSecurity:
         timestamp = str(time.time())
 
         with patch.dict("os.environ", {"WEBHOOK_SIGNING_SECRET": "secret123"}):
-            # Create valid signature
+            # Create valid signature - must match how FastAPI serializes the body
             import hashlib
             import hmac
 
-            message = f"{timestamp}.{json.dumps(payload)}"
+            # Serialize JSON the same way TestClient/FastAPI will
+            body = json.dumps(payload, separators=(",", ":"))
+            message = f"{timestamp}.{body}"
             signature = (
                 "sha256="
                 + hmac.new(b"secret123", message.encode(), hashlib.sha256).hexdigest()
@@ -288,8 +290,12 @@ class TestWebhookSecurity:
 
                 response = client.post(
                     "/v1/hooks/n8n/scrape",
-                    json=payload,
-                    headers={"X-Timestamp": timestamp, "X-Signature": signature},
+                    content=body.encode(),  # Send raw bytes to ensure exact match
+                    headers={
+                        "X-Timestamp": timestamp,
+                        "X-Signature": signature,
+                        "Content-Type": "application/json",
+                    },
                 )
 
                 # Should succeed with valid signature
