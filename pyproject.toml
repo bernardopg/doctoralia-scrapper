@@ -57,7 +57,7 @@ packages = [{include = "src"}]
 python = ">=3.10,<4.0"
 beautifulsoup4 = "^4.13.4"
 cryptography = "^46.0.5"
-nltk = "^3.9.1"
+nltk = "^3.9.3"
 certifi = "^2026.1.4"
 charset-normalizer = "^3.4.2"
 h11 = "^0.16.0"
