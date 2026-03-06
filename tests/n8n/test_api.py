@@ -437,6 +437,7 @@ class TestWebhookSecurity:
     def test_webhook_with_valid_signature(self, client):
         """Test webhook with valid signature."""
         payload = {"doctor_url": "https://example.com"}
+        payload_json = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
         timestamp = str(time.time())
 
         with patch.dict("os.environ", {"WEBHOOK_SIGNING_SECRET": "secret123"}):
@@ -444,7 +445,7 @@ class TestWebhookSecurity:
             import hashlib
             import hmac
 
-            message = f"{timestamp}.{json.dumps(payload)}"
+            message = f"{timestamp}.{payload_json}"
             signature = (
                 "sha256="
                 + hmac.new(b"secret123", message.encode(), hashlib.sha256).hexdigest()
@@ -455,8 +456,12 @@ class TestWebhookSecurity:
 
                 response = client.post(
                     "/v1/hooks/n8n/scrape",
-                    json=payload,
-                    headers={"X-Timestamp": timestamp, "X-Signature": signature},
+                    content=payload_json,
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Timestamp": timestamp,
+                        "X-Signature": signature,
+                    },
                 )
 
                 # Should succeed with valid signature
