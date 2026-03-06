@@ -161,7 +161,7 @@
 
         <div class="form-group">
           <label class="form-label">Porta</label>
-          <input type="number" id="api-port" class="form-control" min="1024" max="65535" value="8080">
+          <input type="number" id="api-port" class="form-control" min="1024" max="65535" value="8000">
           <small class="form-help">Porta para o servidor da API</small>
         </div>
 
@@ -277,7 +277,7 @@
 
     // API
     document.getElementById('api-host').value = settings.api.host || '0.0.0.0';
-    document.getElementById('api-port').value = settings.api.port || 8080;
+    document.getElementById('api-port').value = settings.api.port || 8000;
     document.getElementById('api-debug').checked = settings.api.debug === true;
     document.getElementById('api-workers').value = settings.api.workers || 1;
   }

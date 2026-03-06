@@ -52,39 +52,18 @@
     </div>
   </div>
 
-  <!-- System Resources -->
+  <!-- API Metrics -->
   <div class="card">
     <div class="card-header">
-      <h3 class="card-title">Recursos do Sistema</h3>
+      <h3 class="card-title">
+        <i class="fas fa-chart-bar"></i>
+        Métricas da API
+      </h3>
     </div>
     <div class="card-body">
-      <div class="resource-list">
-        <div class="resource-item">
-          <div class="resource-header">
-            <span>CPU</span>
-            <span class="resource-value">Unknown</span>
-          </div>
-          <div class="progress-bar-container">
-            <div class="progress-bar" style="width: 0%"></div>
-          </div>
-        </div>
-        <div class="resource-item">
-          <div class="resource-header">
-            <span>Memória</span>
-            <span class="resource-value">Unknown</span>
-          </div>
-          <div class="progress-bar-container">
-            <div class="progress-bar" style="width: 0%"></div>
-          </div>
-        </div>
-        <div class="resource-item">
-          <div class="resource-header">
-            <span>Disco</span>
-            <span class="resource-value">Unknown</span>
-          </div>
-          <div class="progress-bar-container">
-            <div class="progress-bar" style="width: 0%"></div>
-          </div>
+      <div id="metrics-content">
+        <div class="text-secondary" style="font-size:13px; padding: 8px 0;">
+          <i class="fas fa-spinner fa-spin"></i> Carregando métricas...
         </div>
       </div>
     </div>
@@ -182,92 +161,230 @@
     color: #ff9500;
   }
 
-  .resource-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
 
-  .resource-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
-    font-size: 14px;
+  .metric-item {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
   }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
+  // Map component names to icons
+  const COMPONENT_ICONS = {
+    redis:      'fa-database',
+    queue:      'fa-layer-group',
+    templates:  'fa-folder-open',
+    nltk_vader: 'fa-brain',
+    selenium:   'fa-globe',
+    Dashboard:  'fa-tachometer-alt',
+    'API Server': 'fa-server',
+  };
+
+  // Friendly labels for component names
+  const COMPONENT_LABELS = {
+    redis:      'Redis',
+    queue:      'Fila de Jobs',
+    templates:  'Templates',
+    nltk_vader: 'NLTK / VADER',
+    selenium:   'Selenium',
+  };
+
   async function checkHealth() {
     const statusEl = document.getElementById('overall-status');
-    const listEl = document.getElementById('component-list');
+    const listEl   = document.getElementById('component-list');
+    const metricsEl = document.getElementById('metrics-content');
 
     statusEl.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Verificando...</span>';
     statusEl.className = 'health-status-large';
 
+    // Fetch dashboard health and API readiness in parallel
+    const [healthRes, readyRes] = await Promise.allSettled([
+      fetch('/api/health'),
+      fetch('/api/ready'),
+    ]);
+
+    // ── Dashboard + API Server status ──────────────────────────
+    let apiConnected  = false;
+    let apiVersion    = '-';
+    let apiUptime     = null;
+    let dashboardOk   = false;
+
     try {
-      const response = await fetch('/api/health');
-      const data = await response.json();
-
-      // Update overall status
-      const apiStatus = data.api ? data.api.status : 'disconnected';
-      const dashboardStatus = data.dashboard ? data.dashboard.status : 'unknown';
-
-      const isHealthy = apiStatus === 'connected' && dashboardStatus === 'healthy';
-
-      statusEl.className = `health-status-large ${isHealthy ? 'healthy' : 'unhealthy'}`;
-      statusEl.innerHTML = `
-        <i class="fas fa-${isHealthy ? 'check-circle' : 'exclamation-circle'}"></i>
-        <span>${isHealthy ? 'Sistema Saudável' : 'Atenção Necessária'}</span>
-      `;
-
-      document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
-      document.getElementById('api-version').textContent = data.dashboard.version;
-
-      // Update components list
-      let componentsHtml = '';
-
-      // Dashboard Component
-      componentsHtml += createComponentItem('Dashboard', dashboardStatus);
-
-      // API Component
-      componentsHtml += createComponentItem('API Server', apiStatus === 'connected' ? 'healthy' : 'unhealthy', data.api.message);
-
-      // If API is connected, show its internal checks
-      if (data.api && data.api.api_data && data.api.api_data.checks) {
-        const checks = data.api.api_data.checks;
-        for (const [name, check] of Object.entries(checks)) {
-          componentsHtml += createComponentItem(name, check.status, `${check.response_time_ms}ms`);
-        }
+      if (healthRes.status === 'fulfilled' && healthRes.value.ok) {
+        const h = await healthRes.value.json();
+        dashboardOk  = h.dashboard?.status === 'healthy';
+        apiConnected = h.api?.status === 'connected';
+        apiVersion   = h.dashboard?.version || '-';
+        apiUptime    = h.api?.api_data?.uptime_s ?? null;
       }
+    } catch (e) { console.warn('health parse error', e); }
 
-      listEl.innerHTML = componentsHtml;
+    document.getElementById('last-check').textContent = new Date().toLocaleTimeString('pt-BR');
+    document.getElementById('api-version').textContent = apiVersion
+      + (apiUptime !== null ? ` · uptime ${formatUptime(apiUptime)}` : '');
 
-    } catch (error) {
-      console.error('Error checking health:', error);
-      statusEl.className = 'health-status-large unhealthy';
-      statusEl.innerHTML = '<i class="fas fa-times-circle"></i><span>Erro na Verificação</span>';
-      listEl.innerHTML = `<div class="text-center text-error">${error.message}</div>`;
+    // ── Component checks from /api/ready ──────────────────────
+    let components = null;
+    let allReady   = false;
+
+    try {
+      if (readyRes.status === 'fulfilled') {
+        const r = await readyRes.value.json();
+        components = r.components || null;
+        allReady   = r.ready === true;
+      }
+    } catch (e) { console.warn('ready parse error', e); }
+
+    // ── Overall status ─────────────────────────────────────────
+    const isHealthy = apiConnected && dashboardOk && allReady;
+    const isDegraded = apiConnected && dashboardOk && !allReady;
+
+    statusEl.className = `health-status-large ${isHealthy ? 'healthy' : isDegraded ? 'degraded' : 'unhealthy'}`;
+    statusEl.innerHTML = `
+      <i class="fas fa-${isHealthy ? 'check-circle' : isDegraded ? 'exclamation-circle' : 'times-circle'}"></i>
+      <span>${isHealthy ? 'Sistema Saudável' : isDegraded ? 'Degradado' : 'Atenção Necessária'}</span>
+    `;
+
+    // ── Build components list ──────────────────────────────────
+    let html = '';
+
+    // Dashboard (always first)
+    html += createComponentItem('Dashboard', dashboardOk ? 'healthy' : 'unhealthy', 'fa-tachometer-alt');
+    // API Server
+    html += createComponentItem('API Server', apiConnected ? 'healthy' : 'unhealthy', 'fa-server',
+      apiConnected ? '' : 'Sem conexão — verifique se a API está ativa');
+
+    if (components) {
+      for (const [key, comp] of Object.entries(components)) {
+        const label   = COMPONENT_LABELS[key] || key;
+        const icon    = COMPONENT_ICONS[key]  || 'fa-circle';
+        const ok      = comp.status === true;
+        const detail  = comp.latency_ms != null ? `${comp.latency_ms}ms` : (comp.error ? comp.error.slice(0, 60) : '');
+        html += createComponentItem(label, ok ? 'healthy' : 'unhealthy', icon, detail, comp.details);
+      }
+    } else if (!apiConnected) {
+      html += `<div class="text-secondary" style="padding: 8px 12px; font-size: 13px;">
+        Conecte a API para ver o status dos componentes internos.
+      </div>`;
     }
+
+    listEl.innerHTML = html;
+
+    // ── API Metrics ────────────────────────────────────────────
+    loadApiMetrics(metricsEl);
   }
 
-  function createComponentItem(name, status, detail = '') {
-    const statusClass = status === 'healthy' ? 'status-healthy' : (status === 'degraded' ? 'status-degraded' : 'status-unhealthy');
-    const icon = status === 'healthy' ? 'check' : 'times';
+  function createComponentItem(label, status, icon = 'fa-circle', detail = '', details = null) {
+    const cls  = status === 'healthy' ? 'status-healthy' : (status === 'degraded' ? 'status-degraded' : 'status-unhealthy');
+    const txt  = status === 'healthy' ? 'OK' : (status === 'degraded' ? 'Degradado' : 'Erro');
+    const detailsHtml = details && details.path
+      ? `<div style="font-size:11px; color:var(--text-tertiary); margin-top:4px; font-family:var(--font-mono); word-break:break-all;">${details.path}</div>`
+      : '';
 
     return `
       <div class="component-item">
         <div class="component-name">
-          <i class="fas fa-server"></i>
-          ${name}
+          <i class="fas ${icon}"></i>
+          <div>
+            <div>${label}</div>
+            ${detailsHtml}
+          </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px;">
-          ${detail ? `<span style="font-size: 12px; color: var(--text-secondary);">${detail}</span>` : ''}
-          <span class="component-status ${statusClass}">${status}</span>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          ${detail ? `<span style="font-size: 12px;" class="text-secondary">${detail}</span>` : ''}
+          <span class="component-status ${cls}">${txt}</span>
         </div>
-      </div>
-    `;
+      </div>`;
+  }
+
+  async function loadApiMetrics(container) {
+    if (!container) return;
+    container.innerHTML = '<div class="text-secondary" style="font-size:13px; padding: 8px 0;"><i class="fas fa-spinner fa-spin"></i> Carregando métricas...</div>';
+
+    try {
+      const res = await fetch('/api/performance');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      const d = result.data || result;
+
+      if (result.source === 'none' || !d || d.message) {
+        container.innerHTML = '<div class="text-secondary" style="font-size:13px; padding: 8px 0;">Métricas indisponíveis — API desconectada.</div>';
+        return;
+      }
+
+      const req  = d.requests  || {};
+      const scr  = d.scraping  || {};
+      const upt  = d.uptime_s  != null ? formatUptime(d.uptime_s) : '-';
+
+      container.innerHTML = `
+        <div class="metrics-grid">
+          <div class="metric-item">
+            <div class="metric-label">Uptime</div>
+            <div class="metric-value">${upt}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Requisições</div>
+            <div class="metric-value">${req.total ?? '-'}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Em andamento</div>
+            <div class="metric-value">${req.in_progress ?? '-'}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Falhas</div>
+            <div class="metric-value" style="${(req.failed || 0) > 0 ? 'color:var(--apple-red)' : ''}">${req.failed ?? 0}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">P50 latência</div>
+            <div class="metric-value">${req.p50_ms != null ? req.p50_ms + 'ms' : '-'}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">P95 latência</div>
+            <div class="metric-value">${req.p95_ms != null ? req.p95_ms + 'ms' : '-'}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Scrapes totais</div>
+            <div class="metric-value">${scr.scrapes_total ?? '-'}</div>
+          </div>
+          <div class="metric-item">
+            <div class="metric-label">Análises</div>
+            <div class="metric-value">${scr.analysis_total ?? '-'}</div>
+          </div>
+        </div>`;
+    } catch (e) {
+      container.innerHTML = '<div class="text-secondary" style="font-size:13px; padding: 8px 0;">Erro ao carregar métricas.</div>';
+    }
+  }
+
+  function formatUptime(seconds) {
+    if (seconds < 60)   return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
 
   document.addEventListener('DOMContentLoaded', checkHealth);

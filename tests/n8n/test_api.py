@@ -4,6 +4,7 @@ Tests for n8n API integration.
 
 import json
 import time
+from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -188,6 +189,150 @@ class TestAsyncJobs:
         assert "job_id" in data
         assert data["status"] == "queued"
 
+    @patch("rq.registry.FailedJobRegistry")
+    @patch("rq.registry.FinishedJobRegistry")
+    @patch("rq.registry.StartedJobRegistry")
+    @patch("src.api.v1.main.get_queue")
+    def test_list_jobs(
+        self,
+        mock_queue,
+        mock_started_registry,
+        mock_finished_registry,
+        mock_failed_registry,
+        client,
+        mock_env,
+        api_key,
+    ):
+        """Test listing jobs and status normalization."""
+        mock_q = MagicMock()
+        mock_q.job_ids = ["queued-job", "expired-job"]
+        mock_queue.return_value = mock_q
+
+        mock_started_registry.return_value.get_job_ids.return_value = ["running-job"]
+        mock_finished_registry.return_value.get_job_ids.return_value = ["done-job"]
+        mock_failed_registry.return_value.get_job_ids.return_value = ["failed-job"]
+
+        queued_job = MagicMock()
+        queued_job.id = "queued-job"
+        queued_job.is_queued = True
+        queued_job.is_deferred = False
+        queued_job.is_started = False
+        queued_job.is_finished = False
+        queued_job.is_failed = False
+        queued_job.meta = {"progress": 10, "message": "Queued"}
+        queued_job.created_at = datetime(2026, 3, 6, 12, 0, 0)
+        queued_job.enqueued_at = datetime(2026, 3, 6, 12, 0, 1)
+        queued_job.ended_at = None
+
+        running_job = MagicMock()
+        running_job.id = "running-job"
+        running_job.is_queued = False
+        running_job.is_deferred = False
+        running_job.is_started = True
+        running_job.is_finished = False
+        running_job.is_failed = False
+        running_job.meta = {"progress": 55, "message": "Running"}
+        running_job.created_at = datetime(2026, 3, 6, 12, 1, 0)
+        running_job.enqueued_at = datetime(2026, 3, 6, 12, 1, 1)
+        running_job.ended_at = None
+
+        done_job = MagicMock()
+        done_job.id = "done-job"
+        done_job.is_queued = False
+        done_job.is_deferred = False
+        done_job.is_started = False
+        done_job.is_finished = True
+        done_job.is_failed = False
+        done_job.meta = {"progress": 33, "message": "Done"}
+        done_job.created_at = datetime(2026, 3, 6, 12, 2, 0)
+        done_job.enqueued_at = datetime(2026, 3, 6, 12, 2, 1)
+        done_job.ended_at = datetime(2026, 3, 6, 12, 3, 0)
+
+        failed_job = MagicMock()
+        failed_job.id = "failed-job"
+        failed_job.is_queued = False
+        failed_job.is_deferred = False
+        failed_job.is_started = False
+        failed_job.is_finished = False
+        failed_job.is_failed = True
+        failed_job.meta = {"progress": 80, "message": "Failed"}
+        failed_job.created_at = datetime(2026, 3, 6, 12, 4, 0)
+        failed_job.enqueued_at = datetime(2026, 3, 6, 12, 4, 1)
+        failed_job.ended_at = datetime(2026, 3, 6, 12, 5, 0)
+
+        jobs = {
+            "queued-job": queued_job,
+            "running-job": running_job,
+            "done-job": done_job,
+            "failed-job": failed_job,
+            "expired-job": None,  # Simulate job that no longer exists.
+        }
+        mock_q.fetch_job.side_effect = jobs.get
+
+        response = client.get("/v1/jobs", headers={"X-API-Key": api_key})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert {item["task_id"] for item in data} == {
+            "queued-job",
+            "running-job",
+            "done-job",
+            "failed-job",
+        }
+
+        by_id = {item["task_id"]: item for item in data}
+        assert by_id["queued-job"]["status"] == "pending"
+        assert by_id["running-job"]["status"] == "running"
+        assert by_id["done-job"]["status"] == "completed"
+        assert by_id["done-job"]["progress"] == 100
+        assert by_id["failed-job"]["status"] == "failed"
+
+    @patch("rq.registry.FailedJobRegistry")
+    @patch("rq.registry.FinishedJobRegistry")
+    @patch("rq.registry.StartedJobRegistry")
+    @patch("src.api.v1.main.get_queue")
+    def test_list_jobs_with_running_filter(
+        self,
+        mock_queue,
+        mock_started_registry,
+        mock_finished_registry,
+        mock_failed_registry,
+        client,
+        mock_env,
+        api_key,
+    ):
+        """Test status filtering for list jobs endpoint."""
+        mock_q = MagicMock()
+        mock_q.job_ids = ["queued-job"]
+        mock_queue.return_value = mock_q
+        mock_started_registry.return_value.get_job_ids.return_value = ["running-job"]
+        mock_finished_registry.return_value.get_job_ids.return_value = ["done-job"]
+        mock_failed_registry.return_value.get_job_ids.return_value = ["failed-job"]
+
+        running_job = MagicMock()
+        running_job.id = "running-job"
+        running_job.is_queued = False
+        running_job.is_deferred = False
+        running_job.is_started = True
+        running_job.is_finished = False
+        running_job.is_failed = False
+        running_job.meta = {}
+        running_job.created_at = datetime(2026, 3, 6, 12, 0, 0)
+        running_job.enqueued_at = datetime(2026, 3, 6, 12, 0, 1)
+        running_job.ended_at = None
+        mock_q.fetch_job.side_effect = {"running-job": running_job}.get
+
+        response = client.get("/v1/jobs?status=running", headers={"X-API-Key": api_key})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["task_id"] == "running-job"
+        assert data[0]["status"] == "running"
+        assert mock_started_registry.return_value.get_job_ids.called
+        assert not mock_finished_registry.return_value.get_job_ids.called
+        assert not mock_failed_registry.return_value.get_job_ids.called
+
     @patch("src.api.v1.main.get_queue")
     def test_get_job_status(self, mock_queue, client, mock_env, api_key):
         """Test job status retrieval."""
@@ -223,6 +368,28 @@ class TestAsyncJobs:
         assert response.status_code == 200
         data = response.json()
         assert data["doctor"]["name"] == "Dr. Test"
+
+    @patch("src.api.v1.main.get_queue")
+    def test_get_job_status_queued_is_pending(
+        self, mock_queue, client, mock_env, api_key
+    ):
+        """Queued jobs should report pending in detail endpoint too."""
+        mock_q = MagicMock()
+        mock_job = MagicMock()
+        mock_job.is_queued = True
+        mock_job.is_deferred = False
+        mock_job.is_started = False
+        mock_job.is_finished = False
+        mock_job.is_failed = False
+        mock_job.result = None
+        mock_q.fetch_job.return_value = mock_job
+        mock_queue.return_value = mock_q
+
+        response = client.get("/v1/jobs/job-queued", headers={"X-API-Key": api_key})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "pending"
 
     def test_job_not_found(self, client, mock_env, api_key):
         """Test job not found error."""

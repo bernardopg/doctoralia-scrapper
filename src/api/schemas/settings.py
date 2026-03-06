@@ -90,7 +90,7 @@ class ScrapingSettingsModel(BaseModel):
 class APISettingsModel(BaseModel):
     """API configuration model."""
 
-    host: str = Field(default="0.0.0.0", description="API host")
+    host: str = Field(default="127.0.0.1", description="API host")
     port: int = Field(default=8080, ge=1024, le=65535, description="API port")
     debug: bool = Field(default=False, description="Debug mode")
     workers: int = Field(default=1, ge=1, le=8, description="Number of workers")

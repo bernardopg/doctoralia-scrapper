@@ -469,6 +469,7 @@ class DoctoraliaScraper:
     def extract_rating(self, review_element) -> Optional[int]:
         """Extract rating from review element (works with both WebElement and Tag)."""
         # If it's already a BeautifulSoup Tag, use it directly
+        soup: Optional[Tag]
         if isinstance(review_element, Tag):
             soup = review_element
         else:
@@ -495,6 +496,7 @@ class DoctoraliaScraper:
     def extract_date(self, review_element) -> Optional[str]:
         """Extract date from review element (works with both WebElement and Tag)."""
         # If it's already a BeautifulSoup Tag, use it directly
+        soup: Optional[Tag]
         if isinstance(review_element, Tag):
             soup = review_element
         else:
@@ -521,6 +523,7 @@ class DoctoraliaScraper:
     def extract_author_name(self, review_element) -> Optional[str]:
         """Extract author name from review element (works with both WebElement and Tag)."""
         # If it's already a BeautifulSoup Tag, use it directly
+        soup: Optional[Tag]
         if isinstance(review_element, Tag):
             soup = review_element
         else:
@@ -557,6 +560,7 @@ class DoctoraliaScraper:
     def extract_comment(self, review_element) -> Optional[str]:
         """Extract comment from review element (works with both WebElement and Tag)."""
         # If it's already a BeautifulSoup Tag, use it directly
+        soup: Optional[Tag]
         if isinstance(review_element, Tag):
             soup = review_element
         else:
@@ -577,6 +581,7 @@ class DoctoraliaScraper:
     def extract_reply(self, review_element) -> Optional[str]:
         """Extract doctor's reply from a review element (works with both WebElement and Tag)."""
         # If it's already a BeautifulSoup Tag, use it directly
+        soup: Optional[Tag]
         if isinstance(review_element, Tag):
             soup = review_element
         else:
@@ -779,7 +784,8 @@ class DoctoraliaScraper:
         cache_key = f"reviews_{current_url}"
         if self._last_url == current_url and cache_key in self._cache:
             self.logger.info("✅ Usando cache para extração de reviews")
-            return self._cache[cache_key]
+            cached: List[Dict[Any, Any]] = self._cache[cache_key]
+            return cached
 
         reviews_data: List[Dict[str, Any]] = []
         page_source = self.driver.page_source
@@ -840,8 +846,7 @@ class DoctoraliaScraper:
                 re.sub(r"[^\w\s-]", "", doctor_name).strip().replace(" ", "_").lower()
             )
             file_name = f"{timestamp}_{clean_name}.json"
-            file_path = self.config.data_dir / file_name
-            file_path = Path(file_path)  # Explicit cast to Path
+            file_path: Path = Path(self.config.data_dir / file_name)
 
             with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

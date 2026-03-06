@@ -83,20 +83,54 @@ def test_api_stats_route_fallback(mock_get_scraper_stats, mock_get_api_stats, cl
 @patch("src.dashboard.DashboardApp._call_api")
 def test_proxy_scrape_route(mock_call_api, client):
     mock_call_api.return_value = {"task_id": "123"}
-    response = client.post("/api/scrape", json={"url": "http://test.com"})
+    response = client.post("/api/scrape", json={"doctor_url": "http://test.com"})
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data == {"task_id": "123"}
     mock_call_api.assert_called_once_with(
-        "/v1/scrape:run", method="POST", json={"url": "http://test.com"}
+        "/v1/jobs",
+        method="POST",
+        json={
+            "doctor_url": "http://test.com",
+            "include_analysis": True,
+            "include_generation": False,
+            "response_template_id": None,
+            "language": "pt",
+            "meta": None,
+            "mode": "async",
+            "callback_url": None,
+            "idempotency_key": None,
+        },
     )
 
 
 @patch("src.dashboard.DashboardApp._call_api")
 def test_proxy_scrape_route_api_unavailable(mock_call_api, client):
     mock_call_api.return_value = None
-    response = client.post("/api/scrape", json={"url": "http://test.com"})
+    response = client.post("/api/scrape", json={"doctor_url": "http://test.com"})
     assert response.status_code == 503
+
+
+@patch("src.dashboard.DashboardApp._call_api")
+def test_proxy_scrape_route_accepts_legacy_url_field(mock_call_api, client):
+    mock_call_api.return_value = {"task_id": "123"}
+    response = client.post("/api/scrape", json={"url": "http://test.com"})
+    assert response.status_code == 200
+    mock_call_api.assert_called_once_with(
+        "/v1/jobs",
+        method="POST",
+        json={
+            "doctor_url": "http://test.com",
+            "include_analysis": True,
+            "include_generation": False,
+            "response_template_id": None,
+            "language": "pt",
+            "meta": None,
+            "mode": "async",
+            "callback_url": None,
+            "idempotency_key": None,
+        },
+    )
 
 
 @patch("src.dashboard.DashboardApp._get_api_metrics")

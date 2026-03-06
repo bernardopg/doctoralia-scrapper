@@ -64,7 +64,6 @@ jobs:
 
       - name: Run MyPy
         run: poetry run mypy src/ --ignore-missing-imports
-        continue-on-error: true
 
   security:
     name: Security Checks
@@ -89,7 +88,6 @@ jobs:
 
       - name: Run Bandit
         run: poetry run bandit -r src/ -ll -f json -o bandit-report.json
-        continue-on-error: true
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v7
@@ -99,8 +97,7 @@ jobs:
           path: bandit-report.json
 
       - name: Run Safety check
-        run: poetry run safety check --json
-        continue-on-error: true
+        run: poetry run safety check --file requirements.txt --json
 
       # TruffleHog: scan PR diffs when base and head differ
       - name: Check for secrets (PR diff)
@@ -149,6 +146,8 @@ jobs:
   test:
     name: Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -198,12 +197,11 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
-        if: matrix.python-version == '3.11'
+        if: matrix.python-version == '3.11' && env.CODECOV_TOKEN != ''
         with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true
+          files: ./coverage.xml
+          fail_ci_if_error: true
+          token: ${{ env.CODECOV_TOKEN }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v7

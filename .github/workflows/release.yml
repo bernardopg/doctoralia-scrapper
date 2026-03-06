@@ -114,12 +114,22 @@ jobs:
       - name: Build package
         run: poetry build
 
+      - name: Check PyPI token
+        id: check_pypi
+        run: |
+          if [ -n "$PYPI_TOKEN" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
       - name: Publish to PyPI
-        if: ${{ !contains(needs.create-release.outputs.version, '-') }}
+        if: ${{ !contains(needs.create-release.outputs.version, '-') && steps.check_pypi.outputs.has_token == 'true' }}
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         run: poetry publish --skip-existing
-        continue-on-error: true
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
@@ -145,10 +155,10 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -156,7 +166,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.target }}
           tags: |
@@ -166,7 +176,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           target: ${{ matrix.target }}
