@@ -55,6 +55,7 @@ packages = [{include = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
+anyio = "^4.12.1"
 beautifulsoup4 = "^4.13.4"
 cryptography = "^46.0.5"
 nltk = "^3.9.3"

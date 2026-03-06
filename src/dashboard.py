@@ -38,10 +38,8 @@ class DashboardApp:
         self.logger = logger or (setup_logger("dashboard", config) if config else None)
 
         # Configure API connection
-        api_host = "0.0.0.0"
         api_port = 8000
         if self.config and hasattr(self.config, "api"):
-            api_host = getattr(self.config.api, "host", api_host)
             api_port = getattr(self.config.api, "port", api_port)
 
         # Use localhost for API calls from dashboard (or API_URL from env if in Docker)
@@ -765,7 +763,9 @@ class DashboardApp:
             "unique_doctors": len(doctors),
         }
 
-    def run(self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False) -> None:
+    def run(
+        self, host: str = "127.0.0.1", port: int = 5000, debug: bool = False
+    ) -> None:
         """Run the Flask dashboard server."""
         if self.logger:
             self.logger.info(f"Starting dashboard server on http://{host}:{port}")
@@ -773,7 +773,7 @@ class DashboardApp:
 
 
 def start_dashboard(
-    host: str = "0.0.0.0", port: int = 5000, debug: bool = False
+    host: str = "127.0.0.1", port: int = 5000, debug: bool = False
 ):  # pragma: no cover - thin wrapper
     """Convenience wrapper so the CLI can start the dashboard with a single import."""
     config = None
@@ -789,4 +789,4 @@ def start_dashboard(
 
 if __name__ == "__main__":
     dashboard = DashboardApp()
-    dashboard.run(debug=True)
+    dashboard.run(debug=False)

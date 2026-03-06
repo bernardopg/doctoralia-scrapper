@@ -26,7 +26,9 @@ def normalize_doctor(raw_data: Dict[str, Any]) -> Doctor:
     # Generate ID from URL if not provided
     doctor_id = raw_data.get("id")
     if not doctor_id and raw_data.get("url"):
-        doctor_id = hashlib.md5(raw_data["url"].encode()).hexdigest()[:8]
+        doctor_id = hashlib.md5(
+            raw_data["url"].encode(), usedforsecurity=False
+        ).hexdigest()[:8]
 
     return Doctor(
         id=doctor_id or "unknown",
@@ -54,7 +56,9 @@ def normalize_reviews(raw_reviews: List[Dict[str, Any]]) -> List[Review]:
         review_id = raw.get("id")
         if not review_id:
             content = f"{raw.get('date', '')}{raw.get('text', '')}{idx}"
-            review_id = hashlib.md5(content.encode()).hexdigest()[:8]
+            review_id = hashlib.md5(
+                content.encode(), usedforsecurity=False
+            ).hexdigest()[:8]
 
         # Extract author info
         author = Author(

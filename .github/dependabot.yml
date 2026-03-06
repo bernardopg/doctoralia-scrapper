@@ -10,6 +10,7 @@ updates:
       time: "09:00"
       timezone: "America/Sao_Paulo"
     open-pull-requests-limit: 5
+    rebase-strategy: auto
     labels:
       - "dependencies"
       - "python"
@@ -37,6 +38,7 @@ updates:
       time: "09:00"
       timezone: "America/Sao_Paulo"
     open-pull-requests-limit: 3
+    rebase-strategy: auto
     labels:
       - "dependencies"
       - "github-actions"
@@ -60,6 +62,7 @@ updates:
       time: "09:00"
       timezone: "America/Sao_Paulo"
     open-pull-requests-limit: 2
+    rebase-strategy: auto
     labels:
       - "dependencies"
       - "docker"

@@ -18,7 +18,7 @@ WORKDIR /app
 
 # Build wheels once to keep the final image smaller and with fewer OS packages.
 COPY requirements.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt
 
 FROM python:3.11-slim AS base
@@ -31,7 +31,7 @@ WORKDIR /app
 
 COPY requirements.txt ./
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
     rm -rf /wheels
 
@@ -72,4 +72,4 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:5000/api/health || exit 1
 # Use start_dashboard() which runs without debug mode (python src/dashboard.py uses debug=True)
-CMD ["python", "-c", "from src.dashboard import start_dashboard; start_dashboard()"]
+CMD ["python", "-c", "from src.dashboard import start_dashboard; start_dashboard(host='0.0.0.0')"]

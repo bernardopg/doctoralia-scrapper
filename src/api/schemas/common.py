@@ -102,7 +102,9 @@ class UnifiedResult(BaseModel):
     metrics: Metrics = Field(..., description="Performance metrics")
     job_id: Optional[str] = Field(None, description="Async job ID")
     status: str = Field(
-        ..., description="Operation status", pattern="^(completed|failed|running)$"
+        ...,
+        description="Operation status",
+        pattern="^(completed|failed|running|pending)$",
     )
 
 

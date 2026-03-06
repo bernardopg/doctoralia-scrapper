@@ -7,9 +7,11 @@ import time
 import uuid
 from datetime import datetime
 from typing import Any, Optional  # noqa: F401 (kept for future extensibility)
+from urllib.parse import urlparse
 
 import redis
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+import requests
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -80,7 +82,7 @@ app.add_middleware(
 
 
 def start_api(
-    host: str = "0.0.0.0", port: int = 8000
+    host: str = "127.0.0.1", port: int = 8000
 ):  # pragma: no cover - thin wrapper
     """Convenience wrapper so the CLI can start the API without importing uvicorn everywhere.
 
@@ -292,23 +294,23 @@ async def readiness_check():
     selenium_error = None
     selenium_latency = None
     try:
-        import urllib.request
-        from urllib.error import URLError
-
         selenium_url = os.getenv("SELENIUM_REMOTE_URL", "http://localhost:4444/wd/hub")
         start = time.perf_counter()
 
         # Create a simple HTTP request to check if Selenium is responding
         try:
             status_endpoint = f"{selenium_url.rstrip('/')}/status"
-            # Use timeout to avoid blocking health checks
-            urllib.request.urlopen(status_endpoint, timeout=5)
+            parsed = urlparse(status_endpoint)
+            if parsed.scheme not in {"http", "https"}:
+                raise ValueError("Invalid Selenium URL scheme")
+
+            # Use timeout to avoid blocking health checks.
+            response = requests.get(status_endpoint, timeout=5)
+            response.raise_for_status()
             selenium_latency = int((time.perf_counter() - start) * 1000)
             selenium_ok = True
-        except URLError as e:
+        except requests.RequestException as e:
             selenium_error = f"Connection failed: {str(e)[:200]}"
-    except ImportError:
-        selenium_error = "urllib not available"
     except Exception as exc:  # pragma: no cover - network/config dependent
         selenium_error = str(exc)[:200]
     components["selenium"] = ReadyComponent(
@@ -508,12 +510,25 @@ async def create_job(request: JobCreateRequest):
     )
 
 
+def _map_job_status(job: Any) -> str:
+    """Map RQ job state to API status values used by the dashboard."""
+    if job.is_queued or job.is_deferred:
+        return "pending"
+    if job.is_started:
+        return "running"
+    if job.is_finished:
+        return "completed"
+    if job.is_failed:
+        return "failed"
+    return "unknown"
+
+
 @app.get(
     "/v1/jobs",
     dependencies=[Depends(require_api_key)],
     tags=["Jobs"],
 )
-async def list_jobs(status: Optional[str] = None):
+async def list_jobs(status_filter: Optional[str] = Query(default=None, alias="status")):
     """
     List all async jobs, optionally filtered by status.
     """
@@ -522,13 +537,13 @@ async def list_jobs(status: Optional[str] = None):
     q = get_queue()
     job_ids = set()
 
-    if not status or status in ("queued", "pending"):
+    if not status_filter or status_filter in ("queued", "pending"):
         job_ids.update(q.job_ids)
-    if not status or status == "running":
+    if not status_filter or status_filter == "running":
         job_ids.update(StartedJobRegistry(queue=q).get_job_ids())
-    if not status or status == "completed":
+    if not status_filter or status_filter == "completed":
         job_ids.update(FinishedJobRegistry(queue=q).get_job_ids())
-    if not status or status == "failed":
+    if not status_filter or status_filter == "failed":
         job_ids.update(FailedJobRegistry(queue=q).get_job_ids())
 
     jobs = []
@@ -538,15 +553,7 @@ async def list_jobs(status: Optional[str] = None):
         if not job:
             continue
 
-        job_status = "unknown"
-        if job.is_queued or job.is_deferred:
-            job_status = "pending"
-        elif job.is_started:
-            job_status = "running"
-        elif job.is_finished:
-            job_status = "completed"
-        elif job.is_failed:
-            job_status = "failed"
+        job_status = _map_job_status(job)
 
         progress = job.meta.get("progress", 0) if job.meta else 0
         if job_status == "completed":
@@ -589,16 +596,7 @@ async def get_job_status(job_id: str):
         )
 
     # Map RQ status to our status
-    if job.is_queued or job.is_deferred:
-        job_status = "running"
-    elif job.is_started:
-        job_status = "running"
-    elif job.is_finished:
-        job_status = "completed"
-    elif job.is_failed:
-        job_status = "failed"
-    else:
-        job_status = "unknown"
+    job_status = _map_job_status(job)
 
     # Return result if available
     if job.is_finished and job.result:

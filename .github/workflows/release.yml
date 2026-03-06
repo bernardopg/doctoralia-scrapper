@@ -130,7 +130,6 @@ jobs:
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         run: poetry publish --skip-existing
-        continue-on-error: true
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
