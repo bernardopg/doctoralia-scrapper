@@ -123,7 +123,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: docker build --target ${{ matrix.target }} -t local/${{ matrix.target }}:${{ github.sha }} .
 
-      - name: Run Trivy vulnerability scanner (PR image)
+      - name: Run Trivy JSON scan (PR image)
         if: github.event_name == 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
@@ -132,11 +132,11 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
-          exit-code: "1"
-          format: 'sarif'
-          output: 'trivy-results-${{ matrix.target }}.sarif'
+          exit-code: "0"
+          format: "json"
+          output: "trivy-results-${{ matrix.target }}.json"
 
-      - name: Run Trivy vulnerability scanner (registry image)
+      - name: Run Trivy JSON scan (registry image)
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
@@ -145,11 +145,55 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
-          exit-code: "1"
-          format: 'sarif'
-          output: 'trivy-results-${{ matrix.target }}.sarif'
+          exit-code: "0"
+          format: "json"
+          output: "trivy-results-${{ matrix.target }}.json"
+
+      - name: Fail on HIGH/CRITICAL vulnerabilities
+        run: |
+          report_file="trivy-results-${{ matrix.target }}.json"
+          if [[ ! -f "$report_file" ]]; then
+            echo "Trivy report not found: $report_file"
+            exit 1
+          fi
+
+          vuln_count=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length' "$report_file")
+          echo "Detected HIGH/CRITICAL vulnerabilities: $vuln_count"
+
+          if [[ "$vuln_count" -gt 0 ]]; then
+            echo "Vulnerabilities found:"
+            jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL") | "- [\(.Severity)] \(.PkgName) \(.InstalledVersion) -> \(.VulnerabilityID) (fixed: \(.FixedVersion // "none"))"' "$report_file" | head -n 50
+            exit 1
+          fi
+
+      - name: Run Trivy SARIF scan (PR image)
+        if: github.event_name == 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: local/${{ matrix.target }}:${{ github.sha }}
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          scanners: "vuln"
+          exit-code: "0"
+          format: "sarif"
+          output: "trivy-results-${{ matrix.target }}.sarif"
+
+      - name: Run Trivy SARIF scan (registry image)
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}:latest
+          severity: "CRITICAL,HIGH"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          scanners: "vuln"
+          exit-code: "0"
+          format: "sarif"
+          output: "trivy-results-${{ matrix.target }}.sarif"
 
       - name: Upload Trivy results to GitHub Security
+        if: always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results-${{ matrix.target }}.sarif'
