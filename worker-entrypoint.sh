@@ -27,10 +27,21 @@ python_version=$(python --version)
 echo "Python version: ${python_version}"
 echo ""
 
+# Worker runtime settings (explicit defaults for predictable behavior)
+RQ_JOB_TIMEOUT="${RQ_JOB_TIMEOUT:-1800}"
+RQ_RESULTS_TTL="${RQ_RESULTS_TTL:-86400}"
+RQ_FAILURE_TTL="${RQ_FAILURE_TTL:-604800}"
+RQ_SCHEDULER_INTERVAL="${RQ_SCHEDULER_INTERVAL:-60}"
+
 # Start RQ worker with optimized settings
+# --job-timeout: Timeout for individual jobs (30 minutes)
 # --results-ttl: Time to keep successful job results (24 hours)
+# --failure-ttl: Time to keep failed job results (7 days)
 exec rq worker \
---results-ttl=86400 \
+--job-timeout="${RQ_JOB_TIMEOUT}" \
+--results-ttl="${RQ_RESULTS_TTL}" \
+--failure-ttl="${RQ_FAILURE_TTL}" \
 -u "${REDIS_URL}" \
 --with-scheduler \
+--scheduler-interval="${RQ_SCHEDULER_INTERVAL}" \
 doctoralia

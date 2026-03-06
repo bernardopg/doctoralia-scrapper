@@ -46,6 +46,9 @@ class DashboardApp:
 
         # Use localhost for API calls from dashboard (or API_URL from env if in Docker)
         self.api_base_url = os.getenv("API_URL", f"http://localhost:{api_port}")
+        self.api_port = api_port
+        api_public_url = os.getenv("API_PUBLIC_URL", "").strip().rstrip("/")
+        self.api_docs_url = f"{api_public_url}/docs" if api_public_url else ""
         self.api_timeout = 5  # seconds
 
         self.app = Flask(
@@ -86,7 +89,9 @@ class DashboardApp:
             if api_key:
                 headers["X-API-Key"] = api_key
 
-            response = requests.request(method, url, headers=headers, timeout=self.api_timeout, **kwargs)
+            response = requests.request(
+                method, url, headers=headers, timeout=self.api_timeout, **kwargs
+            )
             if response.status_code in (200, 202):
                 result: Dict[Any, Any] = response.json()
                 return result
@@ -142,6 +147,13 @@ class DashboardApp:
 
     def _setup_main_routes(self) -> None:
         """Setup main application routes."""
+
+        @self.app.context_processor
+        def inject_template_config():
+            return {
+                "api_port": self.api_port,
+                "api_docs_url": self.api_docs_url,
+            }
 
         @self.app.route("/")
         def index():
@@ -280,11 +292,33 @@ class DashboardApp:
             try:
                 data = request.get_json(force=True, silent=True)
                 if not data:
-                    return jsonify({"error": "Corpo da requisição inválido ou vazio"}), 400
-                if not data.get("doctor_url"):
-                    return jsonify({"error": "Campo 'doctor_url' é obrigatório"}), 400
-                data["mode"] = "async"
-                result = self._call_api("/v1/jobs", method="POST", json=data)
+                    return (
+                        jsonify({"error": "Corpo da requisição inválido ou vazio"}),
+                        400,
+                    )
+
+                # Backward compatibility: accept legacy "url" field.
+                doctor_url = data.get("doctor_url") or data.get("url")
+                if not doctor_url:
+                    return (
+                        jsonify(
+                            {"error": "Campo 'doctor_url' (ou 'url') é obrigatório"}
+                        ),
+                        400,
+                    )
+
+                payload = {
+                    "doctor_url": doctor_url,
+                    "include_analysis": data.get("include_analysis", True),
+                    "include_generation": data.get("include_generation", False),
+                    "response_template_id": data.get("response_template_id"),
+                    "language": data.get("language", "pt"),
+                    "meta": data.get("meta"),
+                    "mode": "async",
+                    "callback_url": data.get("callback_url"),
+                    "idempotency_key": data.get("idempotency_key"),
+                }
+                result = self._call_api("/v1/jobs", method="POST", json=payload)
                 if result is not None:
                     return jsonify(result)
                 return (

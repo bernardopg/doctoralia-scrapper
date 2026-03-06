@@ -560,7 +560,13 @@
 
     // ── Documentação API ────────────────────────────────
     function openApiDocs() {
-      const apiPort = 8000;
+      const configuredDocsUrl = {{ api_docs_url | tojson }};
+      if (configuredDocsUrl) {
+        window.open(configuredDocsUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      const apiPort = Number({{ api_port | tojson }});
       window.open(
         `${window.location.protocol}//${window.location.hostname}:${apiPort}/docs`,
         '_blank',
@@ -576,11 +582,13 @@
       const label   = document.getElementById('api-status-label');
       const urlEl   = document.getElementById('api-status-url');
       const icon    = document.getElementById('api-status-refresh-icon');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
       icon.classList.add('fa-spin');
 
       try {
-        const res  = await fetch('/api/health', { signal: AbortSignal.timeout(4000) });
+        const res  = await fetch('/api/health', { signal: controller.signal });
         const data = await res.json();
 
         if (data.api && data.api.status === 'connected') {
@@ -597,6 +605,7 @@
         label.textContent = 'API indisponível';
         urlEl.textContent = '';
       } finally {
+        clearTimeout(timeoutId);
         icon.classList.remove('fa-spin');
       }
     }

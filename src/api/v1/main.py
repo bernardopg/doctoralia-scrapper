@@ -517,11 +517,11 @@ async def list_jobs(status: Optional[str] = None):
     """
     List all async jobs, optionally filtered by status.
     """
-    from rq.registry import StartedJobRegistry, FinishedJobRegistry, FailedJobRegistry
-    
+    from rq.registry import FailedJobRegistry, FinishedJobRegistry, StartedJobRegistry
+
     q = get_queue()
     job_ids = set()
-    
+
     if not status or status in ("queued", "pending"):
         job_ids.update(q.job_ids)
     if not status or status == "running":
@@ -530,14 +530,14 @@ async def list_jobs(status: Optional[str] = None):
         job_ids.update(FinishedJobRegistry(queue=q).get_job_ids())
     if not status or status == "failed":
         job_ids.update(FailedJobRegistry(queue=q).get_job_ids())
-        
+
     jobs = []
     # Limit to 100 jobs to avoid performance issues
     for jid in list(job_ids)[:100]:
         job = q.fetch_job(jid)
         if not job:
             continue
-            
+
         job_status = "unknown"
         if job.is_queued or job.is_deferred:
             job_status = "pending"
@@ -547,21 +547,23 @@ async def list_jobs(status: Optional[str] = None):
             job_status = "completed"
         elif job.is_failed:
             job_status = "failed"
-            
+
         progress = job.meta.get("progress", 0) if job.meta else 0
         if job_status == "completed":
             progress = 100
-            
-        jobs.append({
-            "task_id": job.id,
-            "status": job_status,
-            "progress": progress,
-            "message": job.meta.get("message", "") if job.meta else "",
-            "created_at": job.created_at.isoformat() if job.created_at else None,
-            "enqueued_at": job.enqueued_at.isoformat() if job.enqueued_at else None,
-            "ended_at": job.ended_at.isoformat() if job.ended_at else None,
-        })
-        
+
+        jobs.append(
+            {
+                "task_id": job.id,
+                "status": job_status,
+                "progress": progress,
+                "message": job.meta.get("message", "") if job.meta else "",
+                "created_at": job.created_at.isoformat() if job.created_at else None,
+                "enqueued_at": job.enqueued_at.isoformat() if job.enqueued_at else None,
+                "ended_at": job.ended_at.isoformat() if job.ended_at else None,
+            }
+        )
+
     # Sort by created_at descending
     jobs.sort(key=lambda x: x["created_at"] or "", reverse=True)
     return jobs

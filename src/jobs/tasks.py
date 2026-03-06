@@ -196,7 +196,10 @@ def scrape_and_process(
     except Exception as e:
         # Create error result
         error_result = make_unified_result(
-            doctor_data={"name": "Error", "url": str(request_data.get("doctor_url", ""))},
+            doctor_data={
+                "name": "Error",
+                "url": str(request_data.get("doctor_url", "")),
+            },
             reviews_data=[],
             job_id=job_id,
             status="failed",
