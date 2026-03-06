@@ -157,7 +157,7 @@ def scrape_and_process(
         scraper = DoctoraliaScraper(config, logger)
 
         # Run scraping (correct method name)
-        scraper_result = scraper.scrape_reviews(request_data["doctor_url"])
+        scraper_result = scraper.scrape_reviews(str(request_data["doctor_url"]))
 
         if not scraper_result:
             raise RuntimeError("Scraper returned no data")
@@ -196,7 +196,7 @@ def scrape_and_process(
     except Exception as e:
         # Create error result
         error_result = make_unified_result(
-            doctor_data={"name": "Error", "url": request_data.get("doctor_url", "")},
+            doctor_data={"name": "Error", "url": str(request_data.get("doctor_url", ""))},
             reviews_data=[],
             job_id=job_id,
             status="failed",

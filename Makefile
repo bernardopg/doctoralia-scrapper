@@ -177,7 +177,7 @@ clean: ## Remove dados/arquivos temporários/cache
 # Comandos Priority 4 - Dashboard e API
 dashboard: ## Inicia dashboard web (Priority 4)
 	@echo "$(BLUE)Iniciando dashboard web...$(NC)"
-	$(PYTHON) src/dashboard.py
+	PYTHONPATH=. $(PYTHON) src/dashboard.py
 
 api: ## Inicia API REST (Priority 4)
 	@echo "$(BLUE)Iniciando API REST...$(NC)"

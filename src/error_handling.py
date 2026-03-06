@@ -176,7 +176,7 @@ class ErrorReporter:
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
-    def report_error(self, error: Exception, context: dict = None):
+    def report_error(self, error: Exception, context: Optional[dict] = None):
         """Reporta erro com contexto"""
         context = context or {}
 
@@ -194,7 +194,7 @@ class ErrorReporter:
                 f"Unexpected error: {error}", extra={"context": context}, exc_info=True
             )
 
-    def report_success(self, operation: str, context: dict = None):
+    def report_success(self, operation: str, context: Optional[dict] = None):
         """Reporta sucesso de operação"""
         self.logger.info(
             f"Operation succeeded: {operation}", extra={"context": context or {}}

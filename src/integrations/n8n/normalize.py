@@ -102,9 +102,9 @@ def normalize_analysis(raw_analysis: Dict[str, Any]) -> Optional[AnalysisResult]
     sentiment_data = raw_analysis.get("sentiment", {})
     sentiments = Sentiments(
         compound=sentiment_data.get("compound", 0.0),
-        positive=sentiment_data.get("pos", sentiment_data.get("positive", 0.0)),
-        neutral=sentiment_data.get("neu", sentiment_data.get("neutral", 0.0)),
-        negative=sentiment_data.get("neg", sentiment_data.get("negative", 0.0)),
+        pos=sentiment_data.get("pos", sentiment_data.get("positive", 0.0)),
+        neu=sentiment_data.get("neu", sentiment_data.get("neutral", 0.0)),
+        neg=sentiment_data.get("neg", sentiment_data.get("negative", 0.0)),
     )
 
     return AnalysisResult(

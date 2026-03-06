@@ -44,7 +44,10 @@ class EnhancedDoctoraliaScraper(DoctoraliaScraper):
     def scrape_page_with_protection(self, url: str) -> Dict[str, Any]:
         """Scraping com proteção de circuit breaker e retry"""
         try:
-            return self.page_load_circuit(self._scrape_page_protected)(url)
+            result = self.page_load_circuit(self._scrape_page_protected)(url)
+            if not isinstance(result, dict):
+                return {"error": "Invalid data format returned", "url": url}
+            return result
         except Exception as e:
             # Transformar exceções genéricas em ScrapingErrors específicos
             if "rate limit" in str(e).lower():

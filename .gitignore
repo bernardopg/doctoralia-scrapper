@@ -153,3 +153,12 @@ bruna_pinto_gomes.json
 
 #claude cache
 .claude
+
+# Logs
+*.log
+
+# Gemini cache
+.gemini
+
+# SQLite databases
+*.sqlite
