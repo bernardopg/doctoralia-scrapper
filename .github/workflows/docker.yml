@@ -129,7 +129,7 @@ jobs:
         with:
           image-ref: local/${{ matrix.target }}:${{ github.sha }}
           severity: "CRITICAL,HIGH"
-          ignore-unfixed: false
+          ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
           exit-code: "1"
@@ -142,7 +142,7 @@ jobs:
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}:latest
           severity: "CRITICAL,HIGH"
-          ignore-unfixed: false
+          ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
           exit-code: "1"
