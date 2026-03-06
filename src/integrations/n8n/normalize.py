@@ -26,7 +26,9 @@ def normalize_doctor(raw_data: Dict[str, Any]) -> Doctor:
     # Generate ID from URL if not provided
     doctor_id = raw_data.get("id")
     if not doctor_id and raw_data.get("url"):
-        doctor_id = hashlib.md5(raw_data["url"].encode()).hexdigest()[:8]
+        doctor_id = hashlib.md5(
+            raw_data["url"].encode(), usedforsecurity=False
+        ).hexdigest()[:8]
 
     return Doctor(
         id=doctor_id or "unknown",
@@ -54,7 +56,9 @@ def normalize_reviews(raw_reviews: List[Dict[str, Any]]) -> List[Review]:
         review_id = raw.get("id")
         if not review_id:
             content = f"{raw.get('date', '')}{raw.get('text', '')}{idx}"
-            review_id = hashlib.md5(content.encode()).hexdigest()[:8]
+            review_id = hashlib.md5(
+                content.encode(), usedforsecurity=False
+            ).hexdigest()[:8]
 
         # Extract author info
         author = Author(
@@ -102,9 +106,9 @@ def normalize_analysis(raw_analysis: Dict[str, Any]) -> Optional[AnalysisResult]
     sentiment_data = raw_analysis.get("sentiment", {})
     sentiments = Sentiments(
         compound=sentiment_data.get("compound", 0.0),
-        positive=sentiment_data.get("pos", sentiment_data.get("positive", 0.0)),
-        neutral=sentiment_data.get("neu", sentiment_data.get("neutral", 0.0)),
-        negative=sentiment_data.get("neg", sentiment_data.get("negative", 0.0)),
+        pos=sentiment_data.get("pos", sentiment_data.get("positive", 0.0)),
+        neu=sentiment_data.get("neu", sentiment_data.get("neutral", 0.0)),
+        neg=sentiment_data.get("neg", sentiment_data.get("negative", 0.0)),
     )
 
     return AnalysisResult(

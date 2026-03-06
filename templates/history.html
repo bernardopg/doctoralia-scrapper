@@ -33,10 +33,31 @@
         </thead>
         <tbody id="tasks-table-body">
           <tr>
-            <td colspan="6" class="text-center text-secondary">Carregando tarefas...</td>
+            <td colspan="6" class="text-center hist-secondary">Carregando tarefas...</td>
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div id="task-detail-modal" class="hist-modal-overlay" style="display: none;" onclick="handleModalClick(event)">
+  <div class="hist-modal-container">
+    <div class="hist-modal-header">
+      <h3 class="hist-modal-title">
+        <i class="fas fa-info-circle"></i>
+        Detalhes da Tarefa
+      </h3>
+      <button class="hist-modal-close" onclick="closeTaskModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="hist-modal-body" id="task-detail-body">
+      <div class="text-center hist-secondary" style="padding: 40px 0;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px; display: block;"></i>
+        Carregando detalhes...
+      </div>
     </div>
   </div>
 </div>
@@ -67,6 +88,10 @@
     font-size: 14px;
   }
 
+  /* Scoped utility classes */
+  .hist-secondary { color: var(--text-secondary, #8e8e93); }
+  .hist-error { color: var(--apple-red, #ff3b30); }
+
   .status-badge {
     padding: 4px 8px;
     border-radius: 4px;
@@ -75,25 +100,11 @@
     text-transform: uppercase;
   }
 
-  .status-pending {
-    background: rgba(255, 149, 0, 0.15);
-    color: #ff9500;
-  }
-
-  .status-running {
-    background: rgba(10, 132, 255, 0.15);
-    color: #0a84ff;
-  }
-
-  .status-completed {
-    background: rgba(52, 199, 89, 0.15);
-    color: #34c759;
-  }
-
-  .status-failed {
-    background: rgba(255, 59, 48, 0.15);
-    color: #ff3b30;
-  }
+  .status-pending  { background: rgba(255, 149, 0, 0.15); color: #ff9500; }
+  .status-running  { background: rgba(10, 132, 255, 0.15); color: #0a84ff; }
+  .status-completed { background: rgba(52, 199, 89, 0.15); color: #34c759; }
+  .status-failed   { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
+  .status-unknown  { background: rgba(142, 142, 147, 0.15); color: #8e8e93; }
 
   .progress-bar-container {
     background: rgba(255, 255, 255, 0.1);
@@ -120,8 +131,126 @@
   }
 
   @keyframes progress-shine {
-    0% { background-position: 200% 0; }
+    0%   { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  /* Task Detail Modal */
+  .hist-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .hist-modal-container {
+    background: var(--bg-primary, #1c1c1e);
+    border: 1px solid var(--border-color, #3a3a3c);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+  }
+
+  .hist-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color, #3a3a3c);
+    flex-shrink: 0;
+  }
+
+  .hist-modal-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+  }
+
+  .hist-modal-title i { color: var(--apple-blue, #0a84ff); }
+
+  .hist-modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #8e8e93);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+
+  .hist-modal-close:hover {
+    background: var(--bg-tertiary, #3a3a3c);
+    color: var(--text-primary, #fff);
+  }
+
+  .hist-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  /* Detail layout */
+  .detail-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary, #8e8e93);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 10px 0;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .detail-item {
+    background: var(--bg-secondary, #2c2c2e);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+
+  .detail-item.full-width { grid-column: 1 / -1; }
+
+  .detail-item-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary, #8e8e93);
+    margin-bottom: 5px;
+  }
+
+  .detail-item-value {
+    font-size: 13px;
+    color: var(--text-primary, #fff);
+    word-break: break-all;
+  }
+
+  .detail-mini-progress {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 6px;
+    margin-top: 6px;
   }
 </style>
 {% endblock %}
@@ -129,43 +258,63 @@
 {% block scripts %}
 <script>
   let pollInterval = null;
+  // Cache of tasks from list endpoint (task_id → task object)
+  const tasksCache = {};
 
+  // ── Status helpers ────────────────────────────────────────────────
+  const STATUS_LABELS = {
+    pending:   'Pendente',
+    running:   'Em andamento',
+    completed: 'Concluído',
+    failed:    'Falhou',
+    unknown:   'Desconhecido',
+  };
+
+  function statusLabel(s) {
+    return STATUS_LABELS[s] || s || 'Desconhecido';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? '-' : d.toLocaleString('pt-BR');
+  }
+
+  // ── Task list ─────────────────────────────────────────────────────
   async function loadTasks() {
     const tbody = document.getElementById('tasks-table-body');
 
     try {
       const response = await fetch('/api/tasks');
-
       let tasks = [];
+
       if (response.ok) {
-        tasks = await response.json();
+        const data = await response.json();
+        // Accept both list and object-with-error
+        tasks = Array.isArray(data) ? data : [];
       } else {
-        console.warn('Failed to fetch tasks');
-        tasks = [];
+        console.warn('Failed to fetch tasks:', response.status);
       }
 
       if (tasks.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Nenhuma tarefa encontrada</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center hist-secondary">Nenhuma tarefa encontrada</td></tr>';
         stopPolling();
         return;
       }
 
+      // Update cache
+      tasks.forEach(t => { tasksCache[t.task_id] = t; });
+
       const hasActiveTasks = tasks.some(t => t.status === 'running' || t.status === 'pending');
 
       tbody.innerHTML = tasks.map(task => {
-        const progressPct = Math.round(task.progress);
-        const isActive = task.status === 'running' || task.status === 'pending';
-        const statusLabel = {
-          'pending': 'Pendente',
-          'running': 'Em andamento',
-          'completed': 'Concluído',
-          'failed': 'Falhou'
-        }[task.status] || task.status;
+        const progressPct = Math.round(task.progress ?? 0);
+        const isActive    = task.status === 'running' || task.status === 'pending';
 
         return `
         <tr>
           <td><span style="font-family: monospace; font-size: 12px;">${task.task_id}</span></td>
-          <td><span class="status-badge status-${task.status}">${statusLabel}</span></td>
+          <td><span class="status-badge status-${task.status || 'unknown'}">${statusLabel(task.status)}</span></td>
           <td>
             <div style="display: flex; align-items: center; gap: 8px;">
               <div class="progress-bar-container" style="width: 120px; height: 8px;">
@@ -175,7 +324,7 @@
             </div>
           </td>
           <td style="font-size: 13px;">${task.message || '-'}</td>
-          <td style="font-size: 13px;">${new Date(task.created_at).toLocaleString('pt-BR')}</td>
+          <td style="font-size: 13px;">${formatDate(task.created_at)}</td>
           <td>
             <button class="icon-btn" title="Ver Detalhes" onclick="viewTask('${task.task_id}')">
               <i class="fas fa-eye"></i>
@@ -184,7 +333,6 @@
         </tr>`;
       }).join('');
 
-      // Auto-poll while there are active tasks
       if (hasActiveTasks) {
         startPolling();
       } else {
@@ -193,7 +341,8 @@
 
     } catch (error) {
       console.error('Error loading tasks:', error);
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-error">Erro ao carregar tarefas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center hist-error">Erro ao carregar tarefas. Verifique se a API está disponível.</td></tr>';
+      stopPolling();
     }
   }
 
@@ -210,14 +359,123 @@
     }
   }
 
-  function viewTask(taskId) {
-    alert('Detalhes da tarefa: ' + taskId);
+  // ── Task detail modal ─────────────────────────────────────────────
+  async function viewTask(taskId) {
+    const modal = document.getElementById('task-detail-modal');
+    const body  = document.getElementById('task-detail-body');
+
+    // Show spinner
+    body.innerHTML = `
+      <div class="text-center hist-secondary" style="padding: 40px 0;">
+        <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px; display: block;"></i>
+        Carregando detalhes...
+      </div>`;
+    modal.style.display = 'flex';
+
+    // Row data from cache (has progress, timestamps, message)
+    const row = tasksCache[taskId] || {};
+
+    try {
+      // Fetch detailed result (UnifiedResult) from API
+      const resp = await fetch(`/api/tasks/${taskId}`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const detail = await resp.json();
+
+      // Fields from list row
+      const progressPct = Math.round(row.progress ?? (detail.status === 'completed' ? 100 : 0));
+      const isActive    = row.status === 'running' || row.status === 'pending';
+
+      // Fields from UnifiedResult
+      const doctorName  = detail.doctor?.name || '-';
+      const specialty   = detail.doctor?.specialty || '-';
+      const reviewCount = detail.metrics?.scraped_count ?? detail.reviews?.length ?? '-';
+      const durationMs  = detail.metrics?.duration_ms;
+      const durationStr = durationMs != null ? `${(durationMs / 1000).toFixed(1)}s` : '-';
+
+      body.innerHTML = `
+        <p class="detail-section-title">Tarefa</p>
+        <div class="detail-grid">
+          <div class="detail-item full-width">
+            <div class="detail-item-label">ID</div>
+            <div class="detail-item-value" style="font-family: monospace;">${taskId}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Status</div>
+            <div class="detail-item-value">
+              <span class="status-badge status-${row.status || detail.status || 'unknown'}">
+                ${statusLabel(row.status || detail.status)}
+              </span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Progresso</div>
+            <div class="detail-item-value">
+              ${progressPct}%
+              <div class="detail-mini-progress">
+                <div class="progress-bar${isActive ? ' progress-bar-animated' : ''}" style="width:${progressPct}%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Criado em</div>
+            <div class="detail-item-value">${formatDate(row.created_at)}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Finalizado em</div>
+            <div class="detail-item-value">${formatDate(row.ended_at)}</div>
+          </div>
+          ${row.message ? `
+          <div class="detail-item full-width">
+            <div class="detail-item-label">Mensagem</div>
+            <div class="detail-item-value">${row.message}</div>
+          </div>` : ''}
+        </div>
+
+        <p class="detail-section-title">Resultado</p>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <div class="detail-item-label">Médico</div>
+            <div class="detail-item-value">${doctorName}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Especialidade</div>
+            <div class="detail-item-value">${specialty}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Avaliações</div>
+            <div class="detail-item-value">${reviewCount}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-item-label">Duração</div>
+            <div class="detail-item-value">${durationStr}</div>
+          </div>
+        </div>
+      `;
+    } catch (error) {
+      console.error('Error fetching task details:', error);
+      body.innerHTML = `
+        <div class="text-center hist-error" style="padding: 40px 0;">
+          <i class="fas fa-exclamation-circle" style="font-size: 32px; margin-bottom: 12px; display: block;"></i>
+          Erro ao carregar detalhes.<br>
+          <small class="hist-secondary">ID: ${taskId}</small>
+        </div>`;
+    }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    loadTasks();
-    // Start polling initially, will auto-stop if no active tasks
-    startPolling();
-  });
+  function handleModalClick(event) {
+    // Close only when clicking the backdrop itself (not the container)
+    if (event.target === document.getElementById('task-detail-modal')) {
+      closeTaskModal();
+    }
+  }
+
+  function closeTaskModal() {
+    document.getElementById('task-detail-modal').style.display = 'none';
+  }
+
+  // Clean up on page unload
+  window.addEventListener('beforeunload', stopPolling);
+
+  document.addEventListener('DOMContentLoaded', loadTasks);
 </script>
 {% endblock %}

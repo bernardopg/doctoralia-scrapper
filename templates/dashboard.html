@@ -53,7 +53,7 @@
     <div class="stat-header">
       <span class="stat-label">Rating Médio</span>
       <div class="stat-icon orange">
-        <i class="fas fa-clock"></i>
+        <i class="fas fa-star"></i>
       </div>
     </div>
     <div class="stat-value" id="stat-avg-time">-</div>
@@ -141,8 +141,8 @@
 
 {% block scripts %}
 <script>
-  let performanceChart = null;
-  let trendsChart = null;
+  var performanceChart = null;
+  var trendsChart = null;
 
   // Load stats
   async function loadStats() {
@@ -515,26 +515,29 @@
         return;
       }
 
-      container.innerHTML = activities.map(activity => `
-          <div class="activity-item" style="padding: 12px 0; border-bottom: 1px solid var(--border-color, #3a3a3c);">
+      container.innerHTML = activities.map(activity => {
+        const ratingStr = activity.average_rating > 0
+          ? `${Number(activity.average_rating).toFixed(1)} ★`
+          : '-';
+        const dateStr = activity.scraped_at
+          ? new Date(activity.scraped_at).toLocaleDateString('pt-BR')
+          : '-';
+        return `
+          <div class="activity-item" style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <div style="font-weight: 500;">${activity.doctor_name}</div>
-                <div style="font-size: 12px; color: var(--text-secondary);">
-                  ${activity.reviews_count} reviews • ${activity.platform}
+                <div style="font-weight: 500;">${activity.doctor_name || 'Desconhecido'}</div>
+                <div style="font-size: 12px;" class="text-secondary">
+                  ${activity.reviews_count || 0} reviews • ${activity.platform || 'doctoralia'}
                 </div>
               </div>
               <div style="text-align: right;">
-                <div style="font-weight: 600; color: var(--apple-green, #34c759);">
-                  ${activity.average_rating.toFixed(1)} ★
-                </div>
-                <div style="font-size: 11px; color: var(--text-secondary);">
-                  ${new Date(activity.scraped_at).toLocaleDateString()}
-                </div>
+                <div style="font-weight: 600; color: var(--apple-green);">${ratingStr}</div>
+                <div style="font-size: 11px;" class="text-secondary">${dateStr}</div>
               </div>
             </div>
-          </div>
-        `).join('');
+          </div>`;
+      }).join('');
 
     } catch (error) {
       console.error('Error loading activities:', error);
@@ -548,15 +551,17 @@
 
   // Analyze quality
   async function analyzeQuality() {
-    const text = document.getElementById('response-text').value;
+    const text = document.getElementById('response-text').value.trim();
+    const resultDiv = document.getElementById('quality-result');
+
     if (!text) {
-      alert('Por favor, insira o texto da resposta.');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<div style="color: var(--apple-red); font-size: 13px; padding: 8px 0;"><i class="fas fa-exclamation-circle"></i> Por favor, insira o texto da resposta para análise.</div>';
       return;
     }
 
-    const resultDiv = document.getElementById('quality-result');
     resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Analisando...</div>';
+    resultDiv.innerHTML = '<div class="text-center text-secondary" style="padding: 16px 0;"><i class="fas fa-spinner fa-spin"></i> Analisando...</div>';
 
     try {
       const response = await fetch('/api/quality-analysis', {

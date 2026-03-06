@@ -318,7 +318,7 @@ class TelegramNotifier:
                     f.write("\n" + "═" * 60 + "\n")
 
             self.logger.info(f"📁 Arquivo de anexo criado: {file_path.name}")
-            return file_path
+            return Path(file_path)
         except Exception as e:
             self.logger.error(f"❌ Falha ao criar arquivo de anexo: {e}")
             return None

@@ -38,14 +38,15 @@ class DashboardApp:
         self.logger = logger or (setup_logger("dashboard", config) if config else None)
 
         # Configure API connection
-        api_host = "0.0.0.0"
-        api_port = 8080
+        api_port = 8000
         if self.config and hasattr(self.config, "api"):
-            api_host = getattr(self.config.api, "host", api_host)
             api_port = getattr(self.config.api, "port", api_port)
 
-        # Use localhost for API calls from dashboard
-        self.api_base_url = f"http://localhost:{api_port}"
+        # Use localhost for API calls from dashboard (or API_URL from env if in Docker)
+        self.api_base_url = os.getenv("API_URL", f"http://localhost:{api_port}")
+        self.api_port = api_port
+        api_public_url = os.getenv("API_PUBLIC_URL", "").strip().rstrip("/")
+        self.api_docs_url = f"{api_public_url}/docs" if api_public_url else ""
         self.api_timeout = 5  # seconds
 
         self.app = Flask(
@@ -81,13 +82,21 @@ class DashboardApp:
         """
         try:
             url = f"{self.api_base_url}{endpoint}"
-            response = requests.request(method, url, timeout=self.api_timeout, **kwargs)
-            if response.status_code == 200:
-                return response.json()
+            headers = kwargs.pop("headers", {})
+            api_key = os.getenv("API_KEY")
+            if api_key:
+                headers["X-API-Key"] = api_key
+
+            response = requests.request(
+                method, url, headers=headers, timeout=self.api_timeout, **kwargs
+            )
+            if response.status_code in (200, 202):
+                result: Dict[Any, Any] = response.json()
+                return result
             else:
                 if self.logger:
                     self.logger.warning(
-                        f"API call failed: {method} {endpoint} -> {response.status_code}"
+                        f"API call failed: {method} {endpoint} -> {response.status_code} - {response.text}"
                     )
                 return None
         except requests.exceptions.ConnectionError:
@@ -136,6 +145,13 @@ class DashboardApp:
 
     def _setup_main_routes(self) -> None:
         """Setup main application routes."""
+
+        @self.app.context_processor
+        def inject_template_config():
+            return {
+                "api_port": self.api_port,
+                "api_docs_url": self.api_docs_url,
+            }
 
         @self.app.route("/")
         def index():
@@ -250,7 +266,7 @@ class DashboardApp:
         def get_platforms():
             """Get supported platforms."""
             try:
-                if ScraperFactory:
+                if hasattr(ScraperFactory, "get_supported_platforms"):
                     platforms = ScraperFactory.get_supported_platforms()
                     return jsonify({"platforms": platforms})
                 return jsonify({"platforms": ["doctoralia"]})
@@ -272,9 +288,36 @@ class DashboardApp:
         def proxy_scrape():
             """Proxy scraping request to main API."""
             try:
-                data = request.get_json()
-                result = self._call_api("/v1/scrape:run", method="POST", json=data)
-                if result:
+                data = request.get_json(force=True, silent=True)
+                if not data:
+                    return (
+                        jsonify({"error": "Corpo da requisição inválido ou vazio"}),
+                        400,
+                    )
+
+                # Backward compatibility: accept legacy "url" field.
+                doctor_url = data.get("doctor_url") or data.get("url")
+                if not doctor_url:
+                    return (
+                        jsonify(
+                            {"error": "Campo 'doctor_url' (ou 'url') é obrigatório"}
+                        ),
+                        400,
+                    )
+
+                payload = {
+                    "doctor_url": doctor_url,
+                    "include_analysis": data.get("include_analysis", True),
+                    "include_generation": data.get("include_generation", False),
+                    "response_template_id": data.get("response_template_id"),
+                    "language": data.get("language", "pt"),
+                    "meta": data.get("meta"),
+                    "mode": "async",
+                    "callback_url": data.get("callback_url"),
+                    "idempotency_key": data.get("idempotency_key"),
+                }
+                result = self._call_api("/v1/jobs", method="POST", json=payload)
+                if result is not None:
                     return jsonify(result)
                 return (
                     jsonify(
@@ -292,7 +335,7 @@ class DashboardApp:
             """Proxy task status request to main API."""
             try:
                 result = self._call_api(f"/v1/jobs/{task_id}")
-                if result:
+                if result is not None:
                     return jsonify(result)
                 return (
                     jsonify({"error": "API não disponível ou task não encontrada"}),
@@ -353,6 +396,24 @@ class DashboardApp:
                 return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/ready")
+        def proxy_ready():
+            """Proxy readiness check to main API (accepts 200 and 503)."""
+            try:
+                url = f"{self.api_base_url}/v1/ready"
+                headers = {}
+                api_key = os.getenv("API_KEY")
+                if api_key:
+                    headers["X-API-Key"] = api_key
+                resp = requests.get(url, headers=headers, timeout=self.api_timeout)
+                if resp.status_code in (200, 503):
+                    return jsonify(resp.json()), resp.status_code
+                return jsonify({"error": "API não disponível"}), 503
+            except requests.exceptions.ConnectionError:
+                return jsonify({"error": "API não está acessível"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 503
 
         @self.app.route("/api/reports/files")
         def get_report_files():
@@ -702,7 +763,9 @@ class DashboardApp:
             "unique_doctors": len(doctors),
         }
 
-    def run(self, host: str = "0.0.0.0", port: int = 5000, debug: bool = False) -> None:
+    def run(
+        self, host: str = "127.0.0.1", port: int = 5000, debug: bool = False
+    ) -> None:
         """Run the Flask dashboard server."""
         if self.logger:
             self.logger.info(f"Starting dashboard server on http://{host}:{port}")
@@ -710,7 +773,7 @@ class DashboardApp:
 
 
 def start_dashboard(
-    host: str = "0.0.0.0", port: int = 5000, debug: bool = False
+    host: str = "127.0.0.1", port: int = 5000, debug: bool = False
 ):  # pragma: no cover - thin wrapper
     """Convenience wrapper so the CLI can start the dashboard with a single import."""
     config = None
@@ -726,4 +789,4 @@ def start_dashboard(
 
 if __name__ == "__main__":
     dashboard = DashboardApp()
-    dashboard.run(debug=True)
+    dashboard.run(debug=False)

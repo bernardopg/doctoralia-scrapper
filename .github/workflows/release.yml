@@ -114,12 +114,22 @@ jobs:
       - name: Build package
         run: poetry build
 
+      - name: Check PyPI token
+        id: check_pypi
+        run: |
+          if [ -n "$PYPI_TOKEN" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
       - name: Publish to PyPI
-        if: ${{ !contains(needs.create-release.outputs.version, '-') }}
+        if: ${{ !contains(needs.create-release.outputs.version, '-') && steps.check_pypi.outputs.has_token == 'true' }}
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         run: poetry publish --skip-existing
-        continue-on-error: true
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2

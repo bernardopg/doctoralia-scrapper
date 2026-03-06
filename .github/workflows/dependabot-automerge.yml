@@ -1,0 +1,62 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-automerge:
+    name: Enable auto-merge on Dependabot PRs
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            if (pr.base.ref !== "main") {
+              core.info(`Skipping PR #${pr.number}: base branch is ${pr.base.ref}.`);
+              return;
+            }
+
+            if (pr.mergeable_state === "behind") {
+              try {
+                await github.rest.pulls.updateBranch({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  expected_head_sha: pr.head.sha,
+                });
+                core.info(`Updated branch for PR #${pr.number}.`);
+              } catch (error) {
+                core.warning(`Could not update branch for PR #${pr.number}: ${error.message}`);
+              }
+            }
+
+            try {
+              await github.graphql(
+                `mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(
+                    input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }
+                  ) {
+                    clientMutationId
+                  }
+                }`,
+                { pullRequestId: pr.node_id }
+              );
+              core.info(`Auto-merge enabled for PR #${pr.number}.`);
+            } catch (error) {
+              if ((error.message || "").includes("already enabled")) {
+                core.info(`Auto-merge is already enabled for PR #${pr.number}.`);
+                return;
+              }
+              throw error;
+            }

@@ -35,8 +35,8 @@ class PerformanceMonitor:
     def __init__(self, logger: Optional[logging.Logger] = None) -> None:
         self.logger = logger or logging.getLogger(__name__)
         self.metrics: List[PerformanceMetrics] = []
-        self.operation_counts = defaultdict(int)
-        self.error_counts = defaultdict(int)
+        self.operation_counts: Dict[str, int] = defaultdict(int)
+        self.error_counts: Dict[str, int] = defaultdict(int)
 
     @contextmanager
     def track_operation(self, operation_name: str):
