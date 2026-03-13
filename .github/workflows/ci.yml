@@ -65,6 +65,30 @@ jobs:
       - name: Run MyPy
         run: poetry run mypy src/ --ignore-missing-imports
 
+  requirements_sync:
+    name: Requirements Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+
+      - name: Install Poetry export plugin
+        run: poetry self add poetry-plugin-export==1.10.0
+
+      - name: Verify exported requirements are up to date
+        run: make deps-check
+
   security:
     name: Security Checks
     runs-on: ubuntu-latest
@@ -240,12 +264,13 @@ jobs:
   all-checks-passed:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [lint, security, test, build]
+    needs: [lint, requirements_sync, security, test, build]
     if: always()
     steps:
       - name: Check if all jobs succeeded
         run: |
           if [[ "${{ needs.lint.result }}" != "success" ]] || \
+             [[ "${{ needs.requirements_sync.result }}" != "success" ]] || \
              [[ "${{ needs.security.result }}" != "success" ]] || \
              [[ "${{ needs.test.result }}" != "success" ]] || \
              [[ "${{ needs.build.result }}" != "success" ]]; then
