@@ -1,7 +1,7 @@
 # Makefile para Doctoralia Scrapper
 # ===================================
 
-.PHONY: help install setup test lint run daemon monitor clean venv format security deps-sync analyze run-full-url
+.PHONY: help install setup test lint run daemon monitor clean venv format security deps-sync deps-check analyze run-full-url
 
 # Variáveis
 # Detecta se .venv existe e usa o Python do venv, caso contrário usa python3 do sistema
@@ -50,7 +50,11 @@ venv: ## Cria ambiente virtual local (.venv) usando Poetry e instala deps
 		$(PIP) install poetry && poetry config virtualenvs.in-project true && poetry install --no-root; \
 	fi
 	@echo "$(BLUE)Exportando requirements atualizados (production)...$(NC)"
-	@poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main 2>/dev/null || true
+	@if poetry help export >/dev/null 2>&1; then \
+		poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main; \
+	else \
+		echo "$(YELLOW)poetry export não está disponível. Instale o plugin poetry-plugin-export para atualizar requirements.txt.$(NC)"; \
+	fi
 	@echo "$(GREEN)Ambiente virtual pronto!$(NC)"
 	@if [ ! -f .env ]; then \
 		echo "$(YELLOW)Criando arquivo .env...$(NC)"; \
@@ -193,10 +197,37 @@ api-docs: ## Abre documentação da API no navegador
 deps-sync: ## Sincroniza requirements.txt a partir do pyproject.toml (Poetry necessário)
 	@echo "$(BLUE)Exportando dependências do Poetry...$(NC)"
 	@if command -v poetry >/dev/null 2>&1; then \
-		poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main; \
-		echo "$(GREEN)requirements.txt atualizado a partir do pyproject.toml$(NC)"; \
+		if poetry help export >/dev/null 2>&1; then \
+			poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main; \
+			echo "$(GREEN)requirements.txt atualizado a partir do pyproject.toml$(NC)"; \
+		else \
+			echo "$(RED)poetry export não está disponível. Instale o plugin poetry-plugin-export.$(NC)"; \
+			exit 1; \
+		fi; \
 	else \
 		echo "$(YELLOW)Poetry não encontrado. Instale para usar deps-sync.$(NC)"; \
+		exit 1; \
+	fi
+
+deps-check: ## Verifica se requirements.txt está sincronizado com pyproject.toml/poetry.lock
+	@echo "$(BLUE)Verificando sincronização de requirements.txt...$(NC)"
+	@if ! command -v poetry >/dev/null 2>&1; then \
+		echo "$(RED)Poetry não encontrado. Instale para usar deps-check.$(NC)"; \
+		exit 1; \
+	fi
+	@if poetry help export >/dev/null 2>&1; then \
+		tmp_file=$$(mktemp); \
+		poetry export --without-hashes --format=requirements.txt --output $$tmp_file --only main; \
+		if diff -u requirements.txt $$tmp_file; then \
+			echo "$(GREEN)requirements.txt está sincronizado.$(NC)"; \
+		else \
+			rm -f $$tmp_file; \
+			exit 1; \
+		fi; \
+		rm -f $$tmp_file; \
+	else \
+		echo "$(RED)poetry export não está disponível. Instale o plugin poetry-plugin-export.$(NC)"; \
+		exit 1; \
 	fi
 
 # ===================================
