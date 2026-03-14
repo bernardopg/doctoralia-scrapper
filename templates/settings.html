@@ -12,35 +12,183 @@
 {% endblock %}
 
 {% block content %}
-<!-- Alert Container -->
 <div id="alert-container"></div>
 
-<!-- Telegram Settings Section -->
+<div class="alert alert-info mb-3">
+  <i class="fas fa-sliders-h"></i>
+  <div>
+    Esta tela agora concentra segredos, integrações, scraping, privacidade e URLs operacionais.
+    Algumas mudanças entram em vigor imediatamente; outras exigem reinício dos serviços.
+  </div>
+</div>
+
 <div class="card mb-3">
   <div class="card-header">
     <h3 class="card-title">
-      <i class="fab fa-telegram"></i>
-      Configurações do Telegram
+      <i class="fas fa-clipboard-check"></i>
+      Resumo da Configuração
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Telegram</label>
+        <div id="summary-telegram" class="text-secondary">Carregando...</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Interna</label>
+        <div id="summary-api-security" class="text-secondary">Carregando...</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Webhooks</label>
+        <div id="summary-webhook" class="text-secondary">Carregando...</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Infra</label>
+        <div id="summary-infra" class="text-secondary">Carregando...</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Privacidade</label>
+        <div id="summary-privacy" class="text-secondary">Carregando...</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Perfil Padrão</label>
+        <div id="summary-profile" class="text-secondary">Carregando...</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Geração</label>
+        <div id="summary-generation" class="text-secondary">Carregando...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-shield-alt"></i>
+      Segurança e Segredos
     </h3>
   </div>
   <div class="card-body">
     <div class="form-grid">
-      <div class="form-group">
-        <label class="form-label">
-          Token do Bot
-          <i class="fas fa-info-circle help-icon" title="Token de autenticação do bot do Telegram"></i>
-        </label>
-        <input type="password" id="telegram-token" class="form-control" placeholder="••••••••••••">
-        <small class="form-help">Token fornecido pelo @BotFather</small>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">API Key Interna</label>
+          <input type="password" id="security-api-key" class="form-control" placeholder="doctoralia_secret_key_123">
+          <small class="form-help">Protege os endpoints da API e é usada pelo dashboard para falar com o backend.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Webhook Signing Secret</label>
+          <input type="password" id="security-webhook-signing-secret" class="form-control" placeholder="doctoralia_webhook_secret_123">
+          <small class="form-help">Valida webhooks de entrada e assina callbacks de saída com HMAC.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-wand-magic-sparkles"></i>
+      Geração Automática de Respostas
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Modo Padrão</label>
+          <select id="generation-mode" class="form-control">
+            <option value="local">Local</option>
+            <option value="openai">OpenAI</option>
+            <option value="gemini">Gemini</option>
+            <option value="claude">Claude</option>
+          </select>
+          <small class="form-help">Define o provedor padrão para a fila de respostas e para o scraping quando a geração estiver ativa.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Temperatura</label>
+          <input type="number" id="generation-temperature" class="form-control" min="0" max="1.5" step="0.05" value="0.35">
+          <small class="form-help">Quanto maior, mais criativas e menos previsíveis ficam as respostas.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Tokens</label>
+          <input type="number" id="generation-max-tokens" class="form-control" min="50" max="2000" step="10" value="300">
+          <small class="form-help">Limite máximo de saída para provedores externos.</small>
+        </div>
       </div>
 
       <div class="form-group">
-        <label class="form-label">
-          Chat ID
-          <i class="fas fa-info-circle help-icon" title="ID do chat para enviar notificações"></i>
+        <label class="form-label">Prompt de Sistema</label>
+        <textarea id="generation-system-prompt" class="form-control" rows="4" placeholder="Opcional: sobrescreva o prompt base do gerador..."></textarea>
+        <small class="form-help">Se vazio, o sistema usa um prompt seguro padrão para respostas públicas do Doctoralia.</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">OpenAI API Key</label>
+          <input type="password" id="generation-openai-api-key" class="form-control" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">OpenAI Model</label>
+          <input type="text" id="generation-openai-model" class="form-control" placeholder="gpt-4.1-mini">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Gemini API Key</label>
+          <input type="password" id="generation-gemini-api-key" class="form-control" placeholder="AIza...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gemini Model</label>
+          <input type="text" id="generation-gemini-model" class="form-control" placeholder="gemini-2.5-flash">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Claude API Key</label>
+          <input type="password" id="generation-claude-api-key" class="form-control" placeholder="sk-ant-...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Claude Model</label>
+          <input type="text" id="generation-claude-model" class="form-control" placeholder="claude-3-5-sonnet-latest">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fab fa-telegram"></i>
+      Telegram
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="telegram-enabled">
+        <label for="telegram-enabled" class="checkbox-label">
+          Habilitar notificações via Telegram
         </label>
-        <input type="text" id="telegram-chat-id" class="form-control" placeholder="123456789">
-        <small class="form-help">ID do usuário ou grupo que receberá mensagens</small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Token do Bot</label>
+          <input type="password" id="telegram-token" class="form-control" placeholder="••••••••••••">
+          <small class="form-help">Token fornecido pelo @BotFather.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chat ID</label>
+          <input type="text" id="telegram-chat-id" class="form-control" placeholder="123456789 ou @canal">
+          <small class="form-help">Pode ser um ID numérico, grupo negativo ou @username.</small>
+        </div>
       </div>
 
       <div class="form-row">
@@ -48,16 +196,15 @@
           <label class="form-label">Modo de Parse</label>
           <select id="telegram-parse-mode" class="form-control">
             <option value="">Nenhum</option>
-            <option value="Markdown" selected>Markdown</option>
+            <option value="Markdown">Markdown</option>
             <option value="MarkdownV2">MarkdownV2</option>
             <option value="HTML">HTML</option>
           </select>
         </div>
-
         <div class="form-group">
           <label class="form-label">Formato do Anexo</label>
           <select id="telegram-attachment-format" class="form-control">
-            <option value="txt" selected>TXT</option>
+            <option value="txt">TXT</option>
             <option value="json">JSON</option>
             <option value="csv">CSV</option>
           </select>
@@ -65,7 +212,7 @@
       </div>
 
       <div class="checkbox-wrapper">
-        <input type="checkbox" id="telegram-attach-auto" checked>
+        <input type="checkbox" id="telegram-attach-auto">
         <label for="telegram-attach-auto" class="checkbox-label">
           Anexar respostas automaticamente às notificações
         </label>
@@ -74,12 +221,49 @@
   </div>
 </div>
 
-<!-- Scraping Settings Section -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-plug"></i>
+      Integrações e Infra
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Redis URL</label>
+          <input type="text" id="integrations-redis-url" class="form-control" placeholder="redis://localhost:6379/0">
+          <small class="form-help">Fila RQ, jobs assíncronos e health checks dependem desta URL.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Selenium Remote URL</label>
+          <input type="text" id="integrations-selenium-remote-url" class="form-control" placeholder="http://localhost:4444/wd/hub">
+          <small class="form-help">Endpoint do Selenium remoto usado pelo scraper.</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">API URL Interna</label>
+          <input type="text" id="integrations-api-url" class="form-control" placeholder="http://api:8000">
+          <small class="form-help">Base URL que o dashboard usa para falar com a API dentro do ambiente atual.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">API URL Pública</label>
+          <input type="text" id="integrations-api-public-url" class="form-control" placeholder="https://meu-dominio/api">
+          <small class="form-help">Usada para links públicos, como a documentação aberta pelo dashboard.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card mb-3">
   <div class="card-header">
     <h3 class="card-title">
       <i class="fas fa-robot"></i>
-      Configurações de Scraping
+      Scraping
     </h3>
   </div>
   <div class="card-body">
@@ -88,13 +272,12 @@
         <div class="form-group">
           <label class="form-label">Delay Mínimo (segundos)</label>
           <input type="number" id="scraping-delay-min" class="form-control" min="0.1" max="10" step="0.1" value="2.0">
-          <small class="form-help">Atraso mínimo entre ações</small>
+          <small class="form-help">Atraso mínimo entre ações do scraper.</small>
         </div>
-
         <div class="form-group">
           <label class="form-label">Delay Máximo (segundos)</label>
           <input type="number" id="scraping-delay-max" class="form-control" min="0.1" max="10" step="0.1" value="4.0">
-          <small class="form-help">Atraso máximo entre ações</small>
+          <small class="form-help">Atraso máximo entre ações do scraper.</small>
         </div>
       </div>
 
@@ -102,52 +285,157 @@
         <div class="form-group">
           <label class="form-label">Timeout (segundos)</label>
           <input type="number" id="scraping-timeout" class="form-control" min="10" max="300" value="60">
-          <small class="form-help">Tempo máximo de espera por operação</small>
+          <small class="form-help">Tempo máximo de espera por operação.</small>
         </div>
-
         <div class="form-group">
           <label class="form-label">Máximo de Tentativas</label>
           <input type="number" id="scraping-max-retries" class="form-control" min="1" max="10" value="5">
-          <small class="form-help">Número máximo de tentativas em caso de falha</small>
+          <small class="form-help">Repetições em caso de erro transitório.</small>
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Page Load Timeout (segundos)</label>
+          <label class="form-label">Page Load Timeout</label>
           <input type="number" id="scraping-page-load-timeout" class="form-control" min="10" max="120" value="45">
-          <small class="form-help">Tempo máximo para carregar página</small>
+          <small class="form-help">Tempo máximo para carregar a página no navegador.</small>
         </div>
-
         <div class="form-group">
-          <label class="form-label">Implicit Wait (segundos)</label>
+          <label class="form-label">Implicit Wait</label>
           <input type="number" id="scraping-implicit-wait" class="form-control" min="5" max="60" value="20">
-          <small class="form-help">Espera implícita do WebDriver</small>
+          <small class="form-help">Espera implícita do WebDriver.</small>
         </div>
-
         <div class="form-group">
-          <label class="form-label">Explicit Wait (segundos)</label>
+          <label class="form-label">Explicit Wait</label>
           <input type="number" id="scraping-explicit-wait" class="form-control" min="5" max="120" value="30">
-          <small class="form-help">Espera explícita por elementos</small>
+          <small class="form-help">Espera explícita por elementos e estados.</small>
         </div>
       </div>
 
       <div class="checkbox-wrapper">
-        <input type="checkbox" id="scraping-headless" checked>
+        <input type="checkbox" id="scraping-headless">
         <label for="scraping-headless" class="checkbox-label">
-          Executar navegador em modo headless (sem interface gráfica)
+          Executar navegador em modo headless
         </label>
       </div>
     </div>
   </div>
 </div>
 
-<!-- API Settings Section -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-stopwatch"></i>
+      Delays e Recuperação
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Human Like Min</label>
+          <input type="number" id="delays-human-like-min" class="form-control" min="0" max="30" step="0.1" value="1.0">
+          <small class="form-help">Delay mínimo extra para simular navegação humana.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Human Like Max</label>
+          <input type="number" id="delays-human-like-max" class="form-control" min="0" max="60" step="0.1" value="3.0">
+          <small class="form-help">Delay máximo extra para simular navegação humana.</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Retry Base</label>
+          <input type="number" id="delays-retry-base" class="form-control" min="0" max="120" step="0.1" value="2.0">
+          <small class="form-help">Base usada para backoff de tentativas.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Error Recovery</label>
+          <input type="number" id="delays-error-recovery" class="form-control" min="0" max="300" step="0.1" value="10.0">
+          <small class="form-help">Pausa após erros importantes antes de retomar.</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rate Limit Retry</label>
+          <input type="number" id="delays-rate-limit-retry" class="form-control" min="0" max="600" step="0.1" value="60.0">
+          <small class="form-help">Backoff quando a plataforma indicar rate limit.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Page Load Retry</label>
+          <input type="number" id="delays-page-load-retry" class="form-control" min="0" max="120" step="0.1" value="5.0">
+          <small class="form-help">Espera adicional antes de repetir um page load falho.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-user-shield"></i>
+      Privacidade e Callbacks
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="privacy-mask-pii">
+        <label for="privacy-mask-pii" class="checkbox-label">
+          Mascarar PII em payloads e dados sensíveis
+        </label>
+      </div>
+
+      <div class="checkbox-wrapper">
+        <input type="checkbox" id="privacy-require-tls-callbacks">
+        <label for="privacy-require-tls-callbacks" class="checkbox-label">
+          Exigir HTTPS para callback URLs
+        </label>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ID Salt</label>
+          <input type="password" id="privacy-id-salt" class="form-control" placeholder="default-salt">
+          <small class="form-help">Salt usado para anonimizar identificadores sensíveis.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Job Result TTL (segundos)</label>
+          <input type="number" id="privacy-job-result-ttl" class="form-control" min="60" max="604800" value="3600">
+          <small class="form-help">Tempo de retenção para resultados de jobs.</small>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Rate Limit Requests</label>
+          <input type="number" id="privacy-rate-limit-requests" class="form-control" min="1" max="1000" value="10">
+          <small class="form-help">Máximo de requisições por janela.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rate Limit Window (segundos)</label>
+          <input type="number" id="privacy-rate-limit-window" class="form-control" min="1" max="3600" value="60">
+          <small class="form-help">Janela da limitação de taxa.</small>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Allowed Callback Domains</label>
+        <textarea id="privacy-allowed-callback-domains" class="form-control" rows="3" placeholder="n8n.meudominio.com&#10;hooks.example.com"></textarea>
+        <small class="form-help">Um domínio por linha, sem protocolo. Se vazio, qualquer domínio é aceito quando o TLS permitir.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="card mb-3">
   <div class="card-header">
     <h3 class="card-title">
       <i class="fas fa-server"></i>
-      Configurações da API
+      API Runtime
     </h3>
   </div>
   <div class="card-body">
@@ -156,33 +444,55 @@
         <div class="form-group">
           <label class="form-label">Host</label>
           <input type="text" id="api-host" class="form-control" value="0.0.0.0" placeholder="0.0.0.0">
-          <small class="form-help">Endereço de bind da API</small>
+          <small class="form-help">Endereço de bind da API.</small>
         </div>
-
         <div class="form-group">
           <label class="form-label">Porta</label>
           <input type="number" id="api-port" class="form-control" min="1024" max="65535" value="8000">
-          <small class="form-help">Porta para o servidor da API</small>
+          <small class="form-help">Porta do servidor FastAPI.</small>
         </div>
-
         <div class="form-group">
           <label class="form-label">Workers</label>
           <input type="number" id="api-workers" class="form-control" min="1" max="8" value="1">
-          <small class="form-help">Número de workers do Uvicorn</small>
+          <small class="form-help">Número de workers do Uvicorn.</small>
         </div>
       </div>
 
       <div class="checkbox-wrapper">
         <input type="checkbox" id="api-debug">
         <label for="api-debug" class="checkbox-label">
-          Modo de debug (não recomendado para produção)
+          Modo de debug
         </label>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Action Buttons -->
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-link"></i>
+      URLs Operacionais
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Doctoralia Base URL</label>
+          <input type="text" id="urls-base-url" class="form-control" placeholder="https://www.doctoralia.com.br">
+          <small class="form-help">Base usada por scripts e integrações auxiliares.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Profile URL Padrão</label>
+          <input type="text" id="urls-profile-url" class="form-control" placeholder="https://www.doctoralia.com.br/medico/...">
+          <small class="form-help">Útil para automações e scripts diários que operam sobre um perfil fixo.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="flex gap-2">
   <button class="btn btn-primary btn-lg" id="save-btn" onclick="saveSettings()">
     <i class="fas fa-save"></i>
@@ -204,7 +514,6 @@
   const API_BASE_URL = '/api';
   let currentSettings = null;
 
-  // Show alert message
   function showAlert(message, type = 'info') {
     const container = document.getElementById('alert-container');
     const alertClass = `alert-${type}`;
@@ -216,73 +525,196 @@
     };
 
     container.innerHTML = `
-        <div class="alert ${alertClass}">
-          <i class="fas fa-${iconMap[type]}"></i>
-          <div>${message}</div>
-        </div>
-      `;
+      <div class="alert ${alertClass}">
+        <i class="fas fa-${iconMap[type]}"></i>
+        <div>${message}</div>
+      </div>
+    `;
 
     setTimeout(() => {
       container.innerHTML = '';
     }, 5000);
   }
 
-  // Get form data
+  function parseInteger(id, fallback) {
+    const value = parseInt(document.getElementById(id).value, 10);
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  function parseFloatValue(id, fallback) {
+    const value = parseFloat(document.getElementById(id).value);
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  function parseDomainList(value) {
+    return value
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function formatDomainList(domains) {
+    if (!Array.isArray(domains)) {
+      return '';
+    }
+    return domains.join('\n');
+  }
+
+  function updateSummary(settings) {
+    const telegramReady = settings.telegram.enabled && settings.telegram.token && settings.telegram.chat_id;
+    const apiProtected = Boolean(settings.security.api_key);
+    const webhookProtected = Boolean(settings.security.webhook_signing_secret);
+    const infraReady = Boolean(settings.integrations.redis_url && settings.integrations.selenium_remote_url);
+    const privacyState = settings.privacy.mask_pii ? 'Mascarando PII' : 'PII exposto';
+    const profileState = settings.urls.profile_url ? 'Perfil definido' : 'Sem perfil padrão';
+    const generationState = settings.generation.mode === 'local'
+      ? 'Local por templates'
+      : `${settings.generation.mode} configurado`;
+
+    document.getElementById('summary-telegram').textContent = telegramReady ? 'Ativo e configurado' : 'Inativo ou incompleto';
+    document.getElementById('summary-api-security').textContent = apiProtected ? 'Protegida por API key' : 'Sem API key configurada';
+    document.getElementById('summary-webhook').textContent = webhookProtected ? 'Assinatura HMAC ativa' : 'Sem assinatura configurada';
+    document.getElementById('summary-infra').textContent = infraReady ? 'Redis e Selenium definidos' : 'Infra incompleta';
+    document.getElementById('summary-privacy').textContent = privacyState;
+    document.getElementById('summary-profile').textContent = profileState;
+    document.getElementById('summary-generation').textContent = generationState;
+  }
+
   function getFormData() {
     return {
+      security: {
+        api_key: document.getElementById('security-api-key').value || null,
+        webhook_signing_secret: document.getElementById('security-webhook-signing-secret').value || null,
+        openai_api_key: document.getElementById('generation-openai-api-key').value || null
+      },
+      generation: {
+        mode: document.getElementById('generation-mode').value,
+        openai_api_key: document.getElementById('generation-openai-api-key').value || null,
+        openai_model: document.getElementById('generation-openai-model').value || 'gpt-4.1-mini',
+        gemini_api_key: document.getElementById('generation-gemini-api-key').value || null,
+        gemini_model: document.getElementById('generation-gemini-model').value || 'gemini-2.5-flash',
+        claude_api_key: document.getElementById('generation-claude-api-key').value || null,
+        claude_model: document.getElementById('generation-claude-model').value || 'claude-3-5-sonnet-latest',
+        temperature: parseFloatValue('generation-temperature', 0.35),
+        max_tokens: parseInteger('generation-max-tokens', 300),
+        system_prompt: document.getElementById('generation-system-prompt').value || null
+      },
       telegram: {
+        enabled: document.getElementById('telegram-enabled').checked,
         token: document.getElementById('telegram-token').value || null,
         chat_id: document.getElementById('telegram-chat-id').value || null,
         parse_mode: document.getElementById('telegram-parse-mode').value,
         attach_responses_auto: document.getElementById('telegram-attach-auto').checked,
         attachment_format: document.getElementById('telegram-attachment-format').value
       },
+      integrations: {
+        redis_url: document.getElementById('integrations-redis-url').value,
+        selenium_remote_url: document.getElementById('integrations-selenium-remote-url').value,
+        api_url: document.getElementById('integrations-api-url').value || null,
+        api_public_url: document.getElementById('integrations-api-public-url').value || null
+      },
       scraping: {
         headless: document.getElementById('scraping-headless').checked,
-        timeout: parseInt(document.getElementById('scraping-timeout').value),
-        delay_min: parseFloat(document.getElementById('scraping-delay-min').value),
-        delay_max: parseFloat(document.getElementById('scraping-delay-max').value),
-        max_retries: parseInt(document.getElementById('scraping-max-retries').value),
-        page_load_timeout: parseInt(document.getElementById('scraping-page-load-timeout').value),
-        implicit_wait: parseInt(document.getElementById('scraping-implicit-wait').value),
-        explicit_wait: parseInt(document.getElementById('scraping-explicit-wait').value)
+        timeout: parseInteger('scraping-timeout', 60),
+        delay_min: parseFloatValue('scraping-delay-min', 2.0),
+        delay_max: parseFloatValue('scraping-delay-max', 4.0),
+        max_retries: parseInteger('scraping-max-retries', 5),
+        page_load_timeout: parseInteger('scraping-page-load-timeout', 45),
+        implicit_wait: parseInteger('scraping-implicit-wait', 20),
+        explicit_wait: parseInteger('scraping-explicit-wait', 30)
+      },
+      delays: {
+        human_like_min: parseFloatValue('delays-human-like-min', 1.0),
+        human_like_max: parseFloatValue('delays-human-like-max', 3.0),
+        retry_base: parseFloatValue('delays-retry-base', 2.0),
+        error_recovery: parseFloatValue('delays-error-recovery', 10.0),
+        rate_limit_retry: parseFloatValue('delays-rate-limit-retry', 60.0),
+        page_load_retry: parseFloatValue('delays-page-load-retry', 5.0)
+      },
+      privacy: {
+        mask_pii: document.getElementById('privacy-mask-pii').checked,
+        id_salt: document.getElementById('privacy-id-salt').value || 'default-salt',
+        job_result_ttl: parseInteger('privacy-job-result-ttl', 3600),
+        rate_limit_requests: parseInteger('privacy-rate-limit-requests', 10),
+        rate_limit_window: parseInteger('privacy-rate-limit-window', 60),
+        require_tls_callbacks: document.getElementById('privacy-require-tls-callbacks').checked,
+        allowed_callback_domains: parseDomainList(document.getElementById('privacy-allowed-callback-domains').value)
       },
       api: {
         host: document.getElementById('api-host').value,
-        port: parseInt(document.getElementById('api-port').value),
+        port: parseInteger('api-port', 8000),
         debug: document.getElementById('api-debug').checked,
-        workers: parseInt(document.getElementById('api-workers').value)
+        workers: parseInteger('api-workers', 1)
+      },
+      urls: {
+        base_url: document.getElementById('urls-base-url').value || 'https://www.doctoralia.com.br',
+        profile_url: document.getElementById('urls-profile-url').value || null
       }
     };
   }
 
-  // Populate form with settings
   function populateForm(settings) {
-    // Telegram
-    if (settings.telegram.token) document.getElementById('telegram-token').value = settings.telegram.token;
-    if (settings.telegram.chat_id) document.getElementById('telegram-chat-id').value = settings.telegram.chat_id;
+    document.getElementById('security-api-key').value = settings.security.api_key || '';
+    document.getElementById('security-webhook-signing-secret').value = settings.security.webhook_signing_secret || '';
+
+    document.getElementById('generation-mode').value = settings.generation.mode || 'local';
+    document.getElementById('generation-openai-api-key').value = settings.generation.openai_api_key || settings.security.openai_api_key || '';
+    document.getElementById('generation-openai-model').value = settings.generation.openai_model || 'gpt-4.1-mini';
+    document.getElementById('generation-gemini-api-key').value = settings.generation.gemini_api_key || '';
+    document.getElementById('generation-gemini-model').value = settings.generation.gemini_model || 'gemini-2.5-flash';
+    document.getElementById('generation-claude-api-key').value = settings.generation.claude_api_key || '';
+    document.getElementById('generation-claude-model').value = settings.generation.claude_model || 'claude-3-5-sonnet-latest';
+    document.getElementById('generation-temperature').value = settings.generation.temperature ?? 0.35;
+    document.getElementById('generation-max-tokens').value = settings.generation.max_tokens ?? 300;
+    document.getElementById('generation-system-prompt').value = settings.generation.system_prompt || '';
+
+    document.getElementById('telegram-enabled').checked = settings.telegram.enabled === true;
+    document.getElementById('telegram-token').value = settings.telegram.token || '';
+    document.getElementById('telegram-chat-id').value = settings.telegram.chat_id || '';
     document.getElementById('telegram-parse-mode').value = settings.telegram.parse_mode || 'Markdown';
     document.getElementById('telegram-attach-auto').checked = settings.telegram.attach_responses_auto !== false;
     document.getElementById('telegram-attachment-format').value = settings.telegram.attachment_format || 'txt';
 
-    // Scraping
-    document.getElementById('scraping-headless').checked = settings.scraping.headless !== false;
-    document.getElementById('scraping-timeout').value = settings.scraping.timeout || 60;
-    document.getElementById('scraping-delay-min').value = settings.scraping.delay_min || 2.0;
-    document.getElementById('scraping-delay-max').value = settings.scraping.delay_max || 4.0;
-    document.getElementById('scraping-max-retries').value = settings.scraping.max_retries || 5;
-    document.getElementById('scraping-page-load-timeout').value = settings.scraping.page_load_timeout || 45;
-    document.getElementById('scraping-implicit-wait').value = settings.scraping.implicit_wait || 20;
-    document.getElementById('scraping-explicit-wait').value = settings.scraping.explicit_wait || 30;
+    document.getElementById('integrations-redis-url').value = settings.integrations.redis_url || 'redis://localhost:6379/0';
+    document.getElementById('integrations-selenium-remote-url').value = settings.integrations.selenium_remote_url || 'http://localhost:4444/wd/hub';
+    document.getElementById('integrations-api-url').value = settings.integrations.api_url || '';
+    document.getElementById('integrations-api-public-url').value = settings.integrations.api_public_url || '';
 
-    // API
+    document.getElementById('scraping-headless').checked = settings.scraping.headless !== false;
+    document.getElementById('scraping-timeout').value = settings.scraping.timeout ?? 60;
+    document.getElementById('scraping-delay-min').value = settings.scraping.delay_min ?? 2.0;
+    document.getElementById('scraping-delay-max').value = settings.scraping.delay_max ?? 4.0;
+    document.getElementById('scraping-max-retries').value = settings.scraping.max_retries ?? 5;
+    document.getElementById('scraping-page-load-timeout').value = settings.scraping.page_load_timeout ?? 45;
+    document.getElementById('scraping-implicit-wait').value = settings.scraping.implicit_wait ?? 20;
+    document.getElementById('scraping-explicit-wait').value = settings.scraping.explicit_wait ?? 30;
+
+    document.getElementById('delays-human-like-min').value = settings.delays.human_like_min ?? 1.0;
+    document.getElementById('delays-human-like-max').value = settings.delays.human_like_max ?? 3.0;
+    document.getElementById('delays-retry-base').value = settings.delays.retry_base ?? 2.0;
+    document.getElementById('delays-error-recovery').value = settings.delays.error_recovery ?? 10.0;
+    document.getElementById('delays-rate-limit-retry').value = settings.delays.rate_limit_retry ?? 60.0;
+    document.getElementById('delays-page-load-retry').value = settings.delays.page_load_retry ?? 5.0;
+
+    document.getElementById('privacy-mask-pii').checked = settings.privacy.mask_pii !== false;
+    document.getElementById('privacy-require-tls-callbacks').checked = settings.privacy.require_tls_callbacks !== false;
+    document.getElementById('privacy-id-salt').value = settings.privacy.id_salt || 'default-salt';
+    document.getElementById('privacy-job-result-ttl').value = settings.privacy.job_result_ttl ?? 3600;
+    document.getElementById('privacy-rate-limit-requests').value = settings.privacy.rate_limit_requests ?? 10;
+    document.getElementById('privacy-rate-limit-window').value = settings.privacy.rate_limit_window ?? 60;
+    document.getElementById('privacy-allowed-callback-domains').value = formatDomainList(settings.privacy.allowed_callback_domains);
+
     document.getElementById('api-host').value = settings.api.host || '0.0.0.0';
-    document.getElementById('api-port').value = settings.api.port || 8000;
+    document.getElementById('api-port').value = settings.api.port ?? 8000;
     document.getElementById('api-debug').checked = settings.api.debug === true;
-    document.getElementById('api-workers').value = settings.api.workers || 1;
+    document.getElementById('api-workers').value = settings.api.workers ?? 1;
+
+    document.getElementById('urls-base-url').value = settings.urls.base_url || 'https://www.doctoralia.com.br';
+    document.getElementById('urls-profile-url').value = settings.urls.profile_url || '';
+
+    updateSummary(settings);
   }
 
-  // Load settings
   async function loadSettings() {
     try {
       showAlert('Carregando configurações...', 'info');
@@ -303,7 +735,6 @@
     }
   }
 
-  // Validate settings
   async function validateSettings() {
     try {
       const settings = getFormData();
@@ -329,14 +760,34 @@
     }
   }
 
-  // Save settings
+  async function validateSettingsInternal() {
+    try {
+      const settings = getFormData();
+
+      const response = await fetch(`${API_BASE_URL}/settings/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        showAlert(`Erro de validação: ${data.message}`, 'error');
+      }
+      return data.success;
+    } catch (error) {
+      return false;
+    }
+  }
+
   async function saveSettings() {
     try {
       const saveBtn = document.getElementById('save-btn');
       saveBtn.disabled = true;
       saveBtn.innerHTML = '<span class="spinner"></span> Salvando...';
 
-      // Validate first
       const isValid = await validateSettingsInternal();
       if (!isValid) {
         saveBtn.disabled = false;
@@ -357,8 +808,9 @@
       const data = await response.json();
 
       if (data.success) {
-        showAlert('✓ ' + data.message, 'success');
-        currentSettings = settings;
+        currentSettings = data.settings || settings;
+        populateForm(currentSettings);
+        showAlert(`✓ ${data.message}`, 'success');
       } else {
         throw new Error(data.message);
       }
@@ -372,29 +824,8 @@
     }
   }
 
-  // Internal validation (returns boolean)
-  async function validateSettingsInternal() {
-    try {
-      const settings = getFormData();
-
-      const response = await fetch(`${API_BASE_URL}/settings/validate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settings)
-      });
-
-      const data = await response.json();
-      return data.success;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  // Reset settings
   function resetSettings() {
-    if (confirm('Tem certeza que deseja resetar as configurações?')) {
+    if (confirm('Tem certeza que deseja resetar as configurações desta tela?')) {
       if (currentSettings) {
         populateForm(currentSettings);
         showAlert('Configurações resetadas', 'info');
@@ -404,7 +835,6 @@
     }
   }
 
-  // Load settings on page load
   document.addEventListener('DOMContentLoaded', function () {
     loadSettings();
   });

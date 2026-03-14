@@ -2,128 +2,170 @@
 
 {% block title %}Relatórios - Doctoralia Scraper{% endblock %}
 
-{% block page_title %}Relatórios e Análises{% endblock %}
+{% block page_title %}Relatórios e Inventário{% endblock %}
 
 {% block content %}
-<div class="dashboard-grid"
-  style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 32px;">
-  <!-- Summary Card -->
+<div id="reports-alert"></div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-sliders"></i>
+      Filtros Analíticos
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Perfil</label>
+        <select id="reports-profile-filter" class="form-control">
+          <option value="">Todos os perfis</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Inicial</label>
+        <input type="date" id="reports-date-from" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Final</label>
+        <input type="date" id="reports-date-to" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Busca em Arquivos</label>
+        <input type="text" id="reports-search" class="form-control" placeholder="médico, arquivo ou URL">
+      </div>
+    </div>
+
+    <div class="flex gap-2" style="flex-wrap: wrap;">
+      <button class="btn btn-primary" onclick="loadReportsWorkspace()">
+        <i class="fas fa-sync-alt"></i>
+        Atualizar
+      </button>
+      <button class="btn btn-secondary" onclick="resetReportsFilters()">
+        <i class="fas fa-undo"></i>
+        Limpar
+      </button>
+      <button class="btn btn-secondary" onclick="exportData('csv')">
+        <i class="fas fa-file-csv"></i>
+        Exportar CSV
+      </button>
+      <button class="btn btn-secondary" onclick="exportData('json')">
+        <i class="fas fa-file-code"></i>
+        Exportar JSON
+      </button>
+      <a href="/history" class="btn btn-secondary">
+        <i class="fas fa-broom"></i>
+        Limpeza Avançada
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Arquivos</span><div class="stat-icon blue"><i class="fas fa-folder-open"></i></div></div>
+    <div class="stat-value" id="reports-total-files">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Espaço Usado</span><div class="stat-icon orange"><i class="fas fa-hard-drive"></i></div></div>
+    <div class="stat-value" id="reports-storage-used">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Pendentes Atuais</span><div class="stat-icon red"><i class="fas fa-reply-all"></i></div></div>
+    <div class="stat-value" id="reports-unanswered-current">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Último Snapshot</span><div class="stat-icon green"><i class="fas fa-clock"></i></div></div>
+    <div class="stat-value" id="reports-latest-snapshot">-</div>
+  </div>
+</div>
+
+<div class="dashboard-grid" style="display:grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); gap: 20px; margin-bottom: 20px;">
   <div class="card">
     <div class="card-header">
       <h3 class="card-title">
-        <i class="fas fa-file-alt"></i>
-        Resumo Geral
+        <i class="fas fa-chart-line"></i>
+        Tendência de Snapshots e Pendências
       </h3>
     </div>
     <div class="card-body">
-      <div class="report-summary">
-        <div class="summary-item">
-          <div class="summary-label">Total de Arquivos</div>
-          <div class="summary-value" id="total-files">-</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Gerados Hoje</div>
-          <div class="summary-value" id="today-files">-</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Total de Reviews</div>
-          <div class="summary-value" id="total-reviews">-</div>
-        </div>
-        <div class="summary-item">
-          <div class="summary-label">Médicos</div>
-          <div class="summary-value" id="unique-doctors">-</div>
-        </div>
+      <div style="height: 320px; position: relative;">
+        <canvas id="reports-timeline-chart"></canvas>
       </div>
     </div>
   </div>
 
-  <!-- Export Card -->
   <div class="card">
     <div class="card-header">
       <h3 class="card-title">
-        <i class="fas fa-download"></i>
-        Exportar Dados
+        <i class="fas fa-layer-group"></i>
+        Limpeza Recomendada
       </h3>
     </div>
-    <div class="card-body">
-      <p class="text-secondary" style="margin-bottom: 20px;">
-        Exporte os dados coletados em diferentes formatos para análise externa.
-      </p>
-      <div class="export-options">
-        <button class="btn btn-secondary w-100" style="margin-bottom: 10px;" onclick="exportData('csv')">
-          <i class="fas fa-file-csv"></i>
-          Exportar CSV
-        </button>
-        <button class="btn btn-secondary w-100" onclick="exportData('json')">
-          <i class="fas fa-file-code"></i>
-          Exportar JSON
-        </button>
-      </div>
+    <div class="card-body" id="reports-cleanup-candidates">
+      <div class="text-secondary">Carregando candidatos...</div>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid" style="display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin-bottom: 20px;">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-user-doctor"></i>
+        Top Perfis
+      </h3>
+    </div>
+    <div class="card-body" id="reports-top-profiles">
+      <div class="text-secondary">Carregando perfis...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-gauge-high"></i>
+        Resumo Operacional
+      </h3>
+    </div>
+    <div class="card-body" id="reports-operational-summary">
+      <div class="text-secondary">Carregando resumo...</div>
     </div>
   </div>
 </div>
 
 <div class="card">
-  <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+  <div class="card-header">
     <h3 class="card-title">
-      <i class="fas fa-folder-open"></i>
-      Arquivos Disponíveis
+      <i class="fas fa-table-list"></i>
+      Inventário de Arquivos
     </h3>
-    <button class="btn btn-secondary btn-sm" onclick="loadFiles()">
-      <i class="fas fa-sync-alt"></i>
-      Atualizar
-    </button>
   </div>
   <div class="card-body">
     <div class="table-responsive">
       <table class="table">
         <thead>
           <tr>
-            <th>Médico</th>
-            <th>Data</th>
+            <th>Perfil</th>
+            <th>Extraído em</th>
+            <th>Status</th>
+            <th>Reviews</th>
+            <th>Pendentes</th>
             <th>Tamanho</th>
             <th>Arquivo</th>
           </tr>
         </thead>
-        <tbody id="files-table-body">
+        <tbody id="reports-inventory-table">
           <tr>
-            <td colspan="4" class="text-center text-secondary">
-              <i class="fas fa-spinner fa-spin"></i> Carregando...
-            </td>
+            <td colspan="7" class="text-center text-secondary">Carregando inventário...</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div id="pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
   </div>
 </div>
 
 <style>
-  .report-summary {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-  }
-
-  .summary-item {
-    background: var(--bg-tertiary, #3a3a3c);
-    padding: 16px;
-    border-radius: 8px;
-    text-align: center;
-  }
-
-  .summary-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: var(--text-primary, #fff);
-    margin-top: 8px;
-  }
-
-  .summary-label {
-    font-size: 12px;
-    color: var(--text-secondary, #8e8e93);
-  }
-
   .table {
     width: 100%;
     border-collapse: collapse;
@@ -133,149 +175,293 @@
   .table td {
     padding: 12px 16px;
     text-align: left;
-    border-bottom: 1px solid var(--border-color, #3a3a3c);
+    border-bottom: 1px solid var(--border-color);
   }
 
   .table th {
     font-weight: 600;
-    color: var(--text-secondary, #8e8e93);
-    font-size: 13px;
+    color: var(--text-secondary);
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
   .table td {
-    color: var(--text-primary, #fff);
+    color: var(--text-primary);
     font-size: 14px;
+    vertical-align: top;
   }
 
-  .btn-sm {
-    padding: 6px 12px;
-    font-size: 13px;
+  .report-line-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
   }
 
-  .page-btn {
-    padding: 6px 12px;
-    border: 1px solid var(--border-color, #3a3a3c);
-    background: var(--bg-secondary, #2c2c2e);
-    color: var(--text-primary, #fff);
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13px;
+  .report-line-item:last-child {
+    border-bottom: none;
   }
 
-  .page-btn:hover {
-    background: var(--bg-tertiary, #3a3a3c);
+  .report-line-title {
+    font-weight: 700;
+    margin-bottom: 4px;
   }
 
-  .page-btn.active {
-    background: var(--primary, #0a84ff);
-    border-color: var(--primary, #0a84ff);
-  }
-
-  .file-name {
-    font-family: monospace;
+  .report-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius-full);
     font-size: 12px;
-    color: var(--text-secondary, #8e8e93);
+    font-weight: 600;
+  }
+
+  .report-status-pill.latest {
+    background: rgba(52, 199, 89, 0.14);
+    color: var(--apple-green);
+  }
+
+  .report-status-pill.outdated {
+    background: rgba(255, 149, 0, 0.14);
+    color: var(--apple-orange);
   }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  let allFiles = [];
-  const PAGE_SIZE = 20;
-  let currentPage = 1;
+  const reportsState = {
+    filters: [],
+    inventory: [],
+  };
+  let reportsTimelineChart = null;
 
-  async function loadSummary() {
-    try {
-      const response = await fetch('/api/reports/summary');
-      const data = await response.json();
-
-      document.getElementById('total-files').textContent = data.total_files || 0;
-      document.getElementById('today-files').textContent = data.today_files || 0;
-      document.getElementById('total-reviews').textContent = data.total_reviews || 0;
-      document.getElementById('unique-doctors').textContent = data.unique_doctors || 0;
-    } catch (error) {
-      console.error('Error loading summary:', error);
-    }
+  function reportsQuery() {
+    const params = new URLSearchParams();
+    const profileId = document.getElementById('reports-profile-filter').value;
+    const dateFrom = document.getElementById('reports-date-from').value;
+    const dateTo = document.getElementById('reports-date-to').value;
+    if (profileId) params.set('profile_id', profileId);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    const query = params.toString();
+    return query ? `?${query}` : '';
   }
 
-  async function loadFiles() {
-    const tbody = document.getElementById('files-table-body');
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary"><i class="fas fa-spinner fa-spin"></i> Carregando...</td></tr>';
-
-    try {
-      const response = await fetch('/api/reports/files');
-      const data = await response.json();
-
-      allFiles = data.files || [];
-      currentPage = 1;
-      renderFilesPage();
-    } catch (error) {
-      console.error('Error loading files:', error);
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary">Erro ao carregar arquivos</td></tr>';
-    }
+  function showReportsAlert(message, type = 'info') {
+    const container = document.getElementById('reports-alert');
+    container.innerHTML = `
+      <div class="alert alert-${type}">
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <div>${message}</div>
+      </div>
+    `;
+    setTimeout(() => { container.innerHTML = ''; }, 4000);
   }
 
-  function renderFilesPage() {
-    const tbody = document.getElementById('files-table-body');
-    const totalPages = Math.ceil(allFiles.length / PAGE_SIZE);
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const pageFiles = allFiles.slice(start, start + PAGE_SIZE);
+  function formatDateTime(value) {
+    if (!value) return '-';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('pt-BR');
+  }
 
-    if (pageFiles.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-secondary">Nenhum arquivo encontrado</td></tr>';
-      document.getElementById('pagination').innerHTML = '';
+  function populateReportsFilters(filters) {
+    reportsState.filters = filters || [];
+    const select = document.getElementById('reports-profile-filter');
+    const current = select.value;
+    select.innerHTML = '<option value="">Todos os perfis</option>' + reportsState.filters.map((item) => `
+      <option value="${item.profile_id}">${item.doctor_name}</option>
+    `).join('');
+    select.value = current;
+  }
+
+  function renderReportsSummary(summary) {
+    document.getElementById('reports-total-files').textContent = summary.total_files || 0;
+    document.getElementById('reports-storage-used').textContent = summary.storage_used_human || '0 B';
+    document.getElementById('reports-unanswered-current').textContent = summary.unanswered_current || 0;
+    document.getElementById('reports-latest-snapshot').textContent = summary.latest_snapshot_at ? new Date(summary.latest_snapshot_at).toLocaleDateString('pt-BR') : '-';
+
+    document.getElementById('reports-operational-summary').innerHTML = `
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">Perfis ativos</div>
+          <div class="text-secondary">Perfis cobertos pelo filtro atual.</div>
+        </div>
+        <strong>${summary.profiles_tracked || 0}</strong>
+      </div>
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">Reviews atuais</div>
+          <div class="text-secondary">Volume consolidado do snapshot mais recente por perfil.</div>
+        </div>
+        <strong>${summary.total_reviews_current || 0}</strong>
+      </div>
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">Sugestões salvas</div>
+          <div class="text-secondary">Sugestões persistidas no snapshot atual.</div>
+        </div>
+        <strong>${summary.generated_current || 0}</strong>
+      </div>
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">Avaliação média</div>
+          <div class="text-secondary">Média atual considerando os perfis mais recentes.</div>
+        </div>
+        <strong>${Number(summary.average_rating_current || 0).toFixed(2)}</strong>
+      </div>
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">Snapshots antigos</div>
+          <div class="text-secondary">Arquivos candidatos à limpeza para evitar dados defasados.</div>
+        </div>
+        <strong>${summary.outdated_snapshots || 0}</strong>
+      </div>
+    `;
+  }
+
+  function renderTimeline(timeline) {
+    const canvas = document.getElementById('reports-timeline-chart');
+    if (reportsTimelineChart) reportsTimelineChart.destroy();
+    reportsTimelineChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: (timeline.dates || []).map((date) => new Date(date).toLocaleDateString('pt-BR')),
+        datasets: [
+          {
+            label: 'Snapshots',
+            data: timeline.scrapes || [],
+            borderColor: '#0A84FF',
+            backgroundColor: 'rgba(10, 132, 255, 0.12)',
+            fill: true,
+            tension: 0.3,
+          },
+          {
+            label: 'Pendentes',
+            data: timeline.unanswered || [],
+            borderColor: '#FF3B30',
+            backgroundColor: 'rgba(255, 59, 48, 0.08)',
+            fill: false,
+            tension: 0.3,
+          }
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true } },
+      },
+    });
+  }
+
+  function renderTopProfiles(profiles) {
+    const container = document.getElementById('reports-top-profiles');
+    if (!profiles.length) {
+      container.innerHTML = '<div class="text-secondary">Sem perfis para o filtro atual.</div>';
       return;
     }
 
-    tbody.innerHTML = pageFiles.map(file => `
+    container.innerHTML = profiles.map((profile) => `
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">${profile.doctor_name}</div>
+          <div class="text-secondary">${profile.total_scrapes} rastreios • ${profile.current_unanswered} pendentes • ${Number(profile.average_rating || 0).toFixed(1)} ★</div>
+        </div>
+        <div class="flex gap-1">
+          <a href="/profiles" class="btn btn-secondary btn-sm"><i class="fas fa-chart-line"></i></a>
+          <button class="btn btn-secondary btn-sm" onclick="showScrapeModal('${profile.profile_url}')"><i class="fas fa-play"></i></button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderCleanupCandidates(candidates) {
+    const container = document.getElementById('reports-cleanup-candidates');
+    if (!candidates.length) {
+      container.innerHTML = '<div class="text-secondary">Nenhum perfil com acúmulo de snapshots antigos no filtro atual.</div>';
+      return;
+    }
+
+    container.innerHTML = candidates.map((item) => `
+      <div class="report-line-item">
+        <div>
+          <div class="report-line-title">${item.doctor_name}</div>
+          <div class="text-secondary">${item.outdated_snapshots} antigos de ${item.total_snapshots} snapshots</div>
+        </div>
+        <a href="/history" class="btn btn-secondary btn-sm">
+          <i class="fas fa-broom"></i>
+        </a>
+      </div>
+    `).join('');
+  }
+
+  function renderInventory(items) {
+    const search = document.getElementById('reports-search').value.trim().toLowerCase();
+    const tbody = document.getElementById('reports-inventory-table');
+    const filteredItems = (items || []).filter((item) => {
+      if (!search) return true;
+      return JSON.stringify(item).toLowerCase().includes(search);
+    });
+
+    if (!filteredItems.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">Nenhum arquivo encontrado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filteredItems.map((item) => `
       <tr>
-        <td><strong>${file.doctor}</strong></td>
-        <td>${file.date_str}</td>
-        <td>${file.size_human}</td>
-        <td class="file-name">${file.name}</td>
+        <td><strong>${item.doctor_name}</strong></td>
+        <td>${formatDateTime(item.extracted_at)}</td>
+        <td>
+          <span class="report-status-pill ${item.status}">
+            <i class="fas fa-${item.is_latest ? 'star' : 'clock-rotate-left'}"></i>
+            ${item.is_latest ? 'Latest' : 'Antigo'}
+          </span>
+        </td>
+        <td>${item.reviews_count}</td>
+        <td>${item.unanswered_count}</td>
+        <td>${item.file_size_human}</td>
+        <td><span style="font-family: var(--font-mono); font-size: 12px;">${item.filename}</span></td>
       </tr>
     `).join('');
+  }
 
-    // Pagination
-    if (totalPages > 1) {
-      let paginationHtml = '';
-      if (currentPage > 1) {
-        paginationHtml += `<button class="page-btn" onclick="goToPage(${currentPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
-      }
-
-      const startPage = Math.max(1, currentPage - 2);
-      const endPage = Math.min(totalPages, currentPage + 2);
-
-      for (let i = startPage; i <= endPage; i++) {
-        paginationHtml += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
-      }
-
-      if (currentPage < totalPages) {
-        paginationHtml += `<button class="page-btn" onclick="goToPage(${currentPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
-      }
-
-      paginationHtml += `<span style="color: var(--text-secondary); font-size: 13px; align-self: center; margin-left: 8px;">${allFiles.length} arquivos</span>`;
-      document.getElementById('pagination').innerHTML = paginationHtml;
-    } else {
-      document.getElementById('pagination').innerHTML = `<span style="color: var(--text-secondary); font-size: 13px;">${allFiles.length} arquivos</span>`;
+  async function loadReportsWorkspace() {
+    try {
+      const response = await fetch(`/api/workspace/reports${reportsQuery()}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      populateReportsFilters(data.filters || []);
+      reportsState.inventory = data.inventory || [];
+      renderReportsSummary(data.summary || {});
+      renderTimeline(data.timeline || {});
+      renderTopProfiles(data.top_profiles || []);
+      renderCleanupCandidates(data.cleanup_candidates || []);
+      renderInventory(reportsState.inventory);
+    } catch (error) {
+      showReportsAlert(`Erro ao carregar relatórios: ${error.message}`, 'error');
     }
   }
 
-  function goToPage(page) {
-    currentPage = page;
-    renderFilesPage();
+  function resetReportsFilters() {
+    document.getElementById('reports-profile-filter').value = '';
+    document.getElementById('reports-date-from').value = '';
+    document.getElementById('reports-date-to').value = '';
+    document.getElementById('reports-search').value = '';
+    loadReportsWorkspace();
   }
 
   function exportData(format) {
     window.location.href = `/api/reports/export/${format}`;
   }
 
-  document.addEventListener('DOMContentLoaded', function () {
-    loadSummary();
-    loadFiles();
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('reports-search').addEventListener('input', () => renderInventory(reportsState.inventory));
+    loadReportsWorkspace();
   });
 </script>
 {% endblock %}

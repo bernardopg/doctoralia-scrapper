@@ -125,7 +125,11 @@ class DoctoraliaScraper:
                 options = Options()
 
                 # Check if we should use remote Selenium
-                selenium_url = os.environ.get("SELENIUM_REMOTE_URL")
+                selenium_url = getattr(
+                    getattr(self.config, "integrations", None),
+                    "selenium_remote_url",
+                    None,
+                ) or os.environ.get("SELENIUM_REMOTE_URL")
                 if selenium_url:
                     self.logger.info(f"Using remote Selenium at {selenium_url}")
                     # Remote Selenium setup
@@ -409,7 +413,9 @@ class DoctoraliaScraper:
                         and "/booking/" not in current_url
                     ):
                         try:
-                            last_successful_reviews = self._extract_all_reviews()
+                            last_successful_reviews = self._extract_all_reviews(
+                                force_refresh=True
+                            )
                             self.logger.debug(
                                 f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})"
                             )
@@ -697,7 +703,7 @@ class DoctoraliaScraper:
                 self.progress_callback(
                     "processing_reviews", {"clicks": clicks_realizados}
                 )
-            reviews_data = self._extract_all_reviews()
+            reviews_data = self._extract_all_reviews(force_refresh=True)
 
             # If extraction failed due to redirect but we have backup data, use it
             if not reviews_data and backup_reviews:
@@ -765,7 +771,7 @@ class DoctoraliaScraper:
 
             return result
 
-    def _extract_all_reviews(self) -> List[Dict]:
+    def _extract_all_reviews(self, force_refresh: bool = False) -> List[Dict]:
         if not self.driver:
             return []
 
@@ -782,7 +788,7 @@ class DoctoraliaScraper:
 
         # Verificar cache para mesma URL
         cache_key = f"reviews_{current_url}"
-        if self._last_url == current_url and cache_key in self._cache:
+        if not force_refresh and self._last_url == current_url and cache_key in self._cache:
             self.logger.info("✅ Usando cache para extração de reviews")
             cached: List[Dict[Any, Any]] = self._cache[cache_key]
             return cached
@@ -834,7 +840,7 @@ class DoctoraliaScraper:
         return reviews_data
 
     def save_data(self, data: Dict[str, Any]) -> Optional[Path]:
-        if not data or not data.get("reviews"):
+        if not data:
             self.logger.warning("Nenhum dado para salvar.")
             return None
 

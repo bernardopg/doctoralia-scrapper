@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Perfis - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Perfis Monitorados{% endblock %}
+
+{% block content %}
+<div id="profiles-alert"></div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-user-doctor"></i>
+      Explorar Perfis
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Data Inicial</label>
+        <input type="date" id="profiles-date-from" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Final</label>
+        <input type="date" id="profiles-date-to" class="form-control">
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="loadProfilesWorkspace()">
+        <i class="fas fa-sync-alt"></i>
+        Atualizar
+      </button>
+      <button class="btn btn-secondary" onclick="resetProfilesFilters()">
+        <i class="fas fa-undo"></i>
+        Limpar
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid" style="display:grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px;">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-list"></i>
+        Lista de Perfis
+      </h3>
+    </div>
+    <div class="card-body" id="profiles-list" style="max-height: 72vh; overflow-y: auto;">
+      <div class="text-secondary">Carregando perfis...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-chart-line"></i>
+        Resumo do Perfil
+      </h3>
+    </div>
+    <div class="card-body">
+      <div id="profiles-detail-header" class="mb-3 text-secondary">Selecione um perfil para visualizar os detalhes.</div>
+
+      <div class="stats-grid" style="margin-bottom: 20px;">
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Rastreios</span><div class="stat-icon blue"><i class="fas fa-wave-square"></i></div></div>
+          <div class="stat-value" id="profile-detail-scrapes">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Avaliação Média</span><div class="stat-icon orange"><i class="fas fa-star"></i></div></div>
+          <div class="stat-value" id="profile-detail-rating">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Pendentes</span><div class="stat-icon red"><i class="fas fa-reply-all"></i></div></div>
+          <div class="stat-value" id="profile-detail-unanswered">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-header"><span class="stat-label">Sugestões</span><div class="stat-icon green"><i class="fas fa-magic"></i></div></div>
+          <div class="stat-value" id="profile-detail-generated">-</div>
+        </div>
+      </div>
+
+      <div class="card mb-3" style="box-shadow:none;">
+        <div class="card-header">
+          <h3 class="card-title"><i class="fas fa-chart-area"></i> Linha do Tempo</h3>
+        </div>
+        <div class="card-body">
+          <div style="height: 280px; position: relative;">
+            <canvas id="profile-timeline-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="box-shadow:none;">
+        <div class="card-header">
+          <h3 class="card-title"><i class="fas fa-comments"></i> Últimos Comentários</h3>
+        </div>
+        <div class="card-body" id="profile-latest-reviews">
+          <div class="text-secondary">Sem perfil selecionado.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const profilesState = {
+    profiles: [],
+    selectedProfileId: '',
+  };
+
+  let profileTimelineChart = null;
+
+  function profilesQuery() {
+    const params = new URLSearchParams();
+    const from = document.getElementById('profiles-date-from').value;
+    const to = document.getElementById('profiles-date-to').value;
+    if (from) params.set('date_from', from);
+    if (to) params.set('date_to', to);
+    const query = params.toString();
+    return query ? `?${query}` : '';
+  }
+
+  function showProfilesAlert(message, type = 'info') {
+    const container = document.getElementById('profiles-alert');
+    container.innerHTML = `
+      <div class="alert alert-${type}">
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <div>${message}</div>
+      </div>
+    `;
+    setTimeout(() => { container.innerHTML = ''; }, 3500);
+  }
+
+  async function toggleFavoriteById(profileId) {
+    try {
+      const profile = profilesState.profiles.find((item) => item.profile_id === profileId);
+      if (!profile) {
+        throw new Error('Perfil não encontrado');
+      }
+      const response = await fetch('/api/user-profile/favorites/toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profile.doctor_name,
+          profile_url: profile.profile_url,
+          specialty: profile.specialty,
+        }),
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      showProfilesAlert(data.favorite ? 'Perfil adicionado aos favoritos.' : 'Perfil removido dos favoritos.', 'success');
+      loadProfilesWorkspace();
+    } catch (error) {
+      showProfilesAlert(`Erro ao atualizar favorito: ${error.message}`, 'error');
+    }
+  }
+
+  function renderProfilesList() {
+    const container = document.getElementById('profiles-list');
+    if (!profilesState.profiles.length) {
+      container.innerHTML = '<div class="text-secondary">Nenhum perfil encontrado para os filtros atuais.</div>';
+      return;
+    }
+
+    container.innerHTML = profilesState.profiles.map((profile) => `
+      <div class="card mb-2 ${profilesState.selectedProfileId === profile.profile_id ? 'active-profile-card' : ''}" style="box-shadow:none; cursor:pointer; border-color:${profilesState.selectedProfileId === profile.profile_id ? 'var(--apple-blue)' : 'var(--border-color)'};" onclick="selectProfile('${profile.profile_id}')">
+        <div class="card-body" style="padding:16px;">
+          <div class="flex justify-between items-center">
+            <div>
+              <div style="font-weight:600;">${profile.doctor_name}</div>
+              <div class="text-secondary" style="font-size:13px;">${profile.specialty || 'Especialidade não informada'}</div>
+            </div>
+            <button class="btn btn-sm ${profile.is_favorite ? 'btn-primary' : 'btn-secondary'}" onclick="event.stopPropagation(); toggleFavoriteById('${profile.profile_id}')">
+              <i class="fas fa-star"></i>
+            </button>
+          </div>
+          <div style="margin-top: 12px;" class="text-secondary">
+            ${profile.total_scrapes} rastreios • ${profile.current_unanswered} sem resposta • ${Number(profile.average_rating || 0).toFixed(1)} ★
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderProfileTimeline(detail) {
+    const canvas = document.getElementById('profile-timeline-chart');
+    if (profileTimelineChart) profileTimelineChart.destroy();
+
+    const timeline = detail.timeline || [];
+    if (!timeline.length) {
+      canvas.parentElement.innerHTML = '<div class="text-secondary">Sem linha do tempo disponível.</div>';
+      return;
+    }
+
+    profileTimelineChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: timeline.map((item) => new Date(item.extracted_at).toLocaleDateString('pt-BR')),
+        datasets: [
+          {
+            label: 'Reviews',
+            data: timeline.map((item) => item.reviews_count),
+            borderColor: '#0A84FF',
+            backgroundColor: 'rgba(10, 132, 255, 0.12)',
+            fill: true,
+            tension: 0.3,
+          },
+          {
+            label: 'Pendentes',
+            data: timeline.map((item) => item.unanswered_count),
+            borderColor: '#FF3B30',
+            backgroundColor: 'rgba(255, 59, 48, 0.08)',
+            fill: false,
+            tension: 0.3,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  function renderLatestReviews(reviews) {
+    const container = document.getElementById('profile-latest-reviews');
+    if (!reviews.length) {
+      container.innerHTML = '<div class="text-secondary">Sem comentários recentes nesse perfil.</div>';
+      return;
+    }
+
+    container.innerHTML = reviews.map((review) => `
+      <div style="padding: 14px 0; border-bottom: 1px solid var(--border-color);">
+        <div class="flex justify-between items-center">
+          <div style="font-weight:600;">${review.author}</div>
+          <div style="font-size:13px; color:${review.pending_response ? 'var(--apple-red)' : 'var(--apple-green)'};">
+            ${review.pending_response ? 'Sem resposta' : 'Respondido'}
+          </div>
+        </div>
+        <div class="text-secondary" style="font-size:13px; margin:6px 0 10px;">${review.date ? new Date(review.date).toLocaleDateString('pt-BR') : '-'} • ${review.rating || '-'} ★</div>
+        <div style="font-size:14px; margin-bottom:8px;">${review.comment}</div>
+        ${review.generated_response ? `<div style="padding:12px; background: var(--bg-secondary); border-radius: var(--radius-md); font-size:13px;"><strong>Sugestão salva:</strong><br>${review.generated_response}</div>` : ''}
+      </div>
+    `).join('');
+  }
+
+  async function selectProfile(profileId) {
+    profilesState.selectedProfileId = profileId;
+    renderProfilesList();
+
+    try {
+      const response = await fetch(`/api/workspace/profile${profilesQuery()}${profilesQuery() ? '&' : '?'}profile_id=${profileId}`);
+      const detail = await response.json();
+      if (detail.error) throw new Error(detail.error);
+
+      const profile = detail.profile || {};
+      document.getElementById('profiles-detail-header').innerHTML = `
+        <div style="font-weight:700; font-size:20px;">${profile.doctor_name}</div>
+        <div class="text-secondary" style="margin-top:6px;">${profile.specialty || 'Especialidade não informada'} • ${profile.location || 'Local não informado'} • último rastreio em ${profile.last_scraped_at ? new Date(profile.last_scraped_at).toLocaleString('pt-BR') : '-'}</div>
+      `;
+      document.getElementById('profile-detail-scrapes').textContent = profile.total_scrapes ?? 0;
+      document.getElementById('profile-detail-rating').textContent = profile.average_rating ? `${Number(profile.average_rating).toFixed(1)} ★` : '-';
+      document.getElementById('profile-detail-unanswered').textContent = profile.current_unanswered ?? 0;
+      document.getElementById('profile-detail-generated').textContent = profile.current_generated ?? 0;
+      renderProfileTimeline(detail);
+      renderLatestReviews(detail.latest_reviews || []);
+    } catch (error) {
+      showProfilesAlert(`Erro ao carregar perfil: ${error.message}`, 'error');
+    }
+  }
+
+  async function loadProfilesWorkspace() {
+    try {
+      const response = await fetch(`/api/workspace/profiles${profilesQuery()}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      profilesState.profiles = data.profiles || [];
+      if (!profilesState.selectedProfileId && profilesState.profiles.length) {
+        profilesState.selectedProfileId = profilesState.profiles[0].profile_id;
+      }
+      if (
+        profilesState.selectedProfileId &&
+        !profilesState.profiles.some((profile) => profile.profile_id === profilesState.selectedProfileId)
+      ) {
+        profilesState.selectedProfileId = profilesState.profiles[0]?.profile_id || '';
+      }
+
+      renderProfilesList();
+      if (profilesState.selectedProfileId) {
+        selectProfile(profilesState.selectedProfileId);
+      }
+    } catch (error) {
+      showProfilesAlert(`Erro ao carregar perfis: ${error.message}`, 'error');
+    }
+  }
+
+  function resetProfilesFilters() {
+    document.getElementById('profiles-date-from').value = '';
+    document.getElementById('profiles-date-to').value = '';
+    loadProfilesWorkspace();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadProfilesWorkspace();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Minha Área - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Minha Área{% endblock %}
+
+{% block content %}
+<div id="user-profile-alert"></div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-id-card"></i>
+      Perfil do Operador
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Nome exibido</label>
+        <input type="text" id="user-display-name" class="form-control" placeholder="Seu nome">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" id="user-username" class="form-control" placeholder="seu_usuario">
+      </div>
+    </div>
+    <div class="alert alert-info mt-2">
+      <i class="fas fa-circle-info"></i>
+      <div>Esses dados alimentam a sidebar e a organização operacional do workspace.</div>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid" style="display:grid; grid-template-columns: 420px minmax(0, 1fr); gap: 20px;">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-plus-circle"></i>
+        Adicionar Favorito
+      </h3>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Adicionar a partir dos perfis monitorados</label>
+        <select id="favorite-profile-select" class="form-control" onchange="prefillFavoriteFromExisting()">
+          <option value="">Escolha um perfil existente</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Nome manual</label>
+          <input type="text" id="favorite-name" class="form-control" placeholder="Nome do médico">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Especialidade</label>
+          <input type="text" id="favorite-specialty" class="form-control" placeholder="Especialidade">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">URL do perfil</label>
+        <input type="url" id="favorite-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notas</label>
+        <textarea id="favorite-notes" class="form-control" rows="3" placeholder="Contexto rápido: prioridade, rotina, observações..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="addFavoriteProfile()">
+        <i class="fas fa-star"></i>
+        Adicionar aos Favoritos
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-star"></i>
+        Favoritos Salvos
+      </h3>
+    </div>
+    <div class="card-body" id="favorite-profiles-list">
+      <div class="text-secondary">Carregando favoritos...</div>
+    </div>
+  </div>
+</div>
+
+<div class="flex gap-2 mt-3">
+  <button class="btn btn-primary btn-lg" onclick="saveUserProfile()">
+    <i class="fas fa-save"></i>
+    Salvar Perfil
+  </button>
+  <button class="btn btn-secondary btn-lg" onclick="loadUserProfilePage()">
+    <i class="fas fa-rotate"></i>
+    Recarregar
+  </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const userProfileState = {
+    profile: {
+      display_name: '',
+      username: '',
+      favorite_profiles: [],
+    },
+    availableProfiles: [],
+  };
+
+  function showUserProfileAlert(message, type = 'info') {
+    const container = document.getElementById('user-profile-alert');
+    container.innerHTML = `
+      <div class="alert alert-${type}">
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+        <div>${message}</div>
+      </div>
+    `;
+    setTimeout(() => { container.innerHTML = ''; }, 3500);
+  }
+
+  function renderFavoriteProfiles() {
+    const container = document.getElementById('favorite-profiles-list');
+    const favorites = userProfileState.profile.favorite_profiles || [];
+    if (!favorites.length) {
+      container.innerHTML = '<div class="text-secondary">Nenhum perfil favorito salvo. Monte uma shortlist para acelerar seus scrapes e respostas.</div>';
+      return;
+    }
+
+    container.innerHTML = favorites.map((favorite, index) => `
+      <div class="card mb-2" style="box-shadow:none;">
+        <div class="card-body" style="padding:16px;">
+          <div class="flex justify-between items-center">
+            <div>
+              <div style="font-weight:700;">${favorite.name}</div>
+              <div class="text-secondary" style="font-size:13px;">${favorite.specialty || 'Especialidade não informada'}</div>
+            </div>
+            <button class="btn btn-sm btn-danger" onclick="removeFavoriteProfile(${index})">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          <div style="font-size:13px; margin-top: 10px;">
+            <a href="${favorite.profile_url}" target="_blank" rel="noopener noreferrer">${favorite.profile_url}</a>
+          </div>
+          <textarea class="form-control mt-2" rows="2" onchange="updateFavoriteNotes(${index}, this.value)">${favorite.notes || ''}</textarea>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function populateProfileSelector() {
+    const select = document.getElementById('favorite-profile-select');
+    select.innerHTML = '<option value="">Escolha um perfil existente</option>' + userProfileState.availableProfiles.map((profile) => `
+      <option value="${profile.profile_id}">${profile.doctor_name}</option>
+    `).join('');
+  }
+
+  function prefillFavoriteFromExisting() {
+    const selectedId = document.getElementById('favorite-profile-select').value;
+    const selectedProfile = userProfileState.availableProfiles.find((item) => item.profile_id === selectedId);
+    if (!selectedProfile) return;
+    document.getElementById('favorite-name').value = selectedProfile.doctor_name || '';
+    document.getElementById('favorite-url').value = selectedProfile.profile_url || '';
+    document.getElementById('favorite-specialty').value = selectedProfile.specialty || '';
+  }
+
+  function removeFavoriteProfile(index) {
+    userProfileState.profile.favorite_profiles.splice(index, 1);
+    renderFavoriteProfiles();
+  }
+
+  function updateFavoriteNotes(index, value) {
+    userProfileState.profile.favorite_profiles[index].notes = value;
+  }
+
+  function addFavoriteProfile() {
+    const selectedId = document.getElementById('favorite-profile-select').value;
+    const selectedProfile = userProfileState.availableProfiles.find((item) => item.profile_id === selectedId);
+    const name = document.getElementById('favorite-name').value.trim() || selectedProfile?.doctor_name || '';
+    const profileUrl = document.getElementById('favorite-url').value.trim() || selectedProfile?.profile_url || '';
+    const specialty = document.getElementById('favorite-specialty').value.trim() || selectedProfile?.specialty || '';
+    const notes = document.getElementById('favorite-notes').value.trim();
+
+    if (!name || !profileUrl) {
+      showUserProfileAlert('Nome e URL do perfil são obrigatórios para salvar um favorito.', 'error');
+      return;
+    }
+
+    const alreadyExists = (userProfileState.profile.favorite_profiles || []).some(
+      (favorite) => favorite.profile_url.toLowerCase() === profileUrl.toLowerCase()
+    );
+    if (alreadyExists) {
+      showUserProfileAlert('Esse perfil já está na lista de favoritos.', 'error');
+      return;
+    }
+
+    userProfileState.profile.favorite_profiles.push({
+      name,
+      profile_url: profileUrl,
+      specialty: specialty || null,
+      notes: notes || null,
+    });
+
+    document.getElementById('favorite-profile-select').value = '';
+    document.getElementById('favorite-name').value = '';
+    document.getElementById('favorite-url').value = '';
+    document.getElementById('favorite-specialty').value = '';
+    document.getElementById('favorite-notes').value = '';
+    renderFavoriteProfiles();
+  }
+
+  async function saveUserProfile() {
+    try {
+      userProfileState.profile.display_name = document.getElementById('user-display-name').value.trim();
+      userProfileState.profile.username = document.getElementById('user-username').value.trim();
+
+      const response = await fetch('/api/user-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userProfileState.profile),
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      userProfileState.profile = data;
+      renderFavoriteProfiles();
+      showUserProfileAlert('Perfil do operador salvo com sucesso.', 'success');
+      if (typeof hydrateSidebarWorkspace === 'function') {
+        hydrateSidebarWorkspace();
+      }
+    } catch (error) {
+      showUserProfileAlert(`Erro ao salvar perfil: ${error.message}`, 'error');
+    }
+  }
+
+  async function loadUserProfilePage() {
+    try {
+      const [profileResponse, profilesResponse] = await Promise.all([
+        fetch('/api/user-profile'),
+        fetch('/api/workspace/profiles'),
+      ]);
+
+      const profileData = await profileResponse.json();
+      const profilesData = await profilesResponse.json();
+
+      if (profileData.error) throw new Error(profileData.error);
+      if (profilesData.error) throw new Error(profilesData.error);
+
+      userProfileState.profile = {
+        display_name: profileData.display_name || 'Administrador',
+        username: profileData.username || 'admin',
+        favorite_profiles: profileData.favorite_profiles || [],
+      };
+      userProfileState.availableProfiles = profilesData.profiles || [];
+
+      document.getElementById('user-display-name').value = userProfileState.profile.display_name;
+      document.getElementById('user-username').value = userProfileState.profile.username;
+      populateProfileSelector();
+      renderFavoriteProfiles();
+    } catch (error) {
+      showUserProfileAlert(`Erro ao carregar perfil: ${error.message}`, 'error');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadUserProfilePage();
+  });
+</script>
+{% endblock %}

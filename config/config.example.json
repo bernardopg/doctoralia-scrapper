@@ -1,8 +1,8 @@
 {
   "telegram": {
+    "enabled": false,
     "token": "YOUR_BOT_TOKEN_HERE",
     "chat_id": "YOUR_CHAT_ID_HERE",
-    "enabled": false,
     "parse_mode": "Markdown",
     "attach_responses_auto": true,
     "attachment_format": "txt"
@@ -17,15 +17,69 @@
     "implicit_wait": 20,
     "explicit_wait": 30
   },
+  "delays": {
+    "human_like_min": 1.0,
+    "human_like_max": 3.0,
+    "retry_base": 2.0,
+    "error_recovery": 10.0,
+    "rate_limit_retry": 60.0,
+    "page_load_retry": 5.0
+  },
   "api": {
     "host": "0.0.0.0",
     "port": 8000,
     "debug": false,
     "workers": 1
   },
+  "security": {
+    "api_key": "YOUR_INTERNAL_API_KEY_HERE",
+    "webhook_signing_secret": "YOUR_WEBHOOK_SIGNING_SECRET_HERE",
+    "openai_api_key": "YOUR_OPENAI_API_KEY_HERE"
+  },
+  "generation": {
+    "mode": "local",
+    "openai_api_key": "YOUR_OPENAI_API_KEY_HERE",
+    "openai_model": "gpt-4.1-mini",
+    "gemini_api_key": "YOUR_GEMINI_API_KEY_HERE",
+    "gemini_model": "gemini-2.5-flash",
+    "claude_api_key": "YOUR_CLAUDE_API_KEY_HERE",
+    "claude_model": "claude-3-5-sonnet-latest",
+    "temperature": 0.35,
+    "max_tokens": 300,
+    "system_prompt": "Opcional: sobrescreva o prompt padrão do gerador."
+  },
+  "integrations": {
+    "redis_url": "redis://localhost:6379/0",
+    "selenium_remote_url": "http://localhost:4444/wd/hub",
+    "api_url": "http://localhost:8000",
+    "api_public_url": "https://example.com/api"
+  },
+  "privacy": {
+    "mask_pii": true,
+    "id_salt": "change-me",
+    "job_result_ttl": 3600,
+    "rate_limit_requests": 10,
+    "rate_limit_window": 60,
+    "require_tls_callbacks": true,
+    "allowed_callback_domains": [
+      "hooks.example.com"
+    ]
+  },
   "urls": {
     "base_url": "https://www.doctoralia.com.br",
     "profile_url": "YOUR_DOCTORALIA_PROFILE_URL_HERE"
+  },
+  "user_profile": {
+    "display_name": "Seu Nome",
+    "username": "seu_usuario",
+    "favorite_profiles": [
+      {
+        "name": "Dr(a). Exemplo",
+        "profile_url": "https://www.doctoralia.com.br/medico/exemplo",
+        "specialty": "Ginecologia",
+        "notes": "Perfil prioritário para scraping diário"
+      }
+    ]
   },
   "daemon": {
     "interval_minutes": 30,

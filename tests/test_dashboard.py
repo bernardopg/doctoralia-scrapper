@@ -33,6 +33,21 @@ def test_settings_route(client):
     assert response.status_code == 200
 
 
+def test_profiles_route(client):
+    response = client.get("/profiles")
+    assert response.status_code == 200
+
+
+def test_responses_route(client):
+    response = client.get("/responses")
+    assert response.status_code == 200
+
+
+def test_user_profile_route(client):
+    response = client.get("/me")
+    assert response.status_code == 200
+
+
 def test_history_route(client):
     response = client.get("/history")
     assert response.status_code == 200
@@ -150,6 +165,42 @@ def test_api_recent_activity_route(mock_get_recent_activities, client):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert data == [{"id": 1}]
+
+
+@patch("src.dashboard.requests.request")
+def test_call_api_uses_runtime_settings_for_url_and_api_key(mock_request, tmp_path):
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {"success": True}
+    mock_request.return_value = response
+
+    config = SimpleNamespace(
+        api=SimpleNamespace(port=8000),
+        integrations=SimpleNamespace(api_url=None, api_public_url=None),
+        security=SimpleNamespace(api_key=None),
+        data_dir=str(tmp_path),
+    )
+    dashboard = DashboardApp(config=config, logger=MagicMock())
+    dashboard._get_runtime_config = MagicMock(
+        return_value=SimpleNamespace(
+            api=SimpleNamespace(port=9100),
+            integrations=SimpleNamespace(
+                api_url="http://api.internal:9100",
+                api_public_url="https://public.example.com/api",
+            ),
+            security=SimpleNamespace(api_key="config-api-key"),
+        )
+    )
+
+    data = dashboard._call_api("/v1/settings")
+
+    assert data == {"success": True}
+    mock_request.assert_called_once_with(
+        "GET",
+        "http://api.internal:9100/v1/settings",
+        headers={"X-API-Key": "config-api-key"},
+        timeout=dashboard.api_timeout,
+    )
 
 
 @patch("src.dashboard.DashboardApp._get_trend_data")
@@ -295,6 +346,211 @@ def test_proxy_validate_settings_route(mock_call_api, client):
     mock_call_api.assert_called_once_with(
         "/v1/settings/validate", method="POST", json={"setting": "value"}
     )
+
+
+@patch("src.dashboard.DashboardApp._call_api")
+def test_proxy_generate_response_route(mock_call_api, client):
+    mock_call_api.return_value = {"review_id": "review-1", "text": "Resposta pronta"}
+    response = client.post(
+        "/api/generate/response",
+        json={"review_id": "review-1", "comment": "Ótimo atendimento"},
+    )
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["text"] == "Resposta pronta"
+    mock_call_api.assert_called_once_with(
+        "/v1/generate/response",
+        method="POST",
+        json={"review_id": "review-1", "comment": "Ótimo atendimento"},
+    )
+
+
+@patch("src.dashboard.DashboardApp._get_user_profile_settings")
+def test_workspace_overview_route(mock_user_profile, tmp_path):
+    mock_user_profile.return_value = {
+        "display_name": "Dra. Ana",
+        "username": "dra-ana",
+        "favorite_profiles": [{"profile_url": "https://example.com/profile"}],
+    }
+    dashboard = DashboardApp(
+        config=SimpleNamespace(data_dir=str(tmp_path)),
+        logger=MagicMock(),
+    )
+    dashboard.app.config.update({"TESTING": True})
+    dashboard.workspace_service = MagicMock()
+    dashboard.workspace_service.get_overview.return_value = {
+        "summary": {"total_scrapes": 4},
+        "favorite_profiles": [],
+        "recent_scrapes": [],
+        "timeline": {"dates": [], "scrapes": [], "reviews": [], "unanswered": []},
+        "filters": [],
+    }
+    client = dashboard.app.test_client()
+
+    response = client.get("/api/workspace/overview?date_from=2026-03-01")
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["summary"]["total_scrapes"] == 4
+    assert data["user_profile"]["username"] == "dra-ana"
+
+
+@patch("src.dashboard.DashboardApp._update_remote_settings")
+def test_update_user_profile_route(mock_update_remote_settings, client):
+    mock_update_remote_settings.return_value = {
+        "user_profile": {
+            "display_name": "Dra. Ana",
+            "username": "dra-ana",
+            "favorite_profiles": [],
+        }
+    }
+
+    response = client.put(
+        "/api/user-profile",
+        json={
+            "display_name": "Dra. Ana",
+            "username": "dra-ana",
+            "favorite_profiles": [],
+        },
+    )
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["display_name"] == "Dra. Ana"
+    mock_update_remote_settings.assert_called_once()
+
+
+@patch("src.dashboard.DashboardApp._update_remote_settings")
+@patch("src.dashboard.DashboardApp._get_user_profile_settings")
+def test_toggle_favorite_profile_route_adds_item(
+    mock_get_user_profile_settings, mock_update_remote_settings, client
+):
+    mock_get_user_profile_settings.return_value = {
+        "display_name": "Dra. Ana",
+        "username": "dra-ana",
+        "favorite_profiles": [],
+    }
+    mock_update_remote_settings.return_value = {
+        "user_profile": {
+            "display_name": "Dra. Ana",
+            "username": "dra-ana",
+            "favorite_profiles": [
+                {
+                    "name": "Perfil principal",
+                    "profile_url": "https://www.doctoralia.com.br/medico/teste",
+                    "specialty": "Ginecologia",
+                    "notes": None,
+                }
+            ],
+        }
+    }
+
+    response = client.post(
+        "/api/user-profile/favorites/toggle",
+        json={
+            "name": "Perfil principal",
+            "profile_url": "https://www.doctoralia.com.br/medico/teste",
+            "specialty": "Ginecologia",
+        },
+    )
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["success"] is True
+    assert data["favorite"] is True
+
+
+def test_workspace_history_route(tmp_path):
+    dashboard = DashboardApp(
+        config=SimpleNamespace(data_dir=str(tmp_path)),
+        logger=MagicMock(),
+    )
+    dashboard.app.config.update({"TESTING": True})
+    dashboard.workspace_service = MagicMock()
+    dashboard.workspace_service.get_history.return_value = {
+        "summary": {"total_snapshots": 2},
+        "entries": [{"filename": "test.json"}],
+        "filters": [],
+    }
+    client = dashboard.app.test_client()
+
+    response = client.get("/api/workspace/history")
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["summary"]["total_snapshots"] == 2
+
+
+def test_workspace_history_delete_route(tmp_path):
+    dashboard = DashboardApp(
+        config=SimpleNamespace(data_dir=str(tmp_path)),
+        logger=MagicMock(),
+    )
+    dashboard.app.config.update({"TESTING": True})
+    dashboard.workspace_service = MagicMock()
+    dashboard.workspace_service.delete_snapshot.return_value = {
+        "filename": "test.json",
+        "deleted_size_human": "22 KB",
+    }
+    client = dashboard.app.test_client()
+
+    response = client.post("/api/workspace/history/delete", json={"filename": "test.json"})
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["success"] is True
+    assert data["deleted"]["filename"] == "test.json"
+
+
+def test_workspace_history_prune_route(tmp_path):
+    dashboard = DashboardApp(
+        config=SimpleNamespace(data_dir=str(tmp_path)),
+        logger=MagicMock(),
+    )
+    dashboard.app.config.update({"TESTING": True})
+    dashboard.workspace_service = MagicMock()
+    dashboard.workspace_service.prune_outdated_snapshots.return_value = {
+        "deleted_count": 3,
+        "deleted_size_human": "66 KB",
+    }
+    client = dashboard.app.test_client()
+
+    response = client.post("/api/workspace/history/prune", json={})
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["success"] is True
+    assert data["result"]["deleted_count"] == 3
+
+
+@patch("src.dashboard.DashboardApp._get_user_profile_settings")
+def test_workspace_reports_route(mock_user_profile, tmp_path):
+    mock_user_profile.return_value = {
+        "display_name": "Dra. Ana",
+        "username": "dra-ana",
+        "favorite_profiles": [],
+    }
+    dashboard = DashboardApp(
+        config=SimpleNamespace(data_dir=str(tmp_path)),
+        logger=MagicMock(),
+    )
+    dashboard.app.config.update({"TESTING": True})
+    dashboard.workspace_service = MagicMock()
+    dashboard.workspace_service.get_reports.return_value = {
+        "summary": {"total_files": 8},
+        "timeline": {"dates": [], "scrapes": [], "reviews": [], "unanswered": []},
+        "top_profiles": [],
+        "cleanup_candidates": [],
+        "inventory": [],
+        "filters": [],
+    }
+    client = dashboard.app.test_client()
+
+    response = client.get("/api/workspace/reports")
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["summary"]["total_files"] == 8
 
 
 # -------------------------------------------------------------------

@@ -10,7 +10,7 @@ Plataforma de automação para capturar, analisar e responder avaliações médi
 |------------|-------|-------------|
 | Scraper (Selenium) | Coleta páginas, extrai metadados e reviews | Delay adaptativo, retries, fallback |
 | Multi Site Layer | Abstração para futuras plataformas | Hoje principal: Doctoralia |
-| Response Generator | Geração de respostas template + heurísticas | Pode plugar LLM futuramente |
+| Response Generator | Geração de respostas local (templates) ou por LLM | Suporta OpenAI, Gemini e Claude de forma opcional |
 | Quality Analyzer | Sentimento / legibilidade / heurísticas | VADER + regras custom |
 | API (FastAPI) | Interface programática v1 | Sync + async jobs + webhooks |
 | Worker (RQ) | Processa jobs assíncronos intensivos | Redis como backend |

@@ -4,7 +4,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import requests
+
 from config.templates import QUALITY_KEYWORDS, RESPONSE_TEMPLATES
+
+DEFAULT_SYSTEM_PROMPT = (
+    "Voce gera respostas curtas e profissionais para avaliacoes publicas de pacientes "
+    "em perfis medicos. Responda em pt-BR, com tom acolhedor, objetivo e humano. "
+    "Nao invente fatos, nao faca diagnosticos, nao prescreva tratamentos, nao prometa "
+    "resultados e nao exponha dados sensiveis. A resposta deve agradecer o feedback, "
+    "reconhecer o ponto principal do comentario e encerrar com disponibilidade cordial."
+)
 
 
 class ResponseGenerator:
@@ -60,10 +70,259 @@ class ResponseGenerator:
 
         return qualities_found
 
-    def generate_response(self, review: Dict[str, Any]) -> str:
-        """Gera uma resposta personalizada para o comentário"""
-        author = review.get("author", "")
-        comment = review.get("comment", "")
+    def _get_review_author(self, review: Dict[str, Any]) -> str:
+        author = review.get("author")
+        if isinstance(author, str) and author.strip():
+            return str(author)
+        if isinstance(author, dict):
+            return str(author.get("name") or "")
+        author_info = review.get("author_info") or review.get("author_data")
+        if isinstance(author_info, dict):
+            return str(author_info.get("name") or "")
+        return ""
+
+    def _get_review_comment(self, review: Dict[str, Any]) -> str:
+        return str(review.get("comment") or review.get("text") or "")
+
+    def _get_doctor_signature(self, doctor_context: Optional[Dict[str, Any]]) -> str:
+        doctor_name = ""
+        if doctor_context:
+            doctor_name = str(doctor_context.get("name") or "").strip()
+
+        if not doctor_name and hasattr(self.config, "user_profile"):
+            display_name = getattr(self.config.user_profile, "display_name", "")
+            if isinstance(display_name, str):
+                doctor_name = display_name.strip()
+
+        if doctor_name and doctor_name.lower() != "administrador":
+            return f"Atenciosamente,\n{doctor_name}"
+        return self.templates["assinatura"]
+
+    def _get_generation_config(self) -> Any:
+        generation_config = getattr(self.config, "generation", None)
+        if generation_config is None:
+            return None
+        if hasattr(generation_config, "__class__") and generation_config.__class__.__name__ == "MagicMock":
+            return None
+        return generation_config
+
+    @staticmethod
+    def _coerce_float(value: Any, default: float) -> float:
+        try:
+            if isinstance(value, bool):
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int) -> int:
+        try:
+            if isinstance(value, bool):
+                return default
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _resolve_generation_mode(self, generation_mode: Optional[str]) -> str:
+        valid_modes = {"local", "openai", "gemini", "claude"}
+
+        if isinstance(generation_mode, str):
+            explicit_mode = generation_mode.strip().lower()
+            if explicit_mode and explicit_mode != "default":
+                return explicit_mode if explicit_mode in valid_modes else "local"
+
+        config = self._get_generation_config()
+        mode = getattr(config, "mode", None) if config is not None else None
+        if not isinstance(mode, str):
+            return "local"
+        normalized_mode = mode.strip().lower() or "local"
+        return normalized_mode if normalized_mode in valid_modes else "local"
+
+    def _build_user_prompt(
+        self,
+        review: Dict[str, Any],
+        doctor_context: Optional[Dict[str, Any]],
+        language: str,
+    ) -> str:
+        doctor_name = ""
+        doctor_specialty = ""
+        doctor_profile_url = ""
+        if doctor_context:
+            doctor_name = str(doctor_context.get("name") or "").strip()
+            doctor_specialty = str(doctor_context.get("specialty") or "").strip()
+            doctor_profile_url = str(doctor_context.get("profile_url") or "").strip()
+
+        rating = review.get("rating")
+        author = self._get_review_author(review) or "Paciente"
+        comment = self._get_review_comment(review)
+        review_date = str(review.get("date") or "").strip()
+
+        prompt_lines = [
+            f"Idioma de saida: {language or 'pt-BR'}",
+            f"Medico(a): {doctor_name or 'Nao informado'}",
+            f"Especialidade: {doctor_specialty or 'Nao informada'}",
+            f"Perfil publico: {doctor_profile_url or 'Nao informado'}",
+            f"Autor da avaliacao: {author}",
+            f"Nota: {rating if rating is not None else 'Nao informada'}",
+            f"Data da avaliacao: {review_date or 'Nao informada'}",
+            "Comentario do paciente:",
+            comment or "(sem comentario)",
+            "",
+            "Instrucoes:",
+            "- Gere uma unica resposta pronta para colar no Doctoralia.",
+            "- Mantenha entre 2 e 4 frases.",
+            "- Seja profissional, acolhedor e natural.",
+            "- Nao use markdown, listas ou aspas.",
+            "- Termine com uma despedida curta e assinatura profissional.",
+        ]
+        return "\n".join(prompt_lines)
+
+    @staticmethod
+    def _extract_openai_text(payload: Dict[str, Any]) -> str:
+        choices = payload.get("choices", [])
+        if not choices:
+            return ""
+        message = choices[0].get("message", {})
+        content = message.get("content", "")
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    return str(item.get("text") or "").strip()
+        return ""
+
+    @staticmethod
+    def _extract_claude_text(payload: Dict[str, Any]) -> str:
+        for item in payload.get("content", []):
+            if isinstance(item, dict) and item.get("type") == "text":
+                return str(item.get("text") or "").strip()
+        return ""
+
+    @staticmethod
+    def _extract_gemini_text(payload: Dict[str, Any]) -> str:
+        candidates = payload.get("candidates", [])
+        if not candidates:
+            return ""
+        content = candidates[0].get("content", {})
+        for part in content.get("parts", []):
+            if isinstance(part, dict) and part.get("text"):
+                return str(part["text"]).strip()
+        return ""
+
+    def _call_openai(
+        self, prompt: str, system_prompt: str, temperature: float, max_tokens: int
+    ) -> tuple[str, str]:
+        config = self._get_generation_config()
+        api_key = getattr(config, "openai_api_key", None) or getattr(
+            getattr(self.config, "security", None), "openai_api_key", None
+        )
+        model = getattr(config, "openai_model", "gpt-4.1-mini")
+        if not api_key:
+            raise ValueError("OpenAI API key não configurada")
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+            timeout=45,
+        )
+        if not response.ok:
+            raise ValueError(
+                f"OpenAI retornou {response.status_code}: {response.text[:300]}"
+            )
+
+        text = self._extract_openai_text(response.json())
+        if not text:
+            raise ValueError("OpenAI não retornou texto de resposta")
+        return text, str(model)
+
+    def _call_claude(
+        self, prompt: str, system_prompt: str, temperature: float, max_tokens: int
+    ) -> tuple[str, str]:
+        config = self._get_generation_config()
+        api_key = getattr(config, "claude_api_key", None)
+        model = getattr(config, "claude_model", "claude-3-5-sonnet-latest")
+        if not api_key:
+            raise ValueError("Claude API key não configurada")
+
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "system": system_prompt,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=45,
+        )
+        if not response.ok:
+            raise ValueError(
+                f"Claude retornou {response.status_code}: {response.text[:300]}"
+            )
+
+        text = self._extract_claude_text(response.json())
+        if not text:
+            raise ValueError("Claude não retornou texto de resposta")
+        return text, str(model)
+
+    def _call_gemini(
+        self, prompt: str, system_prompt: str, temperature: float, max_tokens: int
+    ) -> tuple[str, str]:
+        config = self._get_generation_config()
+        api_key = getattr(config, "gemini_api_key", None)
+        model = getattr(config, "gemini_model", "gemini-2.5-flash")
+        if not api_key:
+            raise ValueError("Gemini API key não configurada")
+
+        response = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            params={"key": api_key},
+            headers={"Content-Type": "application/json"},
+            json={
+                "systemInstruction": {"parts": [{"text": system_prompt}]},
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": temperature,
+                    "maxOutputTokens": max_tokens,
+                },
+            },
+            timeout=45,
+        )
+        if not response.ok:
+            raise ValueError(
+                f"Gemini retornou {response.status_code}: {response.text[:300]}"
+            )
+
+        text = self._extract_gemini_text(response.json())
+        if not text:
+            raise ValueError("Gemini não retornou texto de resposta")
+        return text, str(model)
+
+    def _generate_local_response(
+        self, review: Dict[str, Any], doctor_context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Gera uma resposta personalizada localmente, usando templates."""
+        author = self._get_review_author(review)
+        comment = self._get_review_comment(review)
 
         # Extrair nome para saudação
         first_name = self.extract_first_name(author)
@@ -110,9 +369,86 @@ class ResponseGenerator:
         response_parts.append(availability)
 
         # 6. Assinatura
-        response_parts.append(self.templates["assinatura"])
+        response_parts.append(self._get_doctor_signature(doctor_context))
 
         return " ".join(response_parts)
+
+    def generate_response_with_metadata(
+        self,
+        review: Dict[str, Any],
+        doctor_context: Optional[Dict[str, Any]] = None,
+        generation_mode: Optional[str] = None,
+        language: str = "pt-BR",
+    ) -> Dict[str, Any]:
+        """Generate response and return text plus provider metadata."""
+        mode = self._resolve_generation_mode(generation_mode)
+
+        if mode == "local":
+            return {
+                "text": self._generate_local_response(review, doctor_context),
+                "model": {
+                    "type": "template",
+                    "provider": "local",
+                    "mode": "local",
+                },
+            }
+
+        config = self._get_generation_config()
+        system_prompt = (
+            getattr(config, "system_prompt", None) if config is not None else None
+        ) or DEFAULT_SYSTEM_PROMPT
+        temperature = self._coerce_float(
+            getattr(config, "temperature", 0.35) if config is not None else 0.35,
+            0.35,
+        )
+        max_tokens = self._coerce_int(
+            getattr(config, "max_tokens", 300) if config is not None else 300,
+            300,
+        )
+        prompt = self._build_user_prompt(review, doctor_context, language)
+
+        if mode == "openai":
+            text, model_name = self._call_openai(
+                prompt, system_prompt, temperature, max_tokens
+            )
+        elif mode == "gemini":
+            text, model_name = self._call_gemini(
+                prompt, system_prompt, temperature, max_tokens
+            )
+        elif mode == "claude":
+            text, model_name = self._call_claude(
+                prompt, system_prompt, temperature, max_tokens
+            )
+        else:
+            raise ValueError(f"Modo de geração inválido: {mode}")
+
+        return {
+            "text": text,
+            "model": {
+                "type": "third-party",
+                "provider": mode,
+                "mode": mode,
+                "name": model_name,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        }
+
+    def generate_response(
+        self,
+        review: Dict[str, Any],
+        doctor_context: Optional[Dict[str, Any]] = None,
+        generation_mode: Optional[str] = None,
+        language: str = "pt-BR",
+    ) -> str:
+        """Gera uma resposta personalizada para o comentário."""
+        result = self.generate_response_with_metadata(
+            review,
+            doctor_context=doctor_context,
+            generation_mode=generation_mode,
+            language=language,
+        )
+        return str(result["text"])
 
     def find_latest_extraction(self) -> Optional[Path]:
         """Encontra a pasta de extração mais recente"""

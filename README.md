@@ -14,7 +14,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=flat-square)](https://github.com/psf/black)
 [![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg?style=flat-square)](https://github.com/PyCQA/bandit)
 
-**[📖 Documentação](docs/) • [🚀 Início Rápido](#-início-rápido) • [🔌 API](#-api-rest) • [🤝 Contribuir](CONTRIBUTING.md)**
+**[📖 Documentação](docs/) • [🧭 Workspace](docs/dashboard-workspace.md) • [🚀 Início Rápido](#-início-rápido) • [🔌 API](#-api-rest) • [🤝 Contribuir](CONTRIBUTING.md)**
 
 </div>
 
@@ -56,7 +56,7 @@ Desenvolvido com foco em **resiliência**, **segurança** e **extensibilidade**,
 | Funcionalidade | Descrição |
 |----------------|-----------|
 | 🔍 **Scraping Resiliente** | Coleta automatizada com anti-detecção, delays dinâmicos e recuperação de falhas |
-| 🤖 **Geração de Respostas** | Templates inteligentes baseados em sentimento e categoria |
+| 🤖 **Geração de Respostas** | Modo local + provedores externos opcionais (OpenAI, Gemini, Claude) |
 | 📊 **Análise de Qualidade** | Score de sentimento, detecção de urgência, métricas de engajamento |
 | 💾 **Cache Inteligente** | Evita reprocessamento e otimiza recursos |
 
@@ -67,6 +67,7 @@ Desenvolvido com foco em **resiliência**, **segurança** e **extensibilidade**,
 | ⚡ **Jobs Assíncronos** | Processamento em background com Redis/RQ |
 | 🔔 **Webhooks** | Notificações assinadas (HMAC) para eventos |
 | 📱 **Telegram Bot** | Alertas e notificações em tempo real |
+| 🧭 **Workspace Web** | Overview, perfis, backlog de respostas e área do operador |
 
 ### DevOps
 | Funcionalidade | Descrição |

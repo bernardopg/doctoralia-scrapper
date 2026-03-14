@@ -10,7 +10,14 @@ from rq import Queue
 
 def get_redis_connection():
     """Get Redis connection."""
-    return redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    try:
+        from config.settings import AppConfig
+
+        redis_url = AppConfig.load().integrations.redis_url or redis_url
+    except Exception:
+        pass
+    return redis.from_url(redis_url)
 
 
 def get_queue(name: str = "doctoralia") -> Queue:

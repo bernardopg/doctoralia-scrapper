@@ -15,12 +15,22 @@ from fastapi.security import APIKeyHeader
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
+def _load_secret(field: str, env_name: str) -> Optional[str]:
+    try:
+        from config.settings import AppConfig
+
+        config = AppConfig.load()
+        return getattr(config.security, field) or os.getenv(env_name)
+    except Exception:
+        return os.getenv(env_name)
+
+
 async def require_api_key(api_key: Optional[str] = Depends(api_key_header)) -> bool:
     """
     Validate API key from header.
     Supports both X-API-Key and Authorization: Bearer formats.
     """
-    expected = os.getenv("API_KEY")
+    expected = _load_secret("api_key", "API_KEY")
 
     if not expected:
         # No API key configured, allow access (dev mode)
@@ -48,7 +58,7 @@ async def verify_webhook_signature(
     """
     Verify webhook HMAC signature.
     """
-    secret = os.getenv("WEBHOOK_SIGNING_SECRET")
+    secret = _load_secret("webhook_signing_secret", "WEBHOOK_SIGNING_SECRET")
 
     if not secret:
         # No secret configured, skip verification
@@ -96,7 +106,7 @@ def create_webhook_signature(payload: str, timestamp: float) -> tuple[str, str]:
     Returns:
         Tuple of (timestamp_str, signature)
     """
-    secret = os.getenv("WEBHOOK_SIGNING_SECRET", "")
+    secret = _load_secret("webhook_signing_secret", "WEBHOOK_SIGNING_SECRET") or ""
 
     if not secret:
         return str(timestamp), ""

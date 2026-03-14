@@ -40,6 +40,11 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ### Dashboard e Web UI
 
+- [ ] Mascarar segredos na tela de settings sem perder a possibilidade de rotação de chave
+- [ ] Adicionar paginação/virtualização na fila de respostas pendentes quando houver backlog grande
+- [ ] Permitir aplicar geração em lote por perfil na página de respostas
+- [ ] Exibir comparação temporal por perfil (janela atual vs anterior) na página de perfis
+- [ ] Adicionar diff entre último snapshot e o snapshot anterior no histórico de um perfil
 - [ ] Adicionar distribuição de sentimento nos relatórios
 - [ ] Implementar comparação temporal de métricas (semana atual vs anterior)
 - [ ] Adicionar filtro por médico e período na página de relatórios
@@ -60,6 +65,7 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 - [ ] Melhorar validação de URLs (aceitar variações de domínio, limpar parâmetros desnecessários)
 - [ ] Adicionar modo de scraping incremental (apenas reviews novos desde última execução)
+- [ ] Refinar o encerramento do carregamento de reviews para evitar clique/timeout extra quando a página já atingiu o último lote
 - [ ] Implementar detecção e tratamento de CAPTCHAs
 - [ ] Adicionar proxy rotation para evitar bloqueios
 - [ ] Implementar scraping de múltiplos médicos em paralelo
@@ -85,7 +91,8 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ### Integrações
 
-- [ ] Implementar integração com OpenAI para geração de respostas (variável `OPENAI_API_KEY` já existe no `.env.example`)
+- [ ] Adicionar suporte a fallback inteligente entre provedores externos (OpenAI → Gemini → Claude)
+- [ ] Registrar custo/uso por provedor de IA para auditoria operacional
 - [ ] Criar adaptadores para outras plataformas no multi-site scraper (ZocDoc, Healthgrades, Google Reviews)
 - [ ] Documentar e validar workflows de exemplo do n8n (`examples/n8n/`)
 - [ ] Adicionar integração com Slack como alternativa ao Telegram
@@ -117,6 +124,22 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 ---
 
 ## ✅ Concluído
+
+### Workspace, IA e Operação do Dashboard
+
+- [x] Adicionar configuração completa de geração automática com modos `local`, `openai`, `gemini` e `claude`
+- [x] Expor API keys, modelos e parâmetros de geração no frontend de settings
+- [x] Criar endpoint de geração unitária para sugestões manuais por review
+- [x] Reestruturar o dashboard em páginas dedicadas: `Overview`, `Perfis`, `Respostas` e `Minha Área`
+- [x] Adicionar filtros por perfil e data no workspace do dashboard
+- [x] Exibir métricas operacionais por perfil: rastreios, avaliação média, pendências e sugestões geradas
+- [x] Implementar favoritos de médicos no perfil do operador, persistidos em `config/config.json`
+- [x] Melhorar a sidebar com navegação por workspace, indicadores de favoritos e pendências e atalho de scraping
+- [x] Transformar `History` em um painel de snapshots com limpeza de arquivos antigos e re-scrape por perfil
+- [x] Transformar `Reports` em um painel analítico com timeline, top perfis, inventário e candidatos de limpeza
+- [x] Adicionar endpoint e UI para apagar snapshots individuais e fazer prune global dos snapshots desatualizados
+- [x] Compartilhar `config/` entre `api`, `worker` e `dashboard` no Docker Compose para persistir settings salvos pela UI
+- [x] Corrigir jobs assíncronos para salvar snapshots no worker, normalizar IDs de reviews e refletir `failed` corretamente em `/history` e `/api/tasks`
 
 - [x] Criar `worker-entrypoint.sh` referenciado no Dockerfile
 - [x] Corrigir health check do Selenium na API (`src/api/v1/main.py`)

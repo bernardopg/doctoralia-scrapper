@@ -18,6 +18,10 @@ class ScrapeRequest(BaseModel):
     response_template_id: Optional[str] = Field(
         None, description="Response template ID"
     )
+    generation_mode: Optional[str] = Field(
+        default=None,
+        description="Optional generation mode override: local, openai, gemini or claude",
+    )
     language: Optional[str] = Field(default="pt", description="Language for responses")
     meta: Optional[Dict] = Field(None, description="Additional metadata")
 
@@ -44,6 +48,10 @@ class WebhookRequest(BaseModel):
     response_template_id: Optional[str] = Field(
         None, description="Response template ID"
     )
+    generation_mode: Optional[str] = Field(
+        default=None,
+        description="Optional generation mode override: local, openai, gemini or claude",
+    )
     language: Optional[str] = Field(default="pt", description="Language for responses")
 
 
@@ -61,3 +69,27 @@ class WebhookResponse(BaseModel):
     received: bool = Field(..., description="Request received")
     job_id: str = Field(..., description="Created job ID")
     status: str = Field(..., description="Job status")
+
+
+class GenerateResponseRequest(BaseModel):
+    """Request model for generating a single response suggestion."""
+
+    review_id: Optional[str] = Field(default=None, description="Review identifier")
+    author: Optional[str] = Field(default=None, description="Review author name")
+    comment: str = Field(..., description="Review comment text")
+    rating: Optional[int] = Field(
+        default=None, ge=1, le=5, description="Review rating when available"
+    )
+    date: Optional[str] = Field(default=None, description="Review date")
+    doctor_name: Optional[str] = Field(default=None, description="Doctor display name")
+    doctor_specialty: Optional[str] = Field(
+        default=None, description="Doctor specialty for prompt context"
+    )
+    doctor_profile_url: Optional[HttpUrl] = Field(
+        default=None, description="Doctor profile URL"
+    )
+    language: Optional[str] = Field(default="pt", description="Response language")
+    generation_mode: Optional[str] = Field(
+        default=None,
+        description="Optional generation mode override: local, openai, gemini or claude",
+    )

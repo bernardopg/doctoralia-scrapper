@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Respostas - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Fila de Respostas{% endblock %}
+
+{% block content %}
+<div id="responses-alert"></div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-reply-all"></i>
+      Backlog de Comentários sem Resposta
+    </h3>
+  </div>
+  <div class="card-body">
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Perfil</label>
+        <select id="responses-profile-filter" class="form-control">
+          <option value="">Todos os perfis</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Inicial</label>
+        <input type="date" id="responses-date-from" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Final</label>
+        <input type="date" id="responses-date-to" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Busca</label>
+        <input type="text" id="responses-search" class="form-control" placeholder="autor, comentário ou perfil">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Modo de Geração</label>
+        <select id="responses-generation-mode" class="form-control">
+          <option value="default">Padrão da plataforma</option>
+          <option value="local">Local</option>
+          <option value="openai">OpenAI</option>
+          <option value="gemini">Gemini</option>
+          <option value="claude">Claude</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ações</label>
+        <div class="flex gap-2">
+          <button class="btn btn-primary" onclick="loadResponsesWorkspace()">
+            <i class="fas fa-sync-alt"></i>
+            Atualizar
+          </button>
+          <button class="btn btn-secondary" onclick="resetResponsesFilters()">
+            <i class="fas fa-undo"></i>
+            Limpar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkbox-wrapper mt-2">
+      <input type="checkbox" id="responses-favorites-only">
+      <label for="responses-favorites-only" class="checkbox-label">
+        Mostrar apenas perfis favoritos
+      </label>
+    </div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Pendentes</span><div class="stat-icon red"><i class="fas fa-reply-all"></i></div></div>
+    <div class="stat-value" id="responses-summary-pending">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Perfis com Pendência</span><div class="stat-icon blue"><i class="fas fa-user-doctor"></i></div></div>
+    <div class="stat-value" id="responses-summary-profiles">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Favoritos</span><div class="stat-icon orange"><i class="fas fa-star"></i></div></div>
+    <div class="stat-value" id="responses-summary-favorites">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Sugestões Salvas</span><div class="stat-icon green"><i class="fas fa-magic"></i></div></div>
+    <div class="stat-value" id="responses-summary-ready">-</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-inbox"></i>
+      Itens Pendentes
+    </h3>
+  </div>
+  <div class="card-body" id="responses-list">
+    <div class="text-secondary">Carregando backlog...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const responsesState = {
+    items: [],
+  };
+
+  function showResponsesAlert(message, type = 'info') {
+    const container = document.getElementById('responses-alert');
+    container.innerHTML = `
+      <div class="alert alert-${type}">
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
+        <div>${message}</div>
+      </div>
+    `;
+    setTimeout(() => { container.innerHTML = ''; }, 4000);
+  }
+
+  function responsesQuery() {
+    const params = new URLSearchParams();
+    const profileId = document.getElementById('responses-profile-filter').value;
+    const dateFrom = document.getElementById('responses-date-from').value;
+    const dateTo = document.getElementById('responses-date-to').value;
+    const search = document.getElementById('responses-search').value.trim();
+    const favoritesOnly = document.getElementById('responses-favorites-only').checked;
+
+    if (profileId) params.set('profile_id', profileId);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    if (search) params.set('q', search);
+    if (favoritesOnly) params.set('favorites_only', '1');
+    const query = params.toString();
+    return query ? `?${query}` : '';
+  }
+
+  function textareaId(item) {
+    return `response-${item.profile_id}-${item.review_id}`;
+  }
+
+  function providerBadgeId(item) {
+    return `provider-${item.profile_id}-${item.review_id}`;
+  }
+
+  function findResponseItem(profileId, reviewId) {
+    return responsesState.items.find((item) => item.profile_id === profileId && String(item.review_id) === String(reviewId));
+  }
+
+  function populateResponseFilters(filters) {
+    const select = document.getElementById('responses-profile-filter');
+    const current = select.value;
+    select.innerHTML = '<option value="">Todos os perfis</option>' + filters.map((item) => `
+      <option value="${item.profile_id}">${item.doctor_name}</option>
+    `).join('');
+    select.value = current;
+  }
+
+  function renderResponses(items) {
+    const container = document.getElementById('responses-list');
+    if (!items.length) {
+      container.innerHTML = '<div class="text-secondary">Nenhum comentário pendente para os filtros atuais.</div>';
+      return;
+    }
+
+    container.innerHTML = items.map((item) => `
+      <div class="card mb-3" style="box-shadow:none;">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <div style="font-weight:700;">${item.doctor_name}</div>
+              <div class="text-secondary" style="font-size:13px;">${item.author} • ${item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '-'} • ${item.rating || '-'} ★</div>
+            </div>
+            <div class="flex gap-1 items-center">
+              ${item.is_favorite ? '<span class="btn btn-sm btn-secondary"><i class="fas fa-star"></i> Favorito</span>' : ''}
+              <span id="${providerBadgeId(item)}" class="text-secondary" style="font-size:12px;">${item.generated_response ? 'Sugestão salva' : 'Sem sugestão'}</span>
+            </div>
+          </div>
+
+          <div style="padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: 12px; font-size: 14px;">
+            ${item.comment}
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Resposta sugerida</label>
+            <textarea id="${textareaId(item)}" class="form-control" rows="5" placeholder="Gere uma sugestão para este comentário...">${item.generated_response || ''}</textarea>
+          </div>
+
+          <div class="flex gap-2" style="margin-top: 12px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="generateResponseForItem('${item.profile_id}', '${item.review_id}')">
+              <i class="fas fa-wand-magic-sparkles"></i>
+              Gerar Sugestão
+            </button>
+            <button class="btn btn-secondary" onclick="saveEditedSuggestion('${item.profile_id}', '${item.review_id}')">
+              <i class="fas fa-save"></i>
+              Salvar Edição
+            </button>
+            <button class="btn btn-secondary" onclick="copySuggestion('${textareaId(item)}')">
+              <i class="fas fa-copy"></i>
+              Copiar
+            </button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function saveEditedSuggestion(profileId, reviewId) {
+    try {
+      const responseText = document.getElementById(`response-${profileId}-${reviewId}`).value.trim();
+      if (!responseText) {
+        showResponsesAlert('Não há texto para salvar.', 'error');
+        return false;
+      }
+
+      const response = await fetch('/api/workspace/responses/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          profile_id: profileId,
+          review_id: reviewId,
+          generated_response: responseText,
+        }),
+      });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      document.getElementById(`provider-${profileId}-${reviewId}`).textContent = 'Sugestão salva no snapshot';
+      showResponsesAlert('Sugestão salva com sucesso.', 'success');
+      return true;
+    } catch (error) {
+      showResponsesAlert(`Erro ao salvar sugestão: ${error.message}`, 'error');
+      return false;
+    }
+  }
+
+  async function generateResponseForItem(profileId, reviewId) {
+    try {
+      const item = findResponseItem(profileId, reviewId);
+      if (!item) throw new Error('Item não encontrado');
+      const mode = document.getElementById('responses-generation-mode').value;
+      const response = await fetch('/api/generate/response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          review_id: item.review_id,
+          author: item.author,
+          comment: item.comment,
+          rating: item.rating,
+          date: item.date,
+          doctor_name: item.doctor_name,
+          doctor_profile_url: item.profile_url,
+          generation_mode: mode !== 'default' ? mode : null,
+          language: 'pt',
+        }),
+      });
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      document.getElementById(textareaId(item)).value = data.text || '';
+      document.getElementById(providerBadgeId(item)).textContent = data.model?.provider
+        ? `Gerado via ${data.model.provider}`
+        : 'Gerado';
+      await saveEditedSuggestion(item.profile_id, item.review_id);
+    } catch (error) {
+      showResponsesAlert(`Erro ao gerar resposta: ${error.message}`, 'error');
+    }
+  }
+
+  async function copySuggestion(id) {
+    const text = document.getElementById(id).value;
+    if (!text) return;
+    await navigator.clipboard.writeText(text);
+    showResponsesAlert('Sugestão copiada para a área de transferência.', 'success');
+  }
+
+  async function loadResponsesWorkspace() {
+    try {
+      const response = await fetch(`/api/workspace/responses${responsesQuery()}`);
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      responsesState.items = data.items || [];
+      populateResponseFilters(data.filters || []);
+      document.getElementById('responses-summary-pending').textContent = data.summary?.pending_reviews ?? 0;
+      document.getElementById('responses-summary-profiles').textContent = data.summary?.profiles_with_pending ?? 0;
+      document.getElementById('responses-summary-favorites').textContent = data.summary?.favorite_pending ?? 0;
+      document.getElementById('responses-summary-ready').textContent = data.summary?.generated_ready ?? 0;
+      renderResponses(responsesState.items);
+    } catch (error) {
+      showResponsesAlert(`Erro ao carregar pendências: ${error.message}`, 'error');
+    }
+  }
+
+  function resetResponsesFilters() {
+    document.getElementById('responses-profile-filter').value = '';
+    document.getElementById('responses-date-from').value = '';
+    document.getElementById('responses-date-to').value = '';
+    document.getElementById('responses-search').value = '';
+    document.getElementById('responses-favorites-only').checked = false;
+    loadResponsesWorkspace();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadResponsesWorkspace();
+  });
+</script>
+{% endblock %}

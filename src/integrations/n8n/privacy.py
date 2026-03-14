@@ -8,11 +8,65 @@ import re
 from typing import Any, Dict, Optional
 
 
+def _load_privacy_config():
+    try:
+        from config.settings import AppConfig
+
+        return AppConfig.load().privacy
+    except Exception:
+        return None
+
+
+def _get_bool(name: str, default: bool) -> bool:
+    config = _load_privacy_config()
+    if config is not None:
+        mapping = {
+            "MASK_PII": config.mask_pii,
+            "REQUIRE_TLS_CALLBACKS": config.require_tls_callbacks,
+        }
+        if name in mapping:
+            return bool(mapping[name])
+    return os.getenv(name, str(default)).lower() == "true"
+
+
+def _get_str(name: str, default: str) -> str:
+    config = _load_privacy_config()
+    if config is not None:
+        mapping = {
+            "ID_SALT": config.id_salt,
+        }
+        value = mapping.get(name)
+        if value:
+            return str(value)
+    return os.getenv(name, default)
+
+
+def _get_int(name: str, default: int) -> int:
+    config = _load_privacy_config()
+    if config is not None:
+        mapping = {
+            "JOB_RESULT_TTL": config.job_result_ttl,
+            "RATE_LIMIT_REQUESTS": config.rate_limit_requests,
+            "RATE_LIMIT_WINDOW": config.rate_limit_window,
+        }
+        value = mapping.get(name)
+        if value is not None:
+            return int(value)
+    return int(os.getenv(name, str(default)))
+
+
+def _get_allowed_domains() -> list[str]:
+    config = _load_privacy_config()
+    if config is not None and getattr(config, "allowed_callback_domains", None):
+        return [domain.strip() for domain in config.allowed_callback_domains if domain.strip()]
+    return [domain.strip() for domain in os.getenv("ALLOWED_CALLBACK_DOMAINS", "").split(",") if domain.strip()]
+
+
 def mask_pii(text: str) -> str:
     """
     Mask personally identifiable information in text.
     """
-    if not os.getenv("MASK_PII", "true").lower() == "true":
+    if not _get_bool("MASK_PII", True):
         return text
 
     # Mask email addresses
@@ -38,7 +92,7 @@ def hash_sensitive_id(value: str) -> str:
     """
     Create a consistent hash for sensitive IDs.
     """
-    salt = os.getenv("ID_SALT", "default-salt")
+    salt = _get_str("ID_SALT", "default-salt")
     return hashlib.sha256(f"{salt}{value}".encode()).hexdigest()[:16]
 
 
@@ -46,7 +100,7 @@ def sanitize_review(review: Dict[str, Any]) -> Dict[str, Any]:
     """
     Sanitize review data for privacy.
     """
-    if not os.getenv("MASK_PII", "true").lower() == "true":
+    if not _get_bool("MASK_PII", True):
         return review
 
     sanitized = review.copy()
@@ -74,7 +128,7 @@ def sanitize_doctor_data(doctor: Dict[str, Any]) -> Dict[str, Any]:
     """
     Sanitize doctor data for privacy.
     """
-    if not os.getenv("MASK_PII", "true").lower() == "true":
+    if not _get_bool("MASK_PII", True):
         return doctor
 
     sanitized = doctor.copy()
@@ -99,7 +153,7 @@ def apply_data_retention(redis_conn, job_id: str, ttl: Optional[int] = None):
         ttl: Time to live in seconds (default from env)
     """
     if ttl is None:
-        ttl = int(os.getenv("JOB_RESULT_TTL", "3600"))  # 1 hour default
+        ttl = _get_int("JOB_RESULT_TTL", 3600)
 
     # Set expiration on job result
     redis_conn.expire(f"rq:job:{job_id}", ttl)
@@ -129,8 +183,8 @@ class RateLimiter:
             window: Time window in seconds (default from env)
         """
         self.redis = redis_conn
-        self.max_requests = max_requests or int(os.getenv("RATE_LIMIT_REQUESTS", "10"))
-        self.window = window or int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+        self.max_requests = max_requests or _get_int("RATE_LIMIT_REQUESTS", 10)
+        self.window = window or _get_int("RATE_LIMIT_WINDOW", 60)
 
     def is_allowed(self, identifier: str) -> bool:
         """
@@ -180,7 +234,7 @@ def validate_callback_url(url: str) -> bool:
     Validate callback URL for security.
     """
     # Check if TLS is required
-    require_tls = os.getenv("REQUIRE_TLS_CALLBACKS", "true").lower() == "true"
+    require_tls = _get_bool("REQUIRE_TLS_CALLBACKS", True)
 
     if require_tls and not url.startswith("https://"):
         # Allow localhost for development
@@ -189,8 +243,8 @@ def validate_callback_url(url: str) -> bool:
         return False
 
     # Check against allowed domains (if configured)
-    allowed_domains = os.getenv("ALLOWED_CALLBACK_DOMAINS", "").split(",")
-    if allowed_domains and allowed_domains[0]:
+    allowed_domains = _get_allowed_domains()
+    if allowed_domains:
         from urllib.parse import urlparse
 
         domain = urlparse(url).netloc

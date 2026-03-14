@@ -57,3 +57,19 @@ def test_extract_all_reviews_cache():
     driver.page_source = "<html><body></body></html>"
     second = scraper._extract_all_reviews()
     assert second == first
+
+
+def test_extract_all_reviews_force_refresh_bypasses_cache():
+    scraper = _build_scraper()
+    driver = SimpleNamespace(
+        page_source=f"<html><body>{HTML}</body></html>",
+        current_url="https://www.doctoralia.com.br/test",
+    )
+    scraper.driver = driver  # type: ignore
+
+    first = scraper._extract_all_reviews()
+    assert len(first) == 1
+
+    driver.page_source = "<html><body></body></html>"
+    refreshed = scraper._extract_all_reviews(force_refresh=True)
+    assert refreshed == []

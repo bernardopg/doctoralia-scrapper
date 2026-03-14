@@ -5,11 +5,26 @@ Tests for n8n API integration.
 import json
 import time
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from config.settings import (
+    APIConfig,
+    AppConfig,
+    DelayConfig,
+    FavoriteProfileConfig,
+    GenerationConfig,
+    IntegrationConfig,
+    PrivacyConfig,
+    ScrapingConfig,
+    SecurityConfig,
+    TelegramConfig,
+    URLConfig,
+    UserProfileConfig,
+)
 from src.api.v1.deps import create_webhook_signature
 from src.api.v1.main import app
 
@@ -31,6 +46,74 @@ def mock_env(api_key):
     """Mock environment variables."""
     with patch.dict("os.environ", {"API_KEY": api_key}):
         yield
+
+
+def make_config(base_dir: Path) -> AppConfig:
+    """Create an application config for settings endpoint tests."""
+    return AppConfig(
+        telegram=TelegramConfig(
+            token="telegram-token",
+            chat_id="123456",
+            enabled=True,
+            parse_mode="Markdown",
+            attach_responses_auto=True,
+            attachment_format="txt",
+        ),
+        scraping=ScrapingConfig(),
+        delays=DelayConfig(),
+        api=APIConfig(host="0.0.0.0", port=8000, debug=False, workers=1),
+        security=SecurityConfig(
+            api_key="initial-api-key",
+            webhook_signing_secret="initial-webhook-secret",
+            openai_api_key="sk-initial-openai-key",
+        ),
+        generation=GenerationConfig(
+            mode="local",
+            openai_api_key="sk-generation-openai-key",
+            openai_model="gpt-4.1-mini",
+            gemini_api_key="gemini-secret",
+            gemini_model="gemini-2.5-flash",
+            claude_api_key="claude-secret",
+            claude_model="claude-3-5-sonnet-latest",
+            temperature=0.45,
+            max_tokens=320,
+            system_prompt="Seja cordial e objetiva.",
+        ),
+        integrations=IntegrationConfig(
+            redis_url="redis://redis.internal:6379/0",
+            selenium_remote_url="http://selenium.internal:4444/wd/hub",
+            api_url="http://api.internal:8000",
+            api_public_url="https://doctoralia.example.com/api",
+        ),
+        privacy=PrivacyConfig(
+            mask_pii=True,
+            id_salt="privacy-salt",
+            job_result_ttl=3600,
+            rate_limit_requests=15,
+            rate_limit_window=60,
+            require_tls_callbacks=True,
+            allowed_callback_domains=["hooks.example.com"],
+        ),
+        urls=URLConfig(
+            base_url="https://www.doctoralia.com.br",
+            profile_url="https://www.doctoralia.com.br/medico/teste",
+        ),
+        user_profile=UserProfileConfig(
+            display_name="Dra. Ana",
+            username="dra-ana",
+            favorite_profiles=[
+                FavoriteProfileConfig(
+                    name="Perfil principal",
+                    profile_url="https://www.doctoralia.com.br/medico/teste",
+                    specialty="Ginecologia",
+                    notes="Prioridade alta",
+                )
+            ],
+        ),
+        base_dir=base_dir,
+        data_dir=base_dir / "data",
+        logs_dir=base_dir / "data" / "logs",
+    )
 
 
 class TestHealthEndpoints:
@@ -333,6 +416,66 @@ class TestAsyncJobs:
         assert not mock_finished_registry.return_value.get_job_ids.called
         assert not mock_failed_registry.return_value.get_job_ids.called
 
+    @patch("rq.registry.FailedJobRegistry")
+    @patch("rq.registry.FinishedJobRegistry")
+    @patch("rq.registry.StartedJobRegistry")
+    @patch("src.api.v1.main.get_queue")
+    def test_list_jobs_failed_filter_includes_logical_failures(
+        self,
+        mock_queue,
+        mock_started_registry,
+        mock_finished_registry,
+        mock_failed_registry,
+        client,
+        mock_env,
+        api_key,
+    ):
+        """Finished jobs with failed result payloads must appear as failed."""
+        mock_q = MagicMock()
+        mock_q.job_ids = []
+        mock_queue.return_value = mock_q
+        mock_started_registry.return_value.get_job_ids.return_value = []
+        mock_finished_registry.return_value.get_job_ids.return_value = ["logical-failed"]
+        mock_failed_registry.return_value.get_job_ids.return_value = []
+
+        logical_failed = MagicMock()
+        logical_failed.id = "logical-failed"
+        logical_failed.is_queued = False
+        logical_failed.is_deferred = False
+        logical_failed.is_started = False
+        logical_failed.is_finished = True
+        logical_failed.is_failed = False
+        logical_failed.result = {
+            "doctor": {
+                "id": "test123",
+                "name": "Error",
+                "profile_url": "https://example.com/dr-test",
+            },
+            "reviews": [],
+            "metrics": {
+                "scraped_count": 0,
+                "start_ts": "2026-03-14T20:00:00",
+                "end_ts": "2026-03-14T20:00:02",
+                "duration_ms": 2000,
+                "source": "doctoralia",
+            },
+            "status": "failed",
+        }
+        logical_failed.meta = {"progress": 0, "message": "Falha: validation error"}
+        logical_failed.created_at = datetime(2026, 3, 14, 20, 0, 0)
+        logical_failed.enqueued_at = datetime(2026, 3, 14, 20, 0, 1)
+        logical_failed.ended_at = datetime(2026, 3, 14, 20, 0, 2)
+        mock_q.fetch_job.side_effect = {"logical-failed": logical_failed}.get
+
+        response = client.get("/v1/jobs?status=failed", headers={"X-API-Key": api_key})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["task_id"] == "logical-failed"
+        assert data[0]["status"] == "failed"
+        assert data[0]["message"] == "Falha: validation error"
+
     @patch("src.api.v1.main.get_queue")
     def test_get_job_status(self, mock_queue, client, mock_env, api_key):
         """Test job status retrieval."""
@@ -370,6 +513,44 @@ class TestAsyncJobs:
         assert data["doctor"]["name"] == "Dr. Test"
 
     @patch("src.api.v1.main.get_queue")
+    def test_get_job_status_returns_failed_finished_result(
+        self, mock_queue, client, mock_env, api_key
+    ):
+        """Finished jobs should expose failed logical results without being masked as completed."""
+        mock_q = MagicMock()
+        mock_job = MagicMock()
+        mock_job.is_queued = False
+        mock_job.is_deferred = False
+        mock_job.is_started = False
+        mock_job.is_finished = True
+        mock_job.is_failed = False
+        mock_job.result = {
+            "doctor": {
+                "id": "error-profile",
+                "name": "Error",
+                "profile_url": "https://example.com/error",
+            },
+            "reviews": [],
+            "metrics": {
+                "scraped_count": 0,
+                "start_ts": "2026-03-14T20:00:00",
+                "end_ts": "2026-03-14T20:00:01",
+                "duration_ms": 1000,
+                "source": "doctoralia",
+            },
+            "status": "failed",
+        }
+        mock_q.fetch_job.return_value = mock_job
+        mock_queue.return_value = mock_q
+
+        response = client.get("/v1/jobs/job-failed", headers={"X-API-Key": api_key})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "failed"
+        assert data["doctor"]["name"] == "Error"
+
+    @patch("src.api.v1.main.get_queue")
     def test_get_job_status_queued_is_pending(
         self, mock_queue, client, mock_env, api_key
     ):
@@ -403,6 +584,145 @@ class TestAsyncJobs:
             )
 
             assert response.status_code == 404
+
+class TestSettingsEndpoints:
+    """Test settings endpoints and expanded configuration fields."""
+
+    def test_get_settings_returns_extended_sections(self, client, api_key, tmp_path):
+        config = make_config(tmp_path)
+
+        with patch("src.api.v1.deps._load_secret", return_value=api_key):
+            with patch("src.api.v1.main._load_config", return_value=config):
+                response = client.get("/v1/settings", headers={"X-API-Key": api_key})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["settings"]["security"]["api_key"] == "initial-api-key"
+        assert (
+            data["settings"]["integrations"]["api_public_url"]
+            == "https://doctoralia.example.com/api"
+        )
+        assert data["settings"]["privacy"]["allowed_callback_domains"] == [
+            "hooks.example.com"
+        ]
+        assert data["settings"]["urls"]["profile_url"].endswith("/medico/teste")
+        assert data["settings"]["delays"]["page_load_retry"] == 5.0
+        assert data["settings"]["generation"]["mode"] == "local"
+        assert data["settings"]["generation"]["openai_model"] == "gpt-4.1-mini"
+        assert data["settings"]["user_profile"]["display_name"] == "Dra. Ana"
+        assert len(data["settings"]["user_profile"]["favorite_profiles"]) == 1
+
+    def test_update_settings_partial_payload_preserves_other_sections(
+        self, client, api_key, tmp_path
+    ):
+        config = make_config(tmp_path)
+        config.save = MagicMock()
+
+        payload = {
+            "security": {
+                "api_key": "updated-api-key",
+                "webhook_signing_secret": "updated-webhook-secret",
+                "openai_api_key": "sk-updated-openai-key",
+            }
+        }
+
+        with patch("src.api.v1.deps._load_secret", return_value=api_key):
+            with patch("src.api.v1.main._load_config", return_value=config):
+                response = client.put(
+                    "/v1/settings",
+                    json=payload,
+                    headers={"X-API-Key": api_key},
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert config.security.api_key == "updated-api-key"
+        assert config.security.webhook_signing_secret == "updated-webhook-secret"
+        assert config.integrations.redis_url == "redis://redis.internal:6379/0"
+        assert config.privacy.allowed_callback_domains == ["hooks.example.com"]
+        config.save.assert_called_once()
+        assert data["settings"]["integrations"]["redis_url"] == (
+            "redis://redis.internal:6379/0"
+        )
+        assert data["settings"]["generation"]["openai_model"] == "gpt-4.1-mini"
+        assert data["settings"]["user_profile"]["username"] == "dra-ana"
+
+    def test_validate_settings_rejects_new_invalid_fields(
+        self, client, api_key, tmp_path
+    ):
+        config = make_config(tmp_path)
+        invalid_payload = {
+            "security": {"openai_api_key": "invalid-openai-key"},
+            "generation": {"mode": "openai", "openai_api_key": None},
+            "integrations": {"redis_url": "http://not-redis"},
+            "privacy": {"allowed_callback_domains": ["https://bad.example.com"]},
+            "user_profile": {
+                "display_name": "  ",
+                "username": "",
+                "favorite_profiles": [
+                    {"name": "Sem URL", "profile_url": "nota-valid-url"}
+                ],
+            },
+        }
+
+        with patch("src.api.v1.deps._load_secret", return_value=api_key):
+            with patch("src.api.v1.main._load_config", return_value=config):
+                response = client.post(
+                    "/v1/settings/validate",
+                    json=invalid_payload,
+                    headers={"X-API-Key": api_key},
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "OpenAI API key must start with 'sk-'" in data["message"]
+        assert "OpenAI mode requires an OpenAI API key" in data["message"]
+        assert "Redis URL must start with redis:// or rediss://" in data["message"]
+        assert "allowed_callback_domains must contain domains only" in data["message"]
+        assert "Display name cannot be empty" in data["message"]
+        assert "Username cannot be empty" in data["message"]
+        assert "Favorite profile URL must be a valid HTTP(S) URL" in data["message"]
+
+    def test_generate_response_preview_endpoint_uses_generator_metadata(
+        self, client, api_key, tmp_path
+    ):
+        config = make_config(tmp_path)
+
+        with patch("src.api.v1.deps._load_secret", return_value=api_key):
+            with patch("src.api.v1.main._load_config", return_value=config):
+                with patch(
+                    "src.response_generator.ResponseGenerator.generate_response_with_metadata",
+                    return_value={
+                        "text": "Obrigada pelo feedback e pela confiança.",
+                        "model": {"provider": "openai", "name": "gpt-4.1-mini"},
+                    },
+                ) as mock_generate:
+                    response = client.post(
+                        "/v1/generate/response",
+                        json={
+                            "review_id": "review-1",
+                            "author": "Maria",
+                            "comment": "Ótimo atendimento",
+                            "rating": 5,
+                            "date": "2026-03-14",
+                            "doctor_name": "Dra. Ana",
+                            "doctor_specialty": "Ginecologia",
+                            "doctor_profile_url": "https://www.doctoralia.com.br/medico/teste",
+                            "language": "pt-BR",
+                            "generation_mode": "openai",
+                        },
+                        headers={"X-API-Key": api_key},
+                    )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["review_id"] == "review-1"
+        assert data["text"] == "Obrigada pelo feedback e pela confiança."
+        assert data["model"]["provider"] == "openai"
+        mock_generate.assert_called_once()
 
 
 class TestWebhookSecurity:

@@ -82,6 +82,44 @@
       gap: 8px;
     }
 
+    .workspace-pill {
+      margin: 14px 16px 0;
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      background:
+        radial-gradient(circle at top left, rgba(0, 122, 255, 0.18), transparent 55%),
+        linear-gradient(135deg, rgba(52, 199, 89, 0.12), rgba(0, 122, 255, 0.08));
+      border: 1px solid rgba(0, 122, 255, 0.14);
+    }
+
+    .workspace-pill-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-tertiary);
+      margin-bottom: 10px;
+    }
+
+    .workspace-pill-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .workspace-pill-metric strong {
+      display: block;
+      font-size: 18px;
+      color: var(--text-primary);
+      line-height: 1.1;
+    }
+
+    .workspace-pill-metric span {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
     /* ── Indicador de notificações pendentes ── */
     #scrape-status-indicator {
       display: none;
@@ -117,6 +155,11 @@
     }
 
     .result-action-link:hover { opacity: 0.85; }
+
+    .nav-item .nav-badge-muted {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
   </style>
 </head>
 
@@ -139,14 +182,42 @@
         </a>
       </div>
 
+      <div class="workspace-pill">
+        <div class="workspace-pill-title">Workspace</div>
+        <div class="workspace-pill-grid">
+          <div class="workspace-pill-metric">
+            <strong id="workspace-tracked-count">-</strong>
+            <span>Perfis</span>
+          </div>
+          <div class="workspace-pill-metric">
+            <strong id="workspace-pending-count">-</strong>
+            <span>Pendentes</span>
+          </div>
+          <div class="workspace-pill-metric">
+            <strong id="workspace-favorites-count">-</strong>
+            <span>Favoritos</span>
+          </div>
+        </div>
+      </div>
+
       <nav class="sidebar-nav">
 
-        <!-- Visão Geral -->
+        <!-- Central -->
         <div class="nav-section">
-          <div class="nav-section-title">Visão Geral</div>
+          <div class="nav-section-title">Central</div>
           <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">
-            <i class="fas fa-home"></i>
-            <span>Dashboard</span>
+            <i class="fas fa-compass"></i>
+            <span>Overview</span>
+          </a>
+          <a href="/profiles" class="nav-item {% if request.path.startswith('/profiles') %}active{% endif %}">
+            <i class="fas fa-user-doctor"></i>
+            <span>Perfis</span>
+            <span class="nav-badge nav-badge-muted" id="nav-favorites-count">0</span>
+          </a>
+          <a href="/responses" class="nav-item {% if request.path.startswith('/responses') %}active{% endif %}">
+            <i class="fas fa-reply-all"></i>
+            <span>Respostas</span>
+            <span class="nav-badge" id="nav-pending-responses-count">0</span>
           </a>
         </div>
 
@@ -174,7 +245,12 @@
 
         <!-- Sistema -->
         <div class="nav-section">
-          <div class="nav-section-title">Sistema</div>
+          <div class="nav-section-title">Conta e Sistema</div>
+
+          <a href="/me" class="nav-item {% if request.path.startswith('/me') %}active{% endif %}">
+            <i class="fas fa-id-card"></i>
+            <span>Minha Área</span>
+          </a>
 
           <a href="/health-check" class="nav-item {% if request.path == '/health-check' %}active{% endif %}">
             <i class="fas fa-heartbeat"></i>
@@ -212,8 +288,8 @@
             <i class="fas fa-user"></i>
           </div>
           <div class="sidebar-user-info">
-            <div class="sidebar-user-name">Admin</div>
-            <div class="sidebar-user-role">Administrador</div>
+            <div class="sidebar-user-name" id="sidebar-user-name">{{ dashboard_user_name }}</div>
+            <div class="sidebar-user-role" id="sidebar-user-role">@{{ dashboard_username }}</div>
           </div>
         </div>
       </div>
@@ -319,8 +395,30 @@
             <input type="checkbox" id="scrape-generate-responses">
             <label for="scrape-generate-responses" class="checkbox-label">
               Gerar respostas automáticas
-              <small class="text-tertiary">(requer OpenAI configurado)</small>
+              <small class="text-tertiary">(local ou IA de terceiros, conforme configuração)</small>
             </label>
+          </div>
+
+          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+            <div class="form-group">
+              <label class="form-label">Modo de Geração</label>
+              <select id="scrape-generation-mode" class="form-control">
+                <option value="default">Usar padrão da plataforma</option>
+                <option value="local">Local</option>
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+                <option value="claude">Claude</option>
+              </select>
+              <small class="form-help">Só é enviado quando a geração automática estiver marcada.</small>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Idioma</label>
+              <select id="scrape-language" class="form-control">
+                <option value="pt">Português</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -577,6 +675,27 @@
     // ── Status da API ───────────────────────────────────
     let _apiCheckTimer = null;
 
+    async function hydrateSidebarWorkspace() {
+      try {
+        const response = await fetch('/api/workspace/overview');
+        const data = await response.json();
+        if (data.error) return;
+
+        const summary = data.summary || {};
+        const userProfile = data.user_profile || {};
+
+        document.getElementById('workspace-tracked-count').textContent = summary.profiles_tracked ?? '-';
+        document.getElementById('workspace-pending-count').textContent = summary.unanswered_reviews_current ?? '-';
+        document.getElementById('workspace-favorites-count').textContent = summary.favorite_profiles_count ?? '-';
+        document.getElementById('nav-pending-responses-count').textContent = summary.unanswered_reviews_current ?? 0;
+        document.getElementById('nav-favorites-count').textContent = summary.favorite_profiles_count ?? 0;
+        document.getElementById('sidebar-user-name').textContent = userProfile.display_name || '{{ dashboard_user_name }}';
+        document.getElementById('sidebar-user-role').textContent = `@${userProfile.username || '{{ dashboard_username }}'}`;
+      } catch (error) {
+        console.warn('Failed to hydrate workspace sidebar:', error);
+      }
+    }
+
     async function checkApiStatus() {
       const dot     = document.getElementById('api-status-dot');
       const label   = document.getElementById('api-status-label');
@@ -613,6 +732,7 @@
     // Verificar a cada 30 s, e imediatamente ao carregar
     document.addEventListener('DOMContentLoaded', () => {
       checkApiStatus();
+      hydrateSidebarWorkspace();
       _apiCheckTimer = setInterval(checkApiStatus, 30_000);
     });
 
@@ -621,7 +741,22 @@
     });
 
     // ── Modal: Scraping ─────────────────────────────────
-    function showScrapeModal() {
+    async function loadScrapeDefaults() {
+      try {
+        const response = await fetch('/api/settings');
+        const data = await response.json();
+        if (data.success && data.settings) {
+          const settings = data.settings;
+          document.getElementById('scrape-url').value = settings.urls?.profile_url || '';
+          document.getElementById('scrape-generation-mode').value = settings.generation?.mode || 'default';
+          document.getElementById('scrape-language').value = 'pt';
+        }
+      } catch (error) {
+        console.warn('Failed to load scrape defaults:', error);
+      }
+    }
+
+    async function showScrapeModal(prefillUrl = null) {
       // Reset
       document.getElementById('scrape-step-config').style.display   = 'block';
       document.getElementById('scrape-step-progress').style.display = 'none';
@@ -629,8 +764,14 @@
       document.getElementById('scrape-start-btn').style.display     = 'flex';
       document.getElementById('scrape-cancel-btn').textContent      = 'Cancelar';
       document.getElementById('scrape-url').value = '';
+      document.getElementById('scrape-generation-mode').value = 'default';
+      document.getElementById('scrape-language').value = 'pt';
       clearScrapeError();
       document.getElementById('scrape-modal').style.display = 'flex';
+      await loadScrapeDefaults();
+      if (prefillUrl) {
+        document.getElementById('scrape-url').value = prefillUrl;
+      }
       setTimeout(() => document.getElementById('scrape-url').focus(), 50);
     }
 
@@ -668,6 +809,8 @@
       const maxReviews       = document.getElementById('scrape-max-reviews').value;
       const includeAnalysis  = document.getElementById('scrape-include-analysis').checked;
       const generateResponses = document.getElementById('scrape-generate-responses').checked;
+      const generationMode   = document.getElementById('scrape-generation-mode').value;
+      const language         = document.getElementById('scrape-language').value;
 
       // Validação inline
       if (!url) {
@@ -696,6 +839,8 @@
             doctor_url: url,
             include_analysis: includeAnalysis,
             include_generation: generateResponses,
+            generation_mode: generateResponses && generationMode !== 'default' ? generationMode : null,
+            language,
             meta: {
               platform,
               max_reviews: maxReviews ? parseInt(maxReviews) : 50,

@@ -18,12 +18,14 @@ from fastapi.responses import JSONResponse
 from src.api.schemas.common import (
     ErrorDetail,
     ErrorResponse,
+    GeneratedResponsePreview,
     HealthResponse,
     ReadyComponent,
     ReadyResponse,
     UnifiedResult,
 )
 from src.api.schemas.requests import (
+    GenerateResponseRequest,
     JobCreateRequest,
     JobResponse,
     ScrapeRequest,
@@ -100,6 +102,20 @@ def start_api(
     import uvicorn  # type: ignore
 
     uvicorn.run(app, host=host, port=port)
+
+
+def _load_config():
+    """Load AppConfig (helper to avoid repetition)."""
+    from config.settings import AppConfig
+
+    return AppConfig.load()
+
+
+def _is_debug_enabled() -> bool:
+    try:
+        return bool(_load_config().api.debug)
+    except Exception:
+        return os.getenv("DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 # Request ID middleware
@@ -188,7 +204,7 @@ async def general_exception_handler(request: Request, exc: Exception):
             error=ErrorDetail(
                 code="INTERNAL_ERROR",
                 message="An internal error occurred",
-                details=str(exc) if os.getenv("DEBUG") else None,
+                details=str(exc) if _is_debug_enabled() else None,
                 request_id=getattr(request.state, "request_id", None),
             )
         ).dict(),
@@ -220,6 +236,7 @@ async def readiness_check():
       - selenium: assumed ready unless explicit failures tracked (placeholder)
     """
     components: dict[str, ReadyComponent] = {}
+    config = _load_config()
 
     # Redis connectivity & latency
     redis_ok = False
@@ -227,7 +244,7 @@ async def readiness_check():
     redis_latency = None
     try:
         start = time.perf_counter()
-        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        r = redis.from_url(config.integrations.redis_url)
         r.ping()
         redis_latency = int((time.perf_counter() - start) * 1000)
         redis_ok = True
@@ -294,7 +311,7 @@ async def readiness_check():
     selenium_error = None
     selenium_latency = None
     try:
-        selenium_url = os.getenv("SELENIUM_REMOTE_URL", "http://localhost:4444/wd/hub")
+        selenium_url = config.integrations.selenium_remote_url
         start = time.perf_counter()
 
         # Create a simple HTTP request to check if Selenium is responding
@@ -418,20 +435,40 @@ async def scrape_run(request: ScrapeRequest):
             responses = []
             for idx, review in enumerate(reviews_data):
                 try:
-                    response_text = generator.generate_response(review)
+                    generation_result = generator.generate_response_with_metadata(
+                        review,
+                        doctor_context=doctor_data,
+                        generation_mode=request.generation_mode,
+                        language=request.language or "pt-BR",
+                    )
                 except Exception:
-                    response_text = ""
+                    generation_result = {
+                        "text": "",
+                        "model": {
+                            "type": "error",
+                            "provider": request.generation_mode or config.generation.mode,
+                        },
+                    }
                 responses.append(
                     {
                         "review_id": str(review.get("id", idx)),
-                        "text": response_text,
+                        "text": generation_result["text"],
                         "language": request.language or "pt",
+                        "provider": generation_result["model"].get("provider"),
+                        "model": generation_result["model"].get("name"),
+                        "fallback_used": generation_result["model"].get("mode")
+                        == "local"
+                        and (request.generation_mode or config.generation.mode) != "local",
+                        "status": "generated" if generation_result["text"] else "empty",
                     }
                 )
             generation_data = {
                 "template_id": request.response_template_id,
                 "responses": responses,
-                "model": {"type": "rule-based"},
+                "model": {
+                    "type": "batch",
+                    "provider": request.generation_mode or config.generation.mode,
+                },
             }
 
         # Create unified result and return
@@ -461,6 +498,56 @@ async def scrape_run(request: ScrapeRequest):
         )
 
 
+@app.post(
+    "/v1/generate/response",
+    response_model=GeneratedResponsePreview,
+    dependencies=[Depends(require_api_key)],
+    tags=["Generation"],
+)
+async def generate_single_response(request: GenerateResponseRequest):
+    """Generate one response suggestion using the configured mode or an override."""
+    from src.response_generator import ResponseGenerator
+
+    config = _load_config()
+    generator = ResponseGenerator(config, logger=None)
+    review = {
+        "id": request.review_id,
+        "author": request.author,
+        "comment": request.comment,
+        "rating": request.rating,
+        "date": request.date,
+    }
+    doctor_context = {
+        "name": request.doctor_name,
+        "specialty": request.doctor_specialty,
+        "profile_url": str(request.doctor_profile_url)
+        if request.doctor_profile_url
+        else None,
+    }
+
+    try:
+        result = generator.generate_response_with_metadata(
+            review,
+            doctor_context=doctor_context,
+            generation_mode=request.generation_mode,
+            language=request.language or "pt-BR",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate response: {exc}",
+        ) from exc
+
+    METRICS["generation_total"] += 1
+    return GeneratedResponsePreview(
+        review_id=request.review_id,
+        text=result["text"],
+        model=result["model"],
+    )
+
+
 # Async job endpoints
 @app.post(
     "/v1/jobs",
@@ -475,8 +562,9 @@ async def create_job(request: JobCreateRequest):
     Returns job ID for polling.
     """
     # Get or create job ID
+    config = _load_config()
     if request.idempotency_key:
-        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        r = redis.from_url(config.integrations.redis_url)
         existing_job_id = r.get(f"idem:{request.idempotency_key}")
         if existing_job_id:
             return JobResponse(
@@ -500,7 +588,7 @@ async def create_job(request: JobCreateRequest):
 
     # Store idempotency key if provided
     if request.idempotency_key:
-        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        r = redis.from_url(config.integrations.redis_url)
         r.setex(f"idem:{request.idempotency_key}", 3600, job_id)
 
     return JobResponse(
@@ -512,14 +600,23 @@ async def create_job(request: JobCreateRequest):
 
 def _map_job_status(job: Any) -> str:
     """Map RQ job state to API status values used by the dashboard."""
+    result_status = None
+    result = getattr(job, "result", None)
+    if isinstance(result, dict):
+        result_status = result.get("status")
+    elif result is not None:
+        result_status = getattr(result, "status", None)
+
     if job.is_queued or job.is_deferred:
         return "pending"
     if job.is_started:
         return "running"
-    if job.is_finished:
-        return "completed"
+    if job.is_finished and result_status in {"completed", "failed"}:
+        return result_status
     if job.is_failed:
         return "failed"
+    if job.is_finished:
+        return "completed"
     return "unknown"
 
 
@@ -536,14 +633,17 @@ async def list_jobs(status_filter: Optional[str] = Query(default=None, alias="st
 
     q = get_queue()
     job_ids = set()
+    normalized_filter = (status_filter or "").strip().lower()
+    if normalized_filter == "queued":
+        normalized_filter = "pending"
 
-    if not status_filter or status_filter in ("queued", "pending"):
+    if not normalized_filter or normalized_filter == "pending":
         job_ids.update(q.job_ids)
-    if not status_filter or status_filter == "running":
+    if not normalized_filter or normalized_filter == "running":
         job_ids.update(StartedJobRegistry(queue=q).get_job_ids())
-    if not status_filter or status_filter == "completed":
+    if not normalized_filter or normalized_filter in {"completed", "failed"}:
         job_ids.update(FinishedJobRegistry(queue=q).get_job_ids())
-    if not status_filter or status_filter == "failed":
+    if not normalized_filter or normalized_filter == "failed":
         job_ids.update(FailedJobRegistry(queue=q).get_job_ids())
 
     jobs = []
@@ -554,6 +654,8 @@ async def list_jobs(status_filter: Optional[str] = Query(default=None, alias="st
             continue
 
         job_status = _map_job_status(job)
+        if normalized_filter and job_status != normalized_filter:
+            continue
 
         progress = job.meta.get("progress", 0) if job.meta else 0
         if job_status == "completed":
@@ -599,7 +701,7 @@ async def get_job_status(job_id: str):
     job_status = _map_job_status(job)
 
     # Return result if available
-    if job.is_finished and job.result:
+    if job.result and (job.is_finished or job.is_failed):
         return job.result
 
     # Return status placeholder
@@ -779,24 +881,25 @@ async def analyze_quality_batch(request: BatchQualityAnalysisRequest):
 # Settings endpoints
 # ---------------------------------------------------------------------------
 
-
-def _load_config():
-    """Load AppConfig (helper to avoid repetition)."""
-    from config.settings import AppConfig
-
-    return AppConfig.load()
-
-
 def _config_to_settings_model(config) -> SettingsModel:
     """Convert an AppConfig object to a SettingsModel."""
     from src.api.schemas.settings import (
         APISettingsModel,
+        DelaySettingsModel,
+        FavoriteProfileModel,
+        GenerationSettingsModel,
+        IntegrationSettingsModel,
+        PrivacySettingsModel,
         ScrapingSettingsModel,
+        SecuritySettingsModel,
         TelegramSettingsModel,
+        URLSettingsModel,
+        UserProfileSettingsModel,
     )
 
     return SettingsModel(
         telegram=TelegramSettingsModel(
+            enabled=config.telegram.enabled,
             token=config.telegram.token,
             chat_id=config.telegram.chat_id,
             parse_mode=config.telegram.parse_mode,
@@ -813,18 +916,85 @@ def _config_to_settings_model(config) -> SettingsModel:
             implicit_wait=config.scraping.implicit_wait,
             explicit_wait=config.scraping.explicit_wait,
         ),
+        delays=DelaySettingsModel(
+            human_like_min=config.delays.human_like_min,
+            human_like_max=config.delays.human_like_max,
+            retry_base=config.delays.retry_base,
+            error_recovery=config.delays.error_recovery,
+            rate_limit_retry=config.delays.rate_limit_retry,
+            page_load_retry=config.delays.page_load_retry,
+        ),
         api=APISettingsModel(
             host=config.api.host,
             port=config.api.port,
             debug=config.api.debug,
             workers=config.api.workers,
         ),
+        security=SecuritySettingsModel(
+            api_key=config.security.api_key,
+            webhook_signing_secret=config.security.webhook_signing_secret,
+            openai_api_key=config.security.openai_api_key,
+        ),
+        generation=GenerationSettingsModel(
+            mode=config.generation.mode,
+            openai_api_key=config.generation.openai_api_key,
+            openai_model=config.generation.openai_model,
+            gemini_api_key=config.generation.gemini_api_key,
+            gemini_model=config.generation.gemini_model,
+            claude_api_key=config.generation.claude_api_key,
+            claude_model=config.generation.claude_model,
+            temperature=config.generation.temperature,
+            max_tokens=config.generation.max_tokens,
+            system_prompt=config.generation.system_prompt,
+        ),
+        integrations=IntegrationSettingsModel(
+            redis_url=config.integrations.redis_url,
+            selenium_remote_url=config.integrations.selenium_remote_url,
+            api_url=config.integrations.api_url,
+            api_public_url=config.integrations.api_public_url,
+        ),
+        privacy=PrivacySettingsModel(
+            mask_pii=config.privacy.mask_pii,
+            id_salt=config.privacy.id_salt,
+            job_result_ttl=config.privacy.job_result_ttl,
+            rate_limit_requests=config.privacy.rate_limit_requests,
+            rate_limit_window=config.privacy.rate_limit_window,
+            require_tls_callbacks=config.privacy.require_tls_callbacks,
+            allowed_callback_domains=config.privacy.allowed_callback_domains,
+        ),
+        urls=URLSettingsModel(
+            base_url=config.urls.base_url,
+            profile_url=config.urls.profile_url,
+        ),
+        user_profile=UserProfileSettingsModel(
+            display_name=config.user_profile.display_name,
+            username=config.user_profile.username,
+            favorite_profiles=[
+                FavoriteProfileModel(
+                    name=profile.name,
+                    profile_url=profile.profile_url,
+                    specialty=profile.specialty,
+                    notes=profile.notes,
+                )
+                for profile in config.user_profile.favorite_profiles
+            ],
+        ),
     )
+
+
+def _is_http_url(value: Optional[str]) -> bool:
+    if not value:
+        return True
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _validate_settings(settings: SettingsModel) -> dict:
     """Validate settings and return {valid: bool, errors: list[str]}."""
+    from src.secure_config import ConfigValidator
+
     errors: list[str] = []
+    valid_generation_modes = {"local", "openai", "gemini", "claude"}
 
     if settings.scraping.delay_min > settings.scraping.delay_max:
         errors.append("delay_min cannot be greater than delay_max")
@@ -836,12 +1006,84 @@ def _validate_settings(settings: SettingsModel) -> dict:
         errors.append("API port must be between 1024 and 65535")
     if settings.api.workers < 1:
         errors.append("Workers must be at least 1")
+    if settings.delays.human_like_min > settings.delays.human_like_max:
+        errors.append("human_like_min cannot be greater than human_like_max")
     if settings.telegram.token and not settings.telegram.chat_id:
         errors.append("chat_id is required when telegram token is provided")
+    if settings.telegram.enabled and not ConfigValidator.validate_telegram_config(
+        settings.telegram.token, settings.telegram.chat_id
+    ):
+        errors.append("Enabled Telegram requires a valid token and chat_id")
     if settings.telegram.parse_mode not in ("", "Markdown", "MarkdownV2", "HTML"):
         errors.append("Invalid parse_mode")
     if settings.telegram.attachment_format not in ("txt", "json", "csv"):
         errors.append("Invalid attachment_format")
+    if settings.security.api_key and len(settings.security.api_key.strip()) < 8:
+        errors.append("API key must be at least 8 characters long")
+    if settings.security.webhook_signing_secret and len(
+        settings.security.webhook_signing_secret.strip()
+    ) < 8:
+        errors.append("Webhook signing secret must be at least 8 characters long")
+    if settings.security.openai_api_key and not settings.security.openai_api_key.startswith(
+        "sk-"
+    ):
+        errors.append("OpenAI API key must start with 'sk-'")
+    if settings.generation.mode not in valid_generation_modes:
+        errors.append("Generation mode must be local, openai, gemini or claude")
+    if settings.generation.openai_api_key and not settings.generation.openai_api_key.startswith(
+        "sk-"
+    ):
+        errors.append("Generation OpenAI API key must start with 'sk-'")
+    if settings.generation.temperature < 0 or settings.generation.temperature > 1.5:
+        errors.append("Generation temperature must be between 0 and 1.5")
+    if settings.generation.max_tokens < 50 or settings.generation.max_tokens > 2000:
+        errors.append("Generation max_tokens must be between 50 and 2000")
+    if settings.generation.mode == "openai" and not settings.generation.openai_api_key:
+        errors.append("OpenAI mode requires an OpenAI API key")
+    if settings.generation.mode == "gemini" and not settings.generation.gemini_api_key:
+        errors.append("Gemini mode requires a Gemini API key")
+    if settings.generation.mode == "claude" and not settings.generation.claude_api_key:
+        errors.append("Claude mode requires a Claude API key")
+    if not settings.generation.openai_model.strip():
+        errors.append("OpenAI model cannot be empty")
+    if not settings.generation.gemini_model.strip():
+        errors.append("Gemini model cannot be empty")
+    if not settings.generation.claude_model.strip():
+        errors.append("Claude model cannot be empty")
+    if not settings.integrations.redis_url.startswith(("redis://", "rediss://")):
+        errors.append("Redis URL must start with redis:// or rediss://")
+    if not _is_http_url(settings.integrations.selenium_remote_url):
+        errors.append("Selenium remote URL must be a valid HTTP(S) URL")
+    if not _is_http_url(settings.integrations.api_url):
+        errors.append("API URL must be a valid HTTP(S) URL")
+    if not _is_http_url(settings.integrations.api_public_url):
+        errors.append("API public URL must be a valid HTTP(S) URL")
+    if settings.privacy.job_result_ttl < 60:
+        errors.append("job_result_ttl must be at least 60 seconds")
+    if settings.privacy.rate_limit_requests < 1:
+        errors.append("rate_limit_requests must be at least 1")
+    if settings.privacy.rate_limit_window < 1:
+        errors.append("rate_limit_window must be at least 1 second")
+    if any("://" in domain for domain in settings.privacy.allowed_callback_domains):
+        errors.append("allowed_callback_domains must contain domains only, without protocol")
+    if not _is_http_url(settings.urls.base_url):
+        errors.append("Base URL must be a valid HTTP(S) URL")
+    if not _is_http_url(settings.urls.profile_url):
+        errors.append("Profile URL must be a valid HTTP(S) URL")
+    if not settings.user_profile.display_name.strip():
+        errors.append("Display name cannot be empty")
+    if not settings.user_profile.username.strip():
+        errors.append("Username cannot be empty")
+    seen_profiles: set[str] = set()
+    for favorite in settings.user_profile.favorite_profiles:
+        if not favorite.name.strip():
+            errors.append("Favorite profile name cannot be empty")
+        if not _is_http_url(favorite.profile_url):
+            errors.append("Favorite profile URL must be a valid HTTP(S) URL")
+        normalized_url = favorite.profile_url.strip().lower()
+        if normalized_url in seen_profiles:
+            errors.append("Favorite profiles must not contain duplicate URLs")
+        seen_profiles.add(normalized_url)
 
     return {"valid": len(errors) == 0, "errors": errors}
 
@@ -887,34 +1129,111 @@ async def update_settings(settings: SettingsModel):
             )
 
         config = _load_config()
+        provided_sections = set(settings.model_fields_set)
 
-        # Apply changes
-        config.telegram.token = settings.telegram.token
-        config.telegram.chat_id = settings.telegram.chat_id
-        config.telegram.parse_mode = settings.telegram.parse_mode
-        config.telegram.attach_responses_auto = settings.telegram.attach_responses_auto
-        config.telegram.attachment_format = settings.telegram.attachment_format
+        if "telegram" in provided_sections:
+            config.telegram.enabled = settings.telegram.enabled
+            config.telegram.token = settings.telegram.token
+            config.telegram.chat_id = settings.telegram.chat_id
+            config.telegram.parse_mode = settings.telegram.parse_mode
+            config.telegram.attach_responses_auto = (
+                settings.telegram.attach_responses_auto
+            )
+            config.telegram.attachment_format = settings.telegram.attachment_format
 
-        config.scraping.headless = settings.scraping.headless
-        config.scraping.timeout = settings.scraping.timeout
-        config.scraping.delay_min = settings.scraping.delay_min
-        config.scraping.delay_max = settings.scraping.delay_max
-        config.scraping.max_retries = settings.scraping.max_retries
-        config.scraping.page_load_timeout = settings.scraping.page_load_timeout
-        config.scraping.implicit_wait = settings.scraping.implicit_wait
-        config.scraping.explicit_wait = settings.scraping.explicit_wait
+        if "scraping" in provided_sections:
+            config.scraping.headless = settings.scraping.headless
+            config.scraping.timeout = settings.scraping.timeout
+            config.scraping.delay_min = settings.scraping.delay_min
+            config.scraping.delay_max = settings.scraping.delay_max
+            config.scraping.max_retries = settings.scraping.max_retries
+            config.scraping.page_load_timeout = settings.scraping.page_load_timeout
+            config.scraping.implicit_wait = settings.scraping.implicit_wait
+            config.scraping.explicit_wait = settings.scraping.explicit_wait
 
-        config.api.host = settings.api.host
-        config.api.port = settings.api.port
-        config.api.debug = settings.api.debug
-        config.api.workers = settings.api.workers
+        if "delays" in provided_sections:
+            config.delays.human_like_min = settings.delays.human_like_min
+            config.delays.human_like_max = settings.delays.human_like_max
+            config.delays.retry_base = settings.delays.retry_base
+            config.delays.error_recovery = settings.delays.error_recovery
+            config.delays.rate_limit_retry = settings.delays.rate_limit_retry
+            config.delays.page_load_retry = settings.delays.page_load_retry
+
+        if "api" in provided_sections:
+            config.api.host = settings.api.host
+            config.api.port = settings.api.port
+            config.api.debug = settings.api.debug
+            config.api.workers = settings.api.workers
+
+        if "security" in provided_sections:
+            config.security.api_key = settings.security.api_key
+            config.security.webhook_signing_secret = (
+                settings.security.webhook_signing_secret
+            )
+            config.security.openai_api_key = settings.security.openai_api_key
+
+        if "generation" in provided_sections:
+            config.generation.mode = settings.generation.mode
+            config.generation.openai_api_key = settings.generation.openai_api_key
+            config.generation.openai_model = settings.generation.openai_model
+            config.generation.gemini_api_key = settings.generation.gemini_api_key
+            config.generation.gemini_model = settings.generation.gemini_model
+            config.generation.claude_api_key = settings.generation.claude_api_key
+            config.generation.claude_model = settings.generation.claude_model
+            config.generation.temperature = settings.generation.temperature
+            config.generation.max_tokens = settings.generation.max_tokens
+            config.generation.system_prompt = settings.generation.system_prompt
+            # Keep legacy field in sync for backward compatibility.
+            config.security.openai_api_key = settings.generation.openai_api_key
+
+        if "integrations" in provided_sections:
+            config.integrations.redis_url = settings.integrations.redis_url
+            config.integrations.selenium_remote_url = (
+                settings.integrations.selenium_remote_url
+            )
+            config.integrations.api_url = settings.integrations.api_url
+            config.integrations.api_public_url = settings.integrations.api_public_url
+
+        if "privacy" in provided_sections:
+            config.privacy.mask_pii = settings.privacy.mask_pii
+            config.privacy.id_salt = settings.privacy.id_salt
+            config.privacy.job_result_ttl = settings.privacy.job_result_ttl
+            config.privacy.rate_limit_requests = settings.privacy.rate_limit_requests
+            config.privacy.rate_limit_window = settings.privacy.rate_limit_window
+            config.privacy.require_tls_callbacks = (
+                settings.privacy.require_tls_callbacks
+            )
+            config.privacy.allowed_callback_domains = [
+                domain.strip()
+                for domain in settings.privacy.allowed_callback_domains
+                if domain.strip()
+            ]
+
+        if "urls" in provided_sections:
+            config.urls.base_url = settings.urls.base_url
+            config.urls.profile_url = settings.urls.profile_url
+
+        if "user_profile" in provided_sections:
+            from config.settings import FavoriteProfileConfig
+
+            config.user_profile.display_name = settings.user_profile.display_name
+            config.user_profile.username = settings.user_profile.username
+            config.user_profile.favorite_profiles = [
+                FavoriteProfileConfig(
+                    name=favorite.name.strip(),
+                    profile_url=favorite.profile_url.strip(),
+                    specialty=favorite.specialty,
+                    notes=favorite.notes,
+                )
+                for favorite in settings.user_profile.favorite_profiles
+            ]
 
         config.save()
 
         return SettingsResponse(
             success=True,
             message="Settings updated successfully. Restart required for some changes to take effect.",
-            settings=settings,
+            settings=_config_to_settings_model(config),
         )
     except Exception as exc:
         return SettingsResponse(
