@@ -446,7 +446,8 @@ async def scrape_run(request: ScrapeRequest):
                         "text": "",
                         "model": {
                             "type": "error",
-                            "provider": request.generation_mode or config.generation.mode,
+                            "provider": request.generation_mode
+                            or config.generation.mode,
                         },
                     }
                 responses.append(
@@ -458,7 +459,8 @@ async def scrape_run(request: ScrapeRequest):
                         "model": generation_result["model"].get("name"),
                         "fallback_used": generation_result["model"].get("mode")
                         == "local"
-                        and (request.generation_mode or config.generation.mode) != "local",
+                        and (request.generation_mode or config.generation.mode)
+                        != "local",
                         "status": "generated" if generation_result["text"] else "empty",
                     }
                 )
@@ -520,9 +522,9 @@ async def generate_single_response(request: GenerateResponseRequest):
     doctor_context = {
         "name": request.doctor_name,
         "specialty": request.doctor_specialty,
-        "profile_url": str(request.doctor_profile_url)
-        if request.doctor_profile_url
-        else None,
+        "profile_url": (
+            str(request.doctor_profile_url) if request.doctor_profile_url else None
+        ),
     }
 
     try:
@@ -600,12 +602,16 @@ async def create_job(request: JobCreateRequest):
 
 def _map_job_status(job: Any) -> str:
     """Map RQ job state to API status values used by the dashboard."""
-    result_status = None
+    result_status: Optional[str] = None
     result = getattr(job, "result", None)
     if isinstance(result, dict):
-        result_status = result.get("status")
+        raw_status = result.get("status")
+        if isinstance(raw_status, str):
+            result_status = raw_status
     elif result is not None:
-        result_status = getattr(result, "status", None)
+        raw_status = getattr(result, "status", None)
+        if isinstance(raw_status, str):
+            result_status = raw_status
 
     if job.is_queued or job.is_deferred:
         return "pending"
@@ -881,6 +887,7 @@ async def analyze_quality_batch(request: BatchQualityAnalysisRequest):
 # Settings endpoints
 # ---------------------------------------------------------------------------
 
+
 def _config_to_settings_model(config) -> SettingsModel:
     """Convert an AppConfig object to a SettingsModel."""
     from src.api.schemas.settings import (
@@ -1020,18 +1027,21 @@ def _validate_settings(settings: SettingsModel) -> dict:
         errors.append("Invalid attachment_format")
     if settings.security.api_key and len(settings.security.api_key.strip()) < 8:
         errors.append("API key must be at least 8 characters long")
-    if settings.security.webhook_signing_secret and len(
-        settings.security.webhook_signing_secret.strip()
-    ) < 8:
+    if (
+        settings.security.webhook_signing_secret
+        and len(settings.security.webhook_signing_secret.strip()) < 8
+    ):
         errors.append("Webhook signing secret must be at least 8 characters long")
-    if settings.security.openai_api_key and not settings.security.openai_api_key.startswith(
-        "sk-"
+    if (
+        settings.security.openai_api_key
+        and not settings.security.openai_api_key.startswith("sk-")
     ):
         errors.append("OpenAI API key must start with 'sk-'")
     if settings.generation.mode not in valid_generation_modes:
         errors.append("Generation mode must be local, openai, gemini or claude")
-    if settings.generation.openai_api_key and not settings.generation.openai_api_key.startswith(
-        "sk-"
+    if (
+        settings.generation.openai_api_key
+        and not settings.generation.openai_api_key.startswith("sk-")
     ):
         errors.append("Generation OpenAI API key must start with 'sk-'")
     if settings.generation.temperature < 0 or settings.generation.temperature > 1.5:
@@ -1065,7 +1075,9 @@ def _validate_settings(settings: SettingsModel) -> dict:
     if settings.privacy.rate_limit_window < 1:
         errors.append("rate_limit_window must be at least 1 second")
     if any("://" in domain for domain in settings.privacy.allowed_callback_domains):
-        errors.append("allowed_callback_domains must contain domains only, without protocol")
+        errors.append(
+            "allowed_callback_domains must contain domains only, without protocol"
+        )
     if not _is_http_url(settings.urls.base_url):
         errors.append("Base URL must be a valid HTTP(S) URL")
     if not _is_http_url(settings.urls.profile_url):

@@ -18,7 +18,9 @@ from src.integrations.n8n.normalize import extract_scraper_result, make_unified_
 logger = logging.getLogger(__name__)
 
 
-def _update_job_meta(progress: Optional[int] = None, message: Optional[str] = None) -> None:
+def _update_job_meta(
+    progress: Optional[int] = None, message: Optional[str] = None
+) -> None:
     """Persist lightweight job progress details for the dashboard."""
     try:
         from rq import get_current_job
@@ -74,9 +76,9 @@ def _build_snapshot_payload(
         "doctor_name", "Unknown"
     )
     snapshot_payload["url"] = doctor_data.get("url") or snapshot_payload.get("url", "")
-    snapshot_payload["specialty"] = doctor_data.get("specialty") or snapshot_payload.get(
+    snapshot_payload["specialty"] = doctor_data.get(
         "specialty"
-    )
+    ) or snapshot_payload.get("specialty")
     snapshot_payload["location"] = doctor_data.get("location") or snapshot_payload.get(
         "location"
     )
@@ -84,9 +86,9 @@ def _build_snapshot_payload(
         snapshot_payload["average_rating"] = doctor_data.get("rating")
     snapshot_payload["reviews"] = snapshot_reviews
     snapshot_payload["total_reviews"] = len(snapshot_reviews)
-    snapshot_payload["extraction_timestamp"] = snapshot_payload.get(
-        "extraction_timestamp"
-    ) or datetime.now().isoformat()
+    snapshot_payload["extraction_timestamp"] = (
+        snapshot_payload.get("extraction_timestamp") or datetime.now().isoformat()
+    )
     return snapshot_payload
 
 

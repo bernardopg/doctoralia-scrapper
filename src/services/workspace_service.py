@@ -75,13 +75,15 @@ class WorkspaceService:
             if not extracted_at or (not doctor_name and not profile_url):
                 return None
             profile_id = self.make_profile_id(profile_url, doctor_name)
-            ratings = [review.get("rating") for review in reviews if review.get("rating")]
+            ratings = [
+                review.get("rating") for review in reviews if review.get("rating")
+            ]
             average_rating = data.get("average_rating")
             if average_rating is None:
-                average_rating = (
-                    sum(ratings) / len(ratings) if ratings else 0.0
-                )
-            unanswered_count = sum(1 for review in reviews if not review.get("doctor_reply"))
+                average_rating = sum(ratings) / len(ratings) if ratings else 0.0
+            unanswered_count = sum(
+                1 for review in reviews if not review.get("doctor_reply")
+            )
             generated_count = sum(
                 1 for review in reviews if review.get("generated_response")
             )
@@ -98,12 +100,10 @@ class WorkspaceService:
                 "profile_id": profile_id,
                 "doctor_name": doctor_name,
                 "profile_url": profile_url,
-                "specialty": data.get("specialty") or data.get("doctor", {}).get(
-                    "specialty"
-                ),
-                "location": data.get("location") or data.get("doctor", {}).get(
-                    "location"
-                ),
+                "specialty": data.get("specialty")
+                or data.get("doctor", {}).get("specialty"),
+                "location": data.get("location")
+                or data.get("doctor", {}).get("location"),
                 "filename": json_file.name,
                 "file_path": str(json_file),
                 "file_size": json_file.stat().st_size,
@@ -114,14 +114,20 @@ class WorkspaceService:
                 "reviews_count": data.get("total_reviews", 0) or len(reviews),
                 "unanswered_count": unanswered_count,
                 "generated_count": generated_count,
-                "reply_count": sum(1 for review in reviews if review.get("doctor_reply")),
-                "latest_review_date": latest_review_date.isoformat()
-                if isinstance(latest_review_date, datetime)
-                else None,
+                "reply_count": sum(
+                    1 for review in reviews if review.get("doctor_reply")
+                ),
+                "latest_review_date": (
+                    latest_review_date.isoformat()
+                    if isinstance(latest_review_date, datetime)
+                    else None
+                ),
                 "reviews": reviews,
             }
         except Exception as exc:
-            self.logger.warning("Error reading workspace snapshot %s: %s", json_file, exc)
+            self.logger.warning(
+                "Error reading workspace snapshot %s: %s", json_file, exc
+            )
             return None
 
     def _filter_snapshots(
@@ -148,7 +154,9 @@ class WorkspaceService:
         return filtered
 
     @staticmethod
-    def _latest_by_profile(snapshots: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    def _latest_by_profile(
+        snapshots: List[Dict[str, Any]],
+    ) -> Dict[str, Dict[str, Any]]:
         latest: Dict[str, Dict[str, Any]] = {}
         for snapshot in snapshots:
             profile_id = snapshot["profile_id"]
@@ -163,7 +171,9 @@ class WorkspaceService:
         return latest
 
     @staticmethod
-    def _favorite_url_set(favorite_profiles: Optional[Iterable[Dict[str, Any]]]) -> set[str]:
+    def _favorite_url_set(
+        favorite_profiles: Optional[Iterable[Dict[str, Any]]],
+    ) -> set[str]:
         if not favorite_profiles:
             return set()
         urls = set()
@@ -188,7 +198,9 @@ class WorkspaceService:
         latest = latest_by_profile.get(snapshot["profile_id"])
         return bool(latest and latest.get("file_path") == snapshot.get("file_path"))
 
-    def build_filter_options(self, snapshots: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def build_filter_options(
+        self, snapshots: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         latest_profiles = self._latest_by_profile(snapshots)
         options = [
             {
@@ -217,7 +229,8 @@ class WorkspaceService:
         unanswered_current = sum(item["unanswered_count"] for item in current_profiles)
         generated_current = sum(item["generated_count"] for item in current_profiles)
         average_rating = (
-            sum(item["average_rating"] for item in current_profiles) / len(current_profiles)
+            sum(item["average_rating"] for item in current_profiles)
+            / len(current_profiles)
             if current_profiles
             else 0.0
         )
@@ -314,7 +327,10 @@ class WorkspaceService:
         ):
             is_latest = self._is_snapshot_latest(snapshot, latest_by_profile)
             snapshot_status = "latest" if is_latest else "outdated"
-            if normalized_status not in {"", "all"} and snapshot_status != normalized_status:
+            if (
+                normalized_status not in {"", "all"}
+                and snapshot_status != normalized_status
+            ):
                 continue
 
             entry = {
@@ -362,7 +378,10 @@ class WorkspaceService:
         favorite_profiles: Optional[Iterable[Dict[str, Any]]] = None,
     ) -> List[Dict[str, Any]]:
         snapshots = self._filter_snapshots(
-            self._load_snapshots(), profile_id=profile_id, date_from=date_from, date_to=date_to
+            self._load_snapshots(),
+            profile_id=profile_id,
+            date_from=date_from,
+            date_to=date_to,
         )
         latest_profiles = self._latest_by_profile(snapshots)
         favorite_urls = self._favorite_url_set(favorite_profiles)
@@ -374,7 +393,11 @@ class WorkspaceService:
 
         for current_profile_id, profile_snapshots in grouped.items():
             latest = latest_profiles[current_profile_id]
-            ratings = [item["average_rating"] for item in profile_snapshots if item["average_rating"]]
+            ratings = [
+                item["average_rating"]
+                for item in profile_snapshots
+                if item["average_rating"]
+            ]
             profile_metrics.append(
                 {
                     "profile_id": current_profile_id,
@@ -384,7 +407,11 @@ class WorkspaceService:
                     "location": latest.get("location"),
                     "total_scrapes": len(profile_snapshots),
                     "average_rating": round(
-                        (sum(ratings) / len(ratings)) if ratings else latest["average_rating"],
+                        (
+                            (sum(ratings) / len(ratings))
+                            if ratings
+                            else latest["average_rating"]
+                        ),
                         2,
                     ),
                     "current_reviews": latest["reviews_count"],
@@ -392,7 +419,8 @@ class WorkspaceService:
                     "current_generated": latest["generated_count"],
                     "last_scraped_at": latest["extracted_at"],
                     "latest_review_date": latest["latest_review_date"],
-                    "is_favorite": latest["profile_url"].strip().lower() in favorite_urls,
+                    "is_favorite": latest["profile_url"].strip().lower()
+                    in favorite_urls,
                 }
             )
 
@@ -422,7 +450,10 @@ class WorkspaceService:
             return None
 
         all_snapshots = self._filter_snapshots(
-            self._load_snapshots(), profile_id=profile_id, date_from=date_from, date_to=date_to
+            self._load_snapshots(),
+            profile_id=profile_id,
+            date_from=date_from,
+            date_to=date_to,
         )
         latest = self._latest_by_profile(all_snapshots).get(profile_id)
         if latest is None:
@@ -476,7 +507,10 @@ class WorkspaceService:
         search: Optional[str] = None,
     ) -> Dict[str, Any]:
         snapshots = self._filter_snapshots(
-            self._load_snapshots(), profile_id=profile_id, date_from=date_from, date_to=date_to
+            self._load_snapshots(),
+            profile_id=profile_id,
+            date_from=date_from,
+            date_to=date_to,
         )
         latest_profiles = self._latest_by_profile(snapshots)
         favorite_urls = self._favorite_url_set(favorite_profiles)
@@ -507,7 +541,9 @@ class WorkspaceService:
                     continue
                 items.append(item)
 
-        items.sort(key=lambda item: (item["date"] or "", item["doctor_name"]), reverse=True)
+        items.sort(
+            key=lambda item: (item["date"] or "", item["doctor_name"]), reverse=True
+        )
         return {
             "summary": {
                 "pending_reviews": len(items),
@@ -518,7 +554,9 @@ class WorkspaceService:
                 ),
             },
             "items": items,
-            "filters": self.build_filter_options(list(latest_profiles.values()) or snapshots),
+            "filters": self.build_filter_options(
+                list(latest_profiles.values()) or snapshots
+            ),
         }
 
     def get_reports(
@@ -552,12 +590,17 @@ class WorkspaceService:
             favorite_profiles=favorite_profiles,
         )
         latest_profiles = self._latest_by_profile(snapshots)
+        extracted_values = [
+            extracted_at
+            for extracted_at in (snapshot.get("extracted_at") for snapshot in snapshots)
+            if isinstance(extracted_at, str) and extracted_at
+        ]
         latest_snapshot_at = max(
-            (snapshot.get("extracted_at") for snapshot in snapshots if snapshot.get("extracted_at")),
+            extracted_values,
             default=None,
         )
         oldest_snapshot_at = min(
-            (snapshot.get("extracted_at") for snapshot in snapshots if snapshot.get("extracted_at")),
+            extracted_values,
             default=None,
         )
         cleanup_candidates: List[Dict[str, Any]] = []
@@ -589,7 +632,9 @@ class WorkspaceService:
         return {
             "summary": {
                 "total_files": history["summary"]["total_snapshots"],
-                "profiles_tracked": len({snapshot["profile_id"] for snapshot in snapshots}),
+                "profiles_tracked": len(
+                    {snapshot["profile_id"] for snapshot in snapshots}
+                ),
                 "storage_used_bytes": history["summary"]["storage_used_bytes"],
                 "storage_used_human": history["summary"]["storage_used_human"],
                 "outdated_snapshots": history["summary"]["outdated_snapshots"],
@@ -597,14 +642,19 @@ class WorkspaceService:
                 "oldest_snapshot_at": oldest_snapshot_at,
                 "total_reviews_current": overview["summary"]["total_reviews_current"],
                 "unanswered_current": overview["summary"]["unanswered_reviews_current"],
-                "generated_current": overview["summary"]["generated_suggestions_current"],
+                "generated_current": overview["summary"][
+                    "generated_suggestions_current"
+                ],
                 "average_rating_current": overview["summary"]["average_rating_current"],
             },
             "timeline": overview["timeline"],
             "top_profiles": profiles[:8],
             "cleanup_candidates": sorted(
                 cleanup_candidates,
-                key=lambda item: (-item["outdated_snapshots"], item["doctor_name"].lower()),
+                key=lambda item: (
+                    -item["outdated_snapshots"],
+                    item["doctor_name"].lower(),
+                ),
             )[:8],
             "inventory": history["entries"][:200],
             "filters": history["filters"],
@@ -613,7 +663,9 @@ class WorkspaceService:
     def save_generated_response(
         self, profile_id: str, review_id: str, generated_response: str
     ) -> Optional[Dict[str, Any]]:
-        snapshots = self._filter_snapshots(self._load_snapshots(), profile_id=profile_id)
+        snapshots = self._filter_snapshots(
+            self._load_snapshots(), profile_id=profile_id
+        )
         latest = self._latest_by_profile(snapshots).get(profile_id)
         if latest is None:
             return None
@@ -643,7 +695,9 @@ class WorkspaceService:
                 "generated_response": generated_response,
             }
         except Exception as exc:
-            self.logger.error("Error saving generated response to %s: %s", file_path, exc)
+            self.logger.error(
+                "Error saving generated response to %s: %s", file_path, exc
+            )
             return None
 
     def delete_snapshot(self, filename: str) -> Optional[Dict[str, Any]]:

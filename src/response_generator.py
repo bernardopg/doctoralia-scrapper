@@ -96,13 +96,16 @@ class ResponseGenerator:
 
         if doctor_name and doctor_name.lower() != "administrador":
             return f"Atenciosamente,\n{doctor_name}"
-        return self.templates["assinatura"]
+        return str(self.templates["assinatura"])
 
     def _get_generation_config(self) -> Any:
         generation_config = getattr(self.config, "generation", None)
         if generation_config is None:
             return None
-        if hasattr(generation_config, "__class__") and generation_config.__class__.__name__ == "MagicMock":
+        if (
+            hasattr(generation_config, "__class__")
+            and generation_config.__class__.__name__ == "MagicMock"
+        ):
             return None
         return generation_config
 

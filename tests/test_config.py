@@ -291,7 +291,9 @@ class TestAppConfig:
         assert loaded.generation.mode == "openai"
         assert loaded.generation.gemini_api_key == "gemini-secret"
         assert loaded.integrations.redis_url == "redis://redis.internal:6379/1"
-        assert loaded.integrations.api_public_url == "https://doctoralia.example.com/api"
+        assert (
+            loaded.integrations.api_public_url == "https://doctoralia.example.com/api"
+        )
         assert loaded.privacy.mask_pii is False
         assert loaded.privacy.allowed_callback_domains == [
             "hooks.example.com",

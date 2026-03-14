@@ -58,8 +58,16 @@ def _get_int(name: str, default: int) -> int:
 def _get_allowed_domains() -> list[str]:
     config = _load_privacy_config()
     if config is not None and getattr(config, "allowed_callback_domains", None):
-        return [domain.strip() for domain in config.allowed_callback_domains if domain.strip()]
-    return [domain.strip() for domain in os.getenv("ALLOWED_CALLBACK_DOMAINS", "").split(",") if domain.strip()]
+        return [
+            domain.strip()
+            for domain in config.allowed_callback_domains
+            if domain.strip()
+        ]
+    return [
+        domain.strip()
+        for domain in os.getenv("ALLOWED_CALLBACK_DOMAINS", "").split(",")
+        if domain.strip()
+    ]
 
 
 def mask_pii(text: str) -> str:

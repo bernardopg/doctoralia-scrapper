@@ -494,7 +494,9 @@ def test_workspace_history_delete_route(tmp_path):
     }
     client = dashboard.app.test_client()
 
-    response = client.post("/api/workspace/history/delete", json={"filename": "test.json"})
+    response = client.post(
+        "/api/workspace/history/delete", json={"filename": "test.json"}
+    )
 
     assert response.status_code == 200
     data = json.loads(response.data)

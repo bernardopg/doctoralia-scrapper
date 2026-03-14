@@ -57,9 +57,7 @@ def test_workspace_overview_aggregates_profiles_and_pending(tmp_path):
 
     service = WorkspaceService(tmp_path)
     overview = service.get_overview(
-        favorite_profiles=[
-            {"profile_url": "https://www.doctoralia.com.br/medico/ana"}
-        ]
+        favorite_profiles=[{"profile_url": "https://www.doctoralia.com.br/medico/ana"}]
     )
 
     assert overview["summary"]["profiles_tracked"] == 2
@@ -106,9 +104,7 @@ def test_workspace_pending_responses_and_save_generated_response(tmp_path):
     )
 
     pending = service.list_pending_responses(
-        favorite_profiles=[
-            {"profile_url": "https://www.doctoralia.com.br/medico/ana"}
-        ],
+        favorite_profiles=[{"profile_url": "https://www.doctoralia.com.br/medico/ana"}],
         favorites_only=True,
     )
 

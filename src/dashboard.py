@@ -111,7 +111,9 @@ class DashboardApp:
     def _get_user_profile_settings(self) -> Dict[str, Any]:
         settings = self._get_remote_settings()
         if settings and settings.get("user_profile"):
-            return settings["user_profile"]
+            profile = settings["user_profile"]
+            if isinstance(profile, dict):
+                return profile
 
         config = self._get_runtime_config()
         user_profile = getattr(config, "user_profile", None)
@@ -136,7 +138,9 @@ class DashboardApp:
             "favorite_profiles": [],
         }
 
-    def _update_remote_settings(self, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _update_remote_settings(
+        self, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         current = self._get_remote_settings()
         if current is None:
             return None
@@ -233,7 +237,9 @@ class DashboardApp:
             return {
                 "api_port": self.api_port,
                 "api_docs_url": self._get_api_docs_url(),
-                "dashboard_user_name": user_profile.get("display_name", "Administrador"),
+                "dashboard_user_name": user_profile.get(
+                    "display_name", "Administrador"
+                ),
                 "dashboard_username": user_profile.get("username", "admin"),
             }
 
@@ -523,7 +529,9 @@ class DashboardApp:
             """Persist user profile via the central settings endpoint."""
             try:
                 payload = request.get_json(force=True, silent=True) or {}
-                updated_settings = self._update_remote_settings({"user_profile": payload})
+                updated_settings = self._update_remote_settings(
+                    {"user_profile": payload}
+                )
                 if updated_settings is None:
                     return jsonify({"error": "API não disponível"}), 503
                 return jsonify(updated_settings.get("user_profile", payload))
@@ -580,7 +588,9 @@ class DashboardApp:
                     {
                         "success": True,
                         "favorite": existing is None,
-                        "user_profile": updated_settings.get("user_profile", user_profile),
+                        "user_profile": updated_settings.get(
+                            "user_profile", user_profile
+                        ),
                     }
                 )
             except Exception as e:

@@ -71,7 +71,9 @@ class EnvironmentValidator:
 
     @staticmethod
     def _get_var(var: str, default: str = "") -> str:
-        return os.getenv(var) or EnvironmentValidator._get_config_fallback(var) or default
+        return (
+            os.getenv(var) or EnvironmentValidator._get_config_fallback(var) or default
+        )
 
     @staticmethod
     def validate_for_service(service: str = "shared") -> Dict[str, str]:

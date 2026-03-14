@@ -279,8 +279,12 @@ class AppConfig:
 
                 delay_data = data.get("delays", {})
                 delays = DelayConfig(
-                    human_like_min=delay_data.get("human_like_min", delays.human_like_min),
-                    human_like_max=delay_data.get("human_like_max", delays.human_like_max),
+                    human_like_min=delay_data.get(
+                        "human_like_min", delays.human_like_min
+                    ),
+                    human_like_max=delay_data.get(
+                        "human_like_max", delays.human_like_max
+                    ),
                     retry_base=delay_data.get("retry_base", delays.retry_base),
                     error_recovery=delay_data.get(
                         "error_recovery", delays.error_recovery
@@ -344,13 +348,17 @@ class AppConfig:
                     temperature=float(
                         generation_data.get(
                             "temperature",
-                            os.getenv("GENERATION_TEMPERATURE", str(generation.temperature)),
+                            os.getenv(
+                                "GENERATION_TEMPERATURE", str(generation.temperature)
+                            ),
                         )
                     ),
                     max_tokens=int(
                         generation_data.get(
                             "max_tokens",
-                            os.getenv("GENERATION_MAX_TOKENS", str(generation.max_tokens)),
+                            os.getenv(
+                                "GENERATION_MAX_TOKENS", str(generation.max_tokens)
+                            ),
                         )
                     ),
                     system_prompt=_clean_optional(
@@ -385,7 +393,9 @@ class AppConfig:
                         privacy_data.get("mask_pii", _env_bool("MASK_PII", True))
                     ),
                     id_salt=str(
-                        privacy_data.get("id_salt", os.getenv("ID_SALT", "default-salt"))
+                        privacy_data.get(
+                            "id_salt", os.getenv("ID_SALT", "default-salt")
+                        )
                     ),
                     job_result_ttl=int(
                         privacy_data.get(
@@ -429,7 +439,9 @@ class AppConfig:
                         user_data.get("display_name", user_profile.display_name)
                     ).strip()
                     or user_profile.display_name,
-                    username=str(user_data.get("username", user_profile.username)).strip()
+                    username=str(
+                        user_data.get("username", user_profile.username)
+                    ).strip()
                     or user_profile.username,
                     favorite_profiles=_normalize_favorite_profiles(
                         user_data.get("favorite_profiles", [])

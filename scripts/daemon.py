@@ -158,12 +158,14 @@ class DaemonController:
 
 
 def main() -> None:
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║                    🤖 DAEMON AUTOMÁTICO                      ║
 ║              Geração Automática de Respostas                ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
     # Verificar se há argumentos de linha de comando
     interval = 30  # padrão: 30 minutos

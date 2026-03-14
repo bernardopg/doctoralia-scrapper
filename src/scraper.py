@@ -788,7 +788,11 @@ class DoctoraliaScraper:
 
         # Verificar cache para mesma URL
         cache_key = f"reviews_{current_url}"
-        if not force_refresh and self._last_url == current_url and cache_key in self._cache:
+        if (
+            not force_refresh
+            and self._last_url == current_url
+            and cache_key in self._cache
+        ):
             self.logger.info("✅ Usando cache para extração de reviews")
             cached: List[Dict[Any, Any]] = self._cache[cache_key]
             return cached

@@ -435,7 +435,9 @@ class TestAsyncJobs:
         mock_q.job_ids = []
         mock_queue.return_value = mock_q
         mock_started_registry.return_value.get_job_ids.return_value = []
-        mock_finished_registry.return_value.get_job_ids.return_value = ["logical-failed"]
+        mock_finished_registry.return_value.get_job_ids.return_value = [
+            "logical-failed"
+        ]
         mock_failed_registry.return_value.get_job_ids.return_value = []
 
         logical_failed = MagicMock()
@@ -584,6 +586,7 @@ class TestAsyncJobs:
             )
 
             assert response.status_code == 404
+
 
 class TestSettingsEndpoints:
     """Test settings endpoints and expanded configuration fields."""

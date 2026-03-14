@@ -114,7 +114,7 @@ class DelaySettingsModel(BaseModel):
 class APISettingsModel(BaseModel):
     """API configuration model."""
 
-    host: str = Field(default="0.0.0.0", description="API host")
+    host: str = Field(default="0.0.0.0", description="API host")  # nosec B104
     port: int = Field(default=8000, ge=1024, le=65535, description="API port")
     debug: bool = Field(default=False, description="Debug mode")
     workers: int = Field(default=1, ge=1, le=8, description="Number of workers")
@@ -247,36 +247,44 @@ class SettingsModel(BaseModel):
     """Complete settings model."""
 
     telegram: TelegramSettingsModel = Field(
-        default_factory=TelegramSettingsModel, description="Telegram settings"
+        default_factory=lambda: TelegramSettingsModel.model_construct(),
+        description="Telegram settings",
     )
     security: SecuritySettingsModel = Field(
-        default_factory=SecuritySettingsModel, description="Secrets and auth settings"
+        default_factory=lambda: SecuritySettingsModel.model_construct(),
+        description="Secrets and auth settings",
     )
     generation: GenerationSettingsModel = Field(
-        default_factory=GenerationSettingsModel,
+        default_factory=lambda: GenerationSettingsModel.model_construct(),
         description="Automatic response generation settings",
     )
     integrations: IntegrationSettingsModel = Field(
-        default_factory=IntegrationSettingsModel,
+        default_factory=lambda: IntegrationSettingsModel.model_construct(),
         description="Integration settings",
     )
     scraping: ScrapingSettingsModel = Field(
-        default_factory=ScrapingSettingsModel, description="Scraping settings"
+        default_factory=lambda: ScrapingSettingsModel.model_construct(),
+        description="Scraping settings",
     )
     delays: DelaySettingsModel = Field(
-        default_factory=DelaySettingsModel, description="Delay settings"
+        default_factory=lambda: DelaySettingsModel.model_construct(),
+        description="Delay settings",
     )
     privacy: PrivacySettingsModel = Field(
-        default_factory=PrivacySettingsModel, description="Privacy settings"
+        default_factory=lambda: PrivacySettingsModel.model_construct(),
+        description="Privacy settings",
     )
     api: APISettingsModel = Field(
-        default_factory=APISettingsModel, description="API settings"
+        default_factory=lambda: APISettingsModel.model_construct(),
+        description="API settings",
     )
     urls: URLSettingsModel = Field(
-        default_factory=URLSettingsModel, description="Operational URLs"
+        default_factory=lambda: URLSettingsModel.model_construct(),
+        description="Operational URLs",
     )
     user_profile: UserProfileSettingsModel = Field(
-        default_factory=UserProfileSettingsModel, description="Dashboard user profile"
+        default_factory=lambda: UserProfileSettingsModel.model_construct(),
+        description="Dashboard user profile",
     )
 
 

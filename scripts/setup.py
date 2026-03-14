@@ -15,12 +15,14 @@ from config.settings import AppConfig  # noqa: E402
 
 
 def print_banner() -> None:
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════╗
 ║                 🔧 CONFIGURAÇÃO INICIAL                      ║
 ║                  Doctoralia Bot Setup                        ║
 ╚══════════════════════════════════════════════════════════════╝
-    """)
+    """
+    )
 
 
 def setup_directories(config: AppConfig) -> None:
