@@ -32,10 +32,48 @@ class EnvironmentValidator:
     OPTIONAL_VARS: Dict[str, str] = {
         "REDIS_URL": "redis://localhost:6379/0",
         "SELENIUM_REMOTE_URL": "http://localhost:4444/wd/hub",
+        "API_URL": "http://localhost:8000",
+        "API_PUBLIC_URL": "http://localhost:8000",
         "LOG_LEVEL": "INFO",
         "MASK_PII": "true",
         "DEBUG": "true",
+        "GENERATION_MODE": "local",
+        "OPENAI_API_KEY": "",
+        "GEMINI_API_KEY": "",
+        "ANTHROPIC_API_KEY": "",
     }
+
+    @staticmethod
+    def _get_config_fallback(var: str) -> str:
+        try:
+            from config.settings import AppConfig
+
+            config = AppConfig.load()
+            mapping = {
+                "API_KEY": config.security.api_key,
+                "WEBHOOK_SIGNING_SECRET": config.security.webhook_signing_secret,
+                "REDIS_URL": config.integrations.redis_url,
+                "SELENIUM_REMOTE_URL": config.integrations.selenium_remote_url,
+                "API_URL": config.integrations.api_url,
+                "API_PUBLIC_URL": config.integrations.api_public_url,
+                "MASK_PII": str(config.privacy.mask_pii).lower(),
+                "DEBUG": str(config.api.debug).lower(),
+                "GENERATION_MODE": config.generation.mode,
+                "OPENAI_API_KEY": config.generation.openai_api_key
+                or config.security.openai_api_key,
+                "GEMINI_API_KEY": config.generation.gemini_api_key,
+                "ANTHROPIC_API_KEY": config.generation.claude_api_key,
+            }
+            value = mapping.get(var)
+            return value or ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _get_var(var: str, default: str = "") -> str:
+        return (
+            os.getenv(var) or EnvironmentValidator._get_config_fallback(var) or default
+        )
 
     @staticmethod
     def validate_for_service(service: str = "shared") -> Dict[str, str]:
@@ -59,7 +97,7 @@ class EnvironmentValidator:
         loaded_vars = {}
 
         for var in required:
-            value = os.getenv(var)
+            value = EnvironmentValidator._get_var(var)
             if not value:
                 missing_vars.append(var)
             else:
@@ -73,7 +111,7 @@ class EnvironmentValidator:
 
         # Carregar variáveis opcionais com padrões
         for var, default in EnvironmentValidator.OPTIONAL_VARS.items():
-            value = os.getenv(var, default)
+            value = EnvironmentValidator._get_var(var, default)
             loaded_vars[var] = value
 
         return loaded_vars
@@ -98,7 +136,7 @@ class EnvironmentValidator:
         loaded_vars = {}
 
         for var in all_required:
-            value = os.getenv(var)
+            value = EnvironmentValidator._get_var(var)
             if not value:
                 missing_vars.append(var)
             else:
@@ -112,7 +150,7 @@ class EnvironmentValidator:
 
         # Carregar variáveis opcionais com padrões
         for var, default in EnvironmentValidator.OPTIONAL_VARS.items():
-            value = os.getenv(var, default)
+            value = EnvironmentValidator._get_var(var, default)
             loaded_vars[var] = value
 
         return loaded_vars

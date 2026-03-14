@@ -70,6 +70,13 @@ class ResponseItem(BaseModel):
     review_id: str = Field(..., description="Associated review ID")
     text: str = Field(..., description="Generated response text")
     language: str = Field(..., description="Response language")
+    provider: Optional[str] = Field(default=None, description="Generation provider")
+    model: Optional[str] = Field(default=None, description="Provider model name")
+    fallback_used: bool = Field(
+        default=False, description="Whether local fallback was used"
+    )
+    status: str = Field(default="generated", description="Generation status")
+    error: Optional[str] = Field(default=None, description="Generation error details")
 
 
 class GenerationResult(BaseModel):
@@ -78,6 +85,14 @@ class GenerationResult(BaseModel):
     template_id: Optional[str] = Field(None, description="Template ID used")
     responses: List[ResponseItem] = Field(..., description="Generated responses")
     model: Dict[str, Any] = Field(default_factory=dict, description="Model information")
+
+
+class GeneratedResponsePreview(BaseModel):
+    """Single generated response preview."""
+
+    review_id: Optional[str] = Field(default=None, description="Associated review ID")
+    text: str = Field(..., description="Generated response text")
+    model: Dict[str, Any] = Field(default_factory=dict, description="Model metadata")
 
 
 class Metrics(BaseModel):

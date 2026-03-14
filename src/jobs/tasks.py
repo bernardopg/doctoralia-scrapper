@@ -18,6 +18,80 @@ from src.integrations.n8n.normalize import extract_scraper_result, make_unified_
 logger = logging.getLogger(__name__)
 
 
+def _update_job_meta(
+    progress: Optional[int] = None, message: Optional[str] = None
+) -> None:
+    """Persist lightweight job progress details for the dashboard."""
+    try:
+        from rq import get_current_job
+
+        job = get_current_job()
+        if job is None:
+            return
+
+        if progress is not None:
+            job.meta["progress"] = max(0, min(100, int(progress)))
+        if message is not None:
+            job.meta["message"] = str(message)[:500]
+        job.save_meta()
+    except Exception as exc:  # pragma: no cover - depends on active RQ worker
+        logger.debug("Unable to update job metadata: %s", exc)
+
+
+def _merge_generated_responses(
+    reviews_data: List[Dict[str, Any]],
+    generation_data: Optional[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Attach generated suggestions back to the persisted snapshot reviews."""
+    if not generation_data:
+        return [dict(review) for review in reviews_data]
+
+    responses_by_review_id = {
+        str(response.get("review_id")): response.get("text", "")
+        for response in generation_data.get("responses", [])
+        if response.get("review_id") not in (None, "") and response.get("text")
+    }
+
+    merged_reviews: List[Dict[str, Any]] = []
+    for review in reviews_data:
+        review_payload = dict(review)
+        response_text = responses_by_review_id.get(str(review_payload.get("id", "")))
+        if response_text:
+            review_payload["generated_response"] = response_text
+        merged_reviews.append(review_payload)
+
+    return merged_reviews
+
+
+def _build_snapshot_payload(
+    scraper_result: Dict[str, Any],
+    doctor_data: Dict[str, Any],
+    reviews_data: List[Dict[str, Any]],
+    generation_data: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Build the JSON snapshot consumed by the workspace/dashboard pages."""
+    snapshot_reviews = _merge_generated_responses(reviews_data, generation_data)
+    snapshot_payload = dict(scraper_result)
+    snapshot_payload["doctor_name"] = doctor_data.get("name") or snapshot_payload.get(
+        "doctor_name", "Unknown"
+    )
+    snapshot_payload["url"] = doctor_data.get("url") or snapshot_payload.get("url", "")
+    snapshot_payload["specialty"] = doctor_data.get(
+        "specialty"
+    ) or snapshot_payload.get("specialty")
+    snapshot_payload["location"] = doctor_data.get("location") or snapshot_payload.get(
+        "location"
+    )
+    if doctor_data.get("rating") is not None:
+        snapshot_payload["average_rating"] = doctor_data.get("rating")
+    snapshot_payload["reviews"] = snapshot_reviews
+    snapshot_payload["total_reviews"] = len(snapshot_reviews)
+    snapshot_payload["extraction_timestamp"] = (
+        snapshot_payload.get("extraction_timestamp") or datetime.now().isoformat()
+    )
+    return snapshot_payload
+
+
 def post_callback(url: str, payload: Dict, job_id: Optional[str] = None) -> bool:
     """
     Post callback to webhook URL with retries and signing.
@@ -102,7 +176,9 @@ def _run_sentiment_analysis(reviews_data: List[Dict[str, Any]]) -> Dict[str, Any
 
 
 def _run_response_generation(
-    reviews_data: List[Dict[str, Any]], request_data: Dict
+    reviews_data: List[Dict[str, Any]],
+    request_data: Dict,
+    doctor_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Generate responses for reviews and return generation data."""
     from config.settings import AppConfig
@@ -111,29 +187,58 @@ def _run_response_generation(
     config = AppConfig.load()
     generator = ResponseGenerator(config, logger)
     responses = []
+    doctor_context = {
+        "name": (doctor_data or {}).get("name") or request_data.get("doctor_name"),
+        "specialty": (doctor_data or {}).get("specialty")
+        or request_data.get("doctor_specialty"),
+        "profile_url": (doctor_data or {}).get("url") or request_data.get("doctor_url"),
+    }
 
     for idx, review in enumerate(reviews_data):
         try:
-            response_text = generator.generate_response(review)
-        except Exception:
+            generation_result = generator.generate_response_with_metadata(
+                review,
+                doctor_context=doctor_context,
+                generation_mode=request_data.get("generation_mode"),
+                language=request_data.get("language", "pt-BR"),
+            )
+        except Exception as exc:
             logger.exception(
                 "Error generating response for review %s at index %d",
                 review.get("id", idx),
                 idx,
             )
-            response_text = ""
+            generation_result = {
+                "text": "",
+                "model": {
+                    "type": "error",
+                    "provider": request_data.get("generation_mode")
+                    or config.generation.mode,
+                },
+                "error": str(exc),
+            }
         responses.append(
             {
                 "review_id": str(review.get("id", idx)),
-                "text": response_text,
+                "text": generation_result["text"],
                 "language": request_data.get("language", "pt"),
+                "provider": generation_result["model"].get("provider"),
+                "model": generation_result["model"].get("name"),
+                "fallback_used": generation_result["model"].get("mode") == "local"
+                and (request_data.get("generation_mode") or config.generation.mode)
+                != "local",
+                "status": "generated" if generation_result["text"] else "empty",
+                "error": generation_result.get("error"),
             }
         )
 
     return {
         "template_id": request_data.get("response_template_id"),
         "responses": responses,
-        "model": {"type": "rule-based"},
+        "model": {
+            "type": "batch",
+            "provider": request_data.get("generation_mode") or config.generation.mode,
+        },
     }
 
 
@@ -155,6 +260,7 @@ def scrape_and_process(
         # Initialize scraper with required config
         config = AppConfig.load()
         scraper = DoctoraliaScraper(config, logger)
+        _update_job_meta(progress=5, message="Inicializando scraping")
 
         # Run scraping (correct method name)
         scraper_result = scraper.scrape_reviews(str(request_data["doctor_url"]))
@@ -164,6 +270,10 @@ def scrape_and_process(
 
         # Extract data
         doctor_data, reviews_data = extract_scraper_result(scraper_result)
+        _update_job_meta(
+            progress=55,
+            message=f"{len(reviews_data)} reviews extraídos de {doctor_data.get('name') or 'perfil'}",
+        )
 
         # Run analysis if requested
         analysis_data = None
@@ -173,7 +283,20 @@ def scrape_and_process(
         # Run generation if requested
         generation_data = None
         if request_data.get("include_generation"):
-            generation_data = _run_response_generation(reviews_data, request_data)
+            generation_data = _run_response_generation(
+                reviews_data, request_data, doctor_data
+            )
+
+        _update_job_meta(progress=80, message="Persistindo snapshot do scraping")
+        snapshot_payload = _build_snapshot_payload(
+            scraper_result=scraper_result,
+            doctor_data=doctor_data,
+            reviews_data=reviews_data,
+            generation_data=generation_data,
+        )
+        saved_file = scraper.save_data(snapshot_payload)
+        if saved_file is None:
+            raise RuntimeError("Scraping concluído, mas o snapshot não pôde ser salvo")
 
         # Create unified result
         result = make_unified_result(
@@ -191,6 +314,7 @@ def scrape_and_process(
         if callback_url:
             post_callback(callback_url, result.dict(), job_id)
 
+        _update_job_meta(progress=100, message=f"Snapshot salvo em {saved_file.name}")
         return result.dict()
 
     except Exception as e:
@@ -208,6 +332,7 @@ def scrape_and_process(
         )
 
         logger.error(f"scrape_and_process failed: {e}")
+        _update_job_meta(progress=0, message=f"Falha: {e}")
 
         # Send error callback if URL provided
         if callback_url:

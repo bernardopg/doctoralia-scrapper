@@ -19,6 +19,14 @@ from src.multi_site_scraper import ScraperFactory
 from src.performance_monitor import PerformanceMonitor
 from src.response_quality_analyzer import ResponseQualityAnalyzer
 from src.services.stats import StatsService
+from src.services.workspace_service import WorkspaceService
+
+
+def _clean_optional(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
 
 
 class DashboardApp:
@@ -42,11 +50,7 @@ class DashboardApp:
         if self.config and hasattr(self.config, "api"):
             api_port = getattr(self.config.api, "port", api_port)
 
-        # Use localhost for API calls from dashboard (or API_URL from env if in Docker)
-        self.api_base_url = os.getenv("API_URL", f"http://localhost:{api_port}")
         self.api_port = api_port
-        api_public_url = os.getenv("API_PUBLIC_URL", "").strip().rstrip("/")
-        self.api_docs_url = f"{api_public_url}/docs" if api_public_url else ""
         self.api_timeout = 5  # seconds
 
         self.app = Flask(
@@ -62,11 +66,90 @@ class DashboardApp:
         # Shared stats service
         data_dir = self._get_data_directory()
         self.stats_service = StatsService(data_dir, self.logger)
+        self.workspace_service = WorkspaceService(data_dir, self.logger)
 
         self.setup_routes()
 
     # The run() method is defined near the end of the file with more options (debug flag).
     # We keep a single implementation there to avoid duplication.
+
+    def _get_runtime_config(self) -> Any:
+        try:
+            return AppConfig.load()
+        except Exception:
+            return self.config
+
+    def _get_api_base_url(self) -> str:
+        config = self._get_runtime_config()
+        api_url = _clean_optional(
+            getattr(getattr(config, "integrations", None), "api_url", None)
+        ) or _clean_optional(os.getenv("API_URL"))
+        if api_url:
+            return api_url
+        api_port = getattr(getattr(config, "api", None), "port", self.api_port)
+        return f"http://localhost:{api_port}"
+
+    def _get_api_docs_url(self) -> str:
+        config = self._get_runtime_config()
+        api_public_url = _clean_optional(
+            getattr(getattr(config, "integrations", None), "api_public_url", None)
+        ) or _clean_optional(os.getenv("API_PUBLIC_URL"))
+        return f"{api_public_url}/docs" if api_public_url else ""
+
+    def _get_api_key(self) -> Optional[str]:
+        config = self._get_runtime_config()
+        return _clean_optional(
+            getattr(getattr(config, "security", None), "api_key", None)
+        ) or _clean_optional(os.getenv("API_KEY"))
+
+    def _get_remote_settings(self) -> Optional[Dict[str, Any]]:
+        response = self._call_api("/v1/settings")
+        if response and response.get("success"):
+            return response.get("settings")
+        return None
+
+    def _get_user_profile_settings(self) -> Dict[str, Any]:
+        settings = self._get_remote_settings()
+        if settings and settings.get("user_profile"):
+            profile = settings["user_profile"]
+            if isinstance(profile, dict):
+                return profile
+
+        config = self._get_runtime_config()
+        user_profile = getattr(config, "user_profile", None)
+        if user_profile is not None:
+            return {
+                "display_name": getattr(user_profile, "display_name", "Administrador"),
+                "username": getattr(user_profile, "username", "admin"),
+                "favorite_profiles": [
+                    {
+                        "name": favorite.name,
+                        "profile_url": favorite.profile_url,
+                        "specialty": favorite.specialty,
+                        "notes": favorite.notes,
+                    }
+                    for favorite in getattr(user_profile, "favorite_profiles", [])
+                ],
+            }
+
+        return {
+            "display_name": "Administrador",
+            "username": "admin",
+            "favorite_profiles": [],
+        }
+
+    def _update_remote_settings(
+        self, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        current = self._get_remote_settings()
+        if current is None:
+            return None
+        payload = current.copy()
+        payload.update(updates)
+        response = self._call_api("/v1/settings", method="PUT", json=payload)
+        if response and response.get("success"):
+            return response.get("settings")
+        return None
 
     def _call_api(self, endpoint: str, method: str = "GET", **kwargs) -> Optional[Dict]:
         """
@@ -81,9 +164,10 @@ class DashboardApp:
             JSON response dict or None if API is unavailable
         """
         try:
-            url = f"{self.api_base_url}{endpoint}"
+            api_base_url = self._get_api_base_url()
+            url = f"{api_base_url}{endpoint}"
             headers = kwargs.pop("headers", {})
-            api_key = os.getenv("API_KEY")
+            api_key = self._get_api_key()
             if api_key:
                 headers["X-API-Key"] = api_key
 
@@ -102,7 +186,7 @@ class DashboardApp:
         except requests.exceptions.ConnectionError:
             if self.logger:
                 self.logger.debug(
-                    f"API not available at {self.api_base_url} (connection refused)"
+                    f"API not available at {api_base_url} (connection refused)"
                 )
             return None
         except requests.exceptions.Timeout:
@@ -117,16 +201,17 @@ class DashboardApp:
     def _get_api_health(self) -> Dict[str, Any]:
         """Get health status from main API."""
         api_data = self._call_api("/v1/health")
+        api_base_url = self._get_api_base_url()
         if api_data:
             return {
                 "status": "connected",
-                "api_url": self.api_base_url,
+                "api_url": api_base_url,
                 "api_data": api_data,
             }
         else:
             return {
                 "status": "disconnected",
-                "api_url": self.api_base_url,
+                "api_url": api_base_url,
                 "message": "API não está acessível",
             }
 
@@ -148,9 +233,14 @@ class DashboardApp:
 
         @self.app.context_processor
         def inject_template_config():
+            user_profile = self._get_user_profile_settings()
             return {
                 "api_port": self.api_port,
-                "api_docs_url": self.api_docs_url,
+                "api_docs_url": self._get_api_docs_url(),
+                "dashboard_user_name": user_profile.get(
+                    "display_name", "Administrador"
+                ),
+                "dashboard_username": user_profile.get("username", "admin"),
             }
 
         @self.app.route("/")
@@ -162,6 +252,21 @@ class DashboardApp:
         def settings():
             """Settings page."""
             return render_template("settings.html")
+
+        @self.app.route("/profiles")
+        def profiles():
+            """Profile analytics page."""
+            return render_template("profiles.html")
+
+        @self.app.route("/responses")
+        def responses():
+            """Pending response generation workspace."""
+            return render_template("responses.html")
+
+        @self.app.route("/me")
+        def me():
+            """User/operator profile page."""
+            return render_template("user_profile.html")
 
         @self.app.route("/history")
         def history():
@@ -397,13 +502,262 @@ class DashboardApp:
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
+        @self.app.route("/api/generate/response", methods=["POST"])
+        def proxy_generate_response():
+            """Proxy single response generation to the main API."""
+            try:
+                data = request.get_json(force=True, silent=True)
+                result = self._call_api(
+                    "/v1/generate/response", method="POST", json=data
+                )
+                if result is not None:
+                    return jsonify(result)
+                return jsonify({"error": "API não disponível"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/user-profile")
+        def get_user_profile():
+            """Return user profile settings extracted from the central settings API."""
+            try:
+                return jsonify(self._get_user_profile_settings())
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/user-profile", methods=["PUT"])
+        def update_user_profile():
+            """Persist user profile via the central settings endpoint."""
+            try:
+                payload = request.get_json(force=True, silent=True) or {}
+                updated_settings = self._update_remote_settings(
+                    {"user_profile": payload}
+                )
+                if updated_settings is None:
+                    return jsonify({"error": "API não disponível"}), 503
+                return jsonify(updated_settings.get("user_profile", payload))
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/user-profile/favorites/toggle", methods=["POST"])
+        def toggle_favorite_profile():
+            """Toggle a profile inside the saved favorites list."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                profile_url = _clean_optional(data.get("profile_url"))
+                profile_name = _clean_optional(data.get("name")) or "Perfil favorito"
+                if not profile_url:
+                    return jsonify({"error": "profile_url é obrigatório"}), 400
+
+                user_profile = self._get_user_profile_settings()
+                favorites = user_profile.get("favorite_profiles", [])
+                normalized_url = profile_url.lower()
+                existing = next(
+                    (
+                        favorite
+                        for favorite in favorites
+                        if str(favorite.get("profile_url", "")).strip().lower()
+                        == normalized_url
+                    ),
+                    None,
+                )
+
+                if existing:
+                    favorites = [
+                        favorite
+                        for favorite in favorites
+                        if str(favorite.get("profile_url", "")).strip().lower()
+                        != normalized_url
+                    ]
+                else:
+                    favorites.append(
+                        {
+                            "name": profile_name,
+                            "profile_url": profile_url,
+                            "specialty": _clean_optional(data.get("specialty")),
+                            "notes": _clean_optional(data.get("notes")),
+                        }
+                    )
+
+                user_profile["favorite_profiles"] = favorites
+                updated_settings = self._update_remote_settings(
+                    {"user_profile": user_profile}
+                )
+                if updated_settings is None:
+                    return jsonify({"error": "API não disponível"}), 503
+                return jsonify(
+                    {
+                        "success": True,
+                        "favorite": existing is None,
+                        "user_profile": updated_settings.get(
+                            "user_profile", user_profile
+                        ),
+                    }
+                )
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/overview")
+        def get_workspace_overview():
+            """Get filterable dashboard overview metrics."""
+            try:
+                user_profile = self._get_user_profile_settings()
+                overview = self.workspace_service.get_overview(
+                    profile_id=request.args.get("profile_id"),
+                    date_from=request.args.get("date_from"),
+                    date_to=request.args.get("date_to"),
+                    favorite_profiles=user_profile.get("favorite_profiles", []),
+                )
+                overview["user_profile"] = user_profile
+                return jsonify(overview)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/profiles")
+        def get_workspace_profiles():
+            """Get aggregated profile list with favorite state and metrics."""
+            try:
+                user_profile = self._get_user_profile_settings()
+                profiles = self.workspace_service.list_profiles(
+                    date_from=request.args.get("date_from"),
+                    date_to=request.args.get("date_to"),
+                    favorite_profiles=user_profile.get("favorite_profiles", []),
+                )
+                return jsonify({"profiles": profiles})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/profile")
+        def get_workspace_profile_detail():
+            """Get a specific profile detail payload."""
+            try:
+                profile_id = request.args.get("profile_id")
+                if not profile_id:
+                    return jsonify({"error": "profile_id é obrigatório"}), 400
+                user_profile = self._get_user_profile_settings()
+                detail = self.workspace_service.get_profile_detail(
+                    profile_id=profile_id,
+                    date_from=request.args.get("date_from"),
+                    date_to=request.args.get("date_to"),
+                    favorite_profiles=user_profile.get("favorite_profiles", []),
+                )
+                if detail is None:
+                    return jsonify({"error": "Perfil não encontrado"}), 404
+                return jsonify(detail)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/responses")
+        def get_workspace_pending_responses():
+            """Get pending responses from the latest snapshot of each profile."""
+            try:
+                user_profile = self._get_user_profile_settings()
+                payload = self.workspace_service.list_pending_responses(
+                    profile_id=request.args.get("profile_id"),
+                    date_from=request.args.get("date_from"),
+                    date_to=request.args.get("date_to"),
+                    favorite_profiles=user_profile.get("favorite_profiles", []),
+                    favorites_only=request.args.get("favorites_only") == "1",
+                    search=request.args.get("q"),
+                )
+                return jsonify(payload)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/history")
+        def get_workspace_history():
+            """Get snapshot history with latest/outdated markers and filters."""
+            try:
+                payload = self.workspace_service.get_history(
+                    profile_id=request.args.get("profile_id"),
+                    date_from=request.args.get("date_from"),
+                    date_to=request.args.get("date_to"),
+                    status=request.args.get("status"),
+                    search=request.args.get("q"),
+                )
+                return jsonify(payload)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/history/delete", methods=["POST"])
+        def delete_workspace_history_snapshot():
+            """Delete a single stored snapshot by filename."""
+            try:
+                payload = request.get_json(force=True, silent=True) or {}
+                filename = _clean_optional(payload.get("filename"))
+                if not filename:
+                    return jsonify({"error": "filename é obrigatório"}), 400
+                deleted = self.workspace_service.delete_snapshot(filename)
+                if deleted is None:
+                    return jsonify({"error": "Snapshot não encontrado"}), 404
+                return jsonify({"success": True, "deleted": deleted})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/history/prune", methods=["POST"])
+        def prune_workspace_history():
+            """Delete outdated snapshots, preserving the newest snapshot per profile."""
+            try:
+                payload = request.get_json(force=True, silent=True) or {}
+                result = self.workspace_service.prune_outdated_snapshots(
+                    profile_id=_clean_optional(payload.get("profile_id")),
+                    date_from=_clean_optional(payload.get("date_from")),
+                    date_to=_clean_optional(payload.get("date_to")),
+                )
+                return jsonify({"success": True, "result": result})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/reports")
+        def get_workspace_reports():
+            """Get richer report payload for the reports page."""
+            try:
+                user_profile = self._get_user_profile_settings()
+                payload = self.workspace_service.get_reports(
+                    profile_id=request.args.get("profile_id"),
+                    date_from=request.args.get("date_from"),
+                    date_to=request.args.get("date_to"),
+                    favorite_profiles=user_profile.get("favorite_profiles", []),
+                )
+                return jsonify(payload)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/workspace/responses/save", methods=["POST"])
+        def save_workspace_generated_response():
+            """Persist a generated suggestion into the latest snapshot file."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                profile_id = _clean_optional(data.get("profile_id"))
+                review_id = str(data.get("review_id") or "").strip()
+                generated_response = _clean_optional(data.get("generated_response"))
+                if not profile_id or not review_id or not generated_response:
+                    return (
+                        jsonify(
+                            {
+                                "error": "profile_id, review_id e generated_response são obrigatórios"
+                            }
+                        ),
+                        400,
+                    )
+
+                saved = self.workspace_service.save_generated_response(
+                    profile_id=profile_id,
+                    review_id=review_id,
+                    generated_response=generated_response,
+                )
+                if saved is None:
+                    return jsonify({"error": "Não foi possível salvar a sugestão"}), 404
+                return jsonify({"success": True, "saved": saved})
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
         @self.app.route("/api/ready")
         def proxy_ready():
             """Proxy readiness check to main API (accepts 200 and 503)."""
             try:
-                url = f"{self.api_base_url}/v1/ready"
+                url = f"{self._get_api_base_url()}/v1/ready"
                 headers = {}
-                api_key = os.getenv("API_KEY")
+                api_key = self._get_api_key()
                 if api_key:
                     headers["X-API-Key"] = api_key
                 resp = requests.get(url, headers=headers, timeout=self.api_timeout)

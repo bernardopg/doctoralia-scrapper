@@ -19,6 +19,9 @@ Este diretório contém os arquivos de configuração do projeto.
    - `telegram.token` - Token do seu bot do Telegram
    - `telegram.chat_id` - ID do chat onde receberá as notificações
    - `urls.profile_url` - URL do seu perfil no Doctoralia
+   - `generation.mode` - Modo padrão de geração (`local`, `openai`, `gemini`, `claude`)
+   - `generation.*_api_key` - Chaves para geração por IA de terceiros
+   - `user_profile.favorite_profiles` - Lista de médicos favoritos usada no dashboard
    - Outras configurações conforme necessário
 
 ⚠️ **Importante**: O arquivo `config.json` contém informações sensíveis e não deve ser commitado no repositório. Ele já está incluído no `.gitignore`.

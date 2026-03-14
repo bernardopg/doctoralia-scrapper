@@ -13,6 +13,26 @@ Centralizar práticas de operação, saúde, logs, automação e recuperação.
 | `/v1/statistics` | Estatísticas de scraping agregadas |
 | `/v1/metrics` | Métricas de performance da API |
 
+## Workspace Web
+
+Páginas operacionais principais:
+
+- `/`: overview consolidado do workspace
+- `/profiles`: análise por perfil com filtros por data
+- `/responses`: fila de reviews sem resposta e geração manual
+- `/history`: limpeza de snapshots antigos e acompanhamento dos arquivos persistidos
+- `/reports`: visão analítica de storage, timeline e candidatos de limpeza
+- `/me`: perfil do operador e favoritos
+- `/settings`: configuração de scraping, integrações e provedores de IA
+
+## Fluxo Assíncrono de Scraping
+
+- Jobs assíncronos agora persistem um snapshot JSON em `data/` ao final de uma execução bem-sucedida.
+- `overview`, `profiles`, `responses`, `history` e `reports` leem esses snapshots persistidos, não o payload transitório do RQ.
+- O status exibido em `/history` e em `/api/tasks` usa o `status` lógico do resultado (`completed` ou `failed`), e não apenas o estado bruto de `FinishedJobRegistry`.
+- IDs de reviews são normalizados como `string` no resultado unificado e no snapshot salvo para evitar falhas de validação no worker.
+- Se um job falhar antes de salvar o snapshot, ele não deve aparecer nas páginas do workspace; nesse caso, verifique `/history`, `/api/tasks/<job_id>` e os logs do worker.
+
 ## Logs
 
 - Local: `data/logs/` ou `logs/` (conforme config)
@@ -71,6 +91,7 @@ tar -czf backup_$(date +%Y%m%d).tgz data/extractions data/responses
 | Nenhuma avaliação | Mudança de layout / seletor quebrado |
 | Resposta vazia | Exceção silenciosa / logs de erro |
 | Jobs pendentes eternos | Worker parado / Redis inacessível |
+| Job concluído sem aparecer no workspace | Verificar se o snapshot foi salvo em `data/` e se o job terminou como `failed` lógico |
 | Webhook inválido | Assinatura ou timestamp expirado |
 
 ## Aumentando Robustez
@@ -122,4 +143,4 @@ Alterar `config/config.json` → reiniciar processo (ou recarregar se implementa
 | Detector automático de mudança de layout | Ideia |
 
 ---
-Para detalhes de arquitetura consulte `docs/overview.md`. Para deployment: `docs/deployment.md`.
+Para detalhes de arquitetura consulte `docs/overview.md`. Para deployment: `docs/deployment.md`. Para o fluxo do dashboard e geração: `docs/dashboard-workspace.md`.

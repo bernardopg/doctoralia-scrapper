@@ -19,6 +19,33 @@ from src.api.schemas.common import (
 )
 
 
+def _build_review_id(raw_review: Dict[str, Any], idx: int) -> str:
+    review_id = raw_review.get("id")
+    if review_id not in (None, ""):
+        return str(review_id)
+
+    content = (
+        f"{raw_review.get('date', '')}"
+        f"{raw_review.get('comment', raw_review.get('text', ''))}"
+        f"{idx}"
+    )
+    return hashlib.md5(content.encode(), usedforsecurity=False).hexdigest()[:8]
+
+
+def sanitize_raw_reviews(raw_reviews: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Sanitize raw scraper reviews so IDs and comparable fields stay stable across flows.
+    """
+    sanitized: List[Dict[str, Any]] = []
+
+    for idx, raw in enumerate(raw_reviews):
+        review = dict(raw)
+        review["id"] = _build_review_id(review, idx)
+        sanitized.append(review)
+
+    return sanitized
+
+
 def normalize_doctor(raw_data: Dict[str, Any]) -> Doctor:
     """
     Normalize raw doctor data to Doctor schema.
@@ -31,7 +58,7 @@ def normalize_doctor(raw_data: Dict[str, Any]) -> Doctor:
         ).hexdigest()[:8]
 
     return Doctor(
-        id=doctor_id or "unknown",
+        id=str(doctor_id or "unknown"),
         name=raw_data.get("name", "Unknown Doctor"),
         specialty=raw_data.get("specialty"),
         location=raw_data.get("location"),
@@ -51,14 +78,8 @@ def normalize_reviews(raw_reviews: List[Dict[str, Any]]) -> List[Review]:
     """
     reviews = []
 
-    for idx, raw in enumerate(raw_reviews):
-        # Generate review ID if not present
-        review_id = raw.get("id")
-        if not review_id:
-            content = f"{raw.get('date', '')}{raw.get('text', '')}{idx}"
-            review_id = hashlib.md5(
-                content.encode(), usedforsecurity=False
-            ).hexdigest()[:8]
+    for raw in sanitize_raw_reviews(raw_reviews):
+        review_id = raw["id"]
 
         # Extract author info
         author = Author(
@@ -131,9 +152,14 @@ def normalize_generation(raw_generation: Dict[str, Any]) -> Optional[GenerationR
     for resp in raw_generation.get("responses", []):
         responses.append(
             ResponseItem(
-                review_id=resp.get("review_id", ""),
+                review_id=str(resp.get("review_id", "")),
                 text=resp.get("text", ""),
                 language=resp.get("language", "pt"),
+                provider=resp.get("provider"),
+                model=resp.get("model"),
+                fallback_used=resp.get("fallback_used", False),
+                status=resp.get("status", "generated"),
+                error=resp.get("error"),
             )
         )
 
@@ -206,6 +232,6 @@ def extract_scraper_result(
     }
 
     # Extract reviews
-    reviews_data = scraper_output.get("reviews", [])
+    reviews_data = sanitize_raw_reviews(scraper_output.get("reviews", []))
 
     return doctor_data, reviews_data

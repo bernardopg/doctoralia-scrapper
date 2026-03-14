@@ -1,471 +1,325 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Doctoralia Scraper{% endblock %}
+{% block title %}Overview - Doctoralia Scraper{% endblock %}
 
-{% block page_title %}Dashboard{% endblock %}
+{% block page_title %}Overview do Workspace{% endblock %}
 
 {% block content %}
-<!-- Stats Grid -->
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-label">Total de Scrapes</span>
-      <div class="stat-icon blue">
-        <i class="fas fa-database"></i>
-      </div>
-    </div>
-    <div class="stat-value" id="stat-total">-</div>
-    <div class="stat-trend" id="stat-total-trend">
-      <i class="fas fa-minus"></i>
-      <span id="stat-total-trend-text">Carregando...</span>
-    </div>
-  </div>
+<div id="overview-alert"></div>
 
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-label">Total Reviews</span>
-      <div class="stat-icon green">
-        <i class="fas fa-check-circle"></i>
-      </div>
-    </div>
-    <div class="stat-value" id="stat-success">-</div>
-    <div class="stat-trend" id="stat-success-trend">
-      <i class="fas fa-minus"></i>
-      <span id="stat-success-trend-text">-</span>
-    </div>
-  </div>
-
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-label">Erros</span>
-      <div class="stat-icon red">
-        <i class="fas fa-times-circle"></i>
-      </div>
-    </div>
-    <div class="stat-value" id="stat-failures">-</div>
-    <div class="stat-trend" id="stat-failures-trend">
-      <i class="fas fa-minus"></i>
-      <span id="stat-failures-trend-text">-</span>
-    </div>
-  </div>
-
-  <div class="stat-card">
-    <div class="stat-header">
-      <span class="stat-label">Rating Médio</span>
-      <div class="stat-icon orange">
-        <i class="fas fa-star"></i>
-      </div>
-    </div>
-    <div class="stat-value" id="stat-avg-time">-</div>
-    <div class="stat-trend" id="stat-avg-time-trend">
-      <i class="fas fa-minus"></i>
-      <span id="stat-avg-time-trend-text">-</span>
-    </div>
+<div class="alert alert-info mb-3">
+  <i class="fas fa-layer-group"></i>
+  <div>
+    Esta visão consolida rastreios, backlog de respostas, favoritos e saúde da stack.
+    Use os filtros para recortar por perfil ou período sem sair da página.
   </div>
 </div>
 
-<!-- Cards Section -->
-<div class="dashboard-grid"
-  style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; margin-bottom: 32px;">
-  <!-- Performance Chart Card -->
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-chart-pie"></i>
-        Performance Overview
-      </h3>
-    </div>
-    <div class="card-body">
-      <div style="height: 300px; position: relative;">
-        <canvas id="performanceChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Recent Activity Card -->
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-history"></i>
-        Atividades Recentes
-      </h3>
-    </div>
-    <div class="card-body">
-      <div id="activities-content" style="max-height: 300px; overflow-y: auto;">
-        <div class="text-center" style="padding: 40px 20px; color: var(--text-secondary);">
-          <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-          <p style="margin-top: 16px;">Carregando atividades...</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Trends Chart Card -->
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-chart-line"></i>
-        Evolução de Reviews
-      </h3>
-    </div>
-    <div class="card-body">
-      <div style="height: 300px; position: relative;">
-        <canvas id="trendsChart"></canvas>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Quality Analysis Card -->
-<div class="card">
+<div class="card mb-3">
   <div class="card-header">
     <h3 class="card-title">
-      <i class="fas fa-microscope"></i>
-      Análise de Qualidade de Resposta
+      <i class="fas fa-filter"></i>
+      Filtros Operacionais
     </h3>
   </div>
   <div class="card-body">
-    <div class="form-group">
-      <label class="form-label">Cole a resposta do médico para análise:</label>
-      <textarea id="response-text" class="form-control" rows="6"
-        placeholder="Cole o texto da resposta aqui..."></textarea>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Perfil</label>
+        <select id="overview-profile-filter" class="form-control">
+          <option value="">Todos os perfis</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Inicial</label>
+        <input type="date" id="overview-date-from" class="form-control">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data Final</label>
+        <input type="date" id="overview-date-to" class="form-control">
+      </div>
     </div>
-    <button class="btn btn-primary" onclick="analyzeQuality()">
-      <i class="fas fa-search"></i>
-      Analisar Qualidade
-    </button>
-    <div id="quality-result" style="display: none; margin-top: 20px;"></div>
+    <div class="flex gap-2">
+      <button class="btn btn-primary" onclick="applyOverviewFilters()">
+        <i class="fas fa-search"></i>
+        Aplicar
+      </button>
+      <button class="btn btn-secondary" onclick="resetOverviewFilters()">
+        <i class="fas fa-undo"></i>
+        Limpar
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-label">Rastreios</span>
+      <div class="stat-icon blue"><i class="fas fa-wave-square"></i></div>
+    </div>
+    <div class="stat-value" id="overview-total-scrapes">-</div>
+    <div class="stat-trend" id="overview-total-scrapes-trend">
+      <i class="fas fa-clock"></i>
+      <span id="overview-last-scrape">Aguardando dados</span>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-label">Perfis Monitorados</span>
+      <div class="stat-icon green"><i class="fas fa-user-doctor"></i></div>
+    </div>
+    <div class="stat-value" id="overview-profiles-tracked">-</div>
+    <div class="stat-trend">
+      <i class="fas fa-star"></i>
+      <span id="overview-favorite-count">0 favoritos</span>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-label">Reviews Atuais</span>
+      <div class="stat-icon orange"><i class="fas fa-comments"></i></div>
+    </div>
+    <div class="stat-value" id="overview-total-reviews">-</div>
+    <div class="stat-trend">
+      <i class="fas fa-reply"></i>
+      <span id="overview-generated-ready">0 sugestões prontas</span>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-label">Sem Resposta</span>
+      <div class="stat-icon red"><i class="fas fa-reply-all"></i></div>
+    </div>
+    <div class="stat-value" id="overview-unanswered">-</div>
+    <div class="stat-trend down">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="overview-pending-profiles">0 perfis com pendência</span>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-label">Avaliação Média</span>
+      <div class="stat-icon orange"><i class="fas fa-star-half-alt"></i></div>
+    </div>
+    <div class="stat-value" id="overview-average-rating">-</div>
+    <div class="stat-trend">
+      <i class="fas fa-chart-line"></i>
+      <span>Últimos snapshots ativos</span>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header">
+      <span class="stat-label">Stack</span>
+      <div class="stat-icon blue"><i class="fas fa-server"></i></div>
+    </div>
+    <div class="stat-value" id="overview-stack-status">-</div>
+    <div class="stat-trend" id="overview-stack-trend">
+      <i class="fas fa-heartbeat"></i>
+      <span id="overview-stack-trend-text">Aguardando health check</span>
+    </div>
+  </div>
+</div>
+
+<div class="dashboard-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; margin-bottom: 24px;">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-star"></i>
+        Perfis Favoritos
+      </h3>
+    </div>
+    <div class="card-body" id="overview-favorites-list">
+      <div class="text-secondary">Carregando favoritos...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-stream"></i>
+        Rastreios Recentes
+      </h3>
+    </div>
+    <div class="card-body" id="overview-recent-scrapes">
+      <div class="text-secondary">Carregando rastreios...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-chart-area"></i>
+        Tendência do Workspace
+      </h3>
+    </div>
+    <div class="card-body">
+      <div style="height: 320px; position: relative;">
+        <canvas id="overview-timeline-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-heart-pulse"></i>
+        Saúde Operacional
+      </h3>
+    </div>
+    <div class="card-body" id="overview-health-list">
+      <div class="text-secondary">Verificando componentes...</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-lightbulb"></i>
+      Próximas Ações
+    </h3>
+  </div>
+  <div class="card-body" id="overview-next-actions">
+    <div class="text-secondary">Calculando prioridades...</div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-  var performanceChart = null;
-  var trendsChart = null;
+  const overviewState = {
+    profileId: '',
+    dateFrom: '',
+    dateTo: '',
+  };
 
-  // Load stats
-  async function loadStats() {
-    try {
-      const response = await fetch('/api/stats');
-      const result = await response.json();
-      const data = result.data || result;
+  let overviewTimelineChart = null;
 
-      // Total de scrapes (médicos raspados)
-      const totalScraped = data.total_scraped_doctors || data.total_scrapes || 0;
-      document.getElementById('stat-total').textContent = totalScraped;
-
-      // Sucessos - usar total de reviews como indicador de sucesso
-      const totalReviews = data.total_reviews || 0;
-      document.getElementById('stat-success').textContent = totalReviews;
-
-      // Falhas - atualmente não rastreamos, mostrar 0
-      const failures = data.failed_scrapes || 0;
-      document.getElementById('stat-failures').textContent = failures;
-
-      // Tempo médio (se disponível) ou mostrar rating médio
-      const avgTime = data.average_time || null;
-      const avgRating = data.average_rating || 0;
-      if (avgTime) {
-        document.getElementById('stat-avg-time').textContent = avgTime.toFixed(1) + 's';
-      } else if (avgRating > 0) {
-        document.getElementById('stat-avg-time').textContent = avgRating.toFixed(1) + '★';
-        // Atualizar label se necessário
-        const avgTimeLabel = document.querySelector('#stat-avg-time').parentElement.querySelector('.stat-label');
-        if (avgTimeLabel) avgTimeLabel.textContent = 'Avaliação Média';
-      } else {
-        document.getElementById('stat-avg-time').textContent = '-';
-      }
-
-      // Atualizar textos de tendência dinamicamente
-      updateTrendTexts(data, totalScraped, totalReviews, failures);
-
-    } catch (error) {
-      console.error('Error loading stats:', error);
-      // Mostrar estado de erro
-      document.getElementById('stat-total-trend-text').textContent = 'Erro ao carregar';
-    }
+  function buildOverviewQuery() {
+    const params = new URLSearchParams();
+    if (overviewState.profileId) params.set('profile_id', overviewState.profileId);
+    if (overviewState.dateFrom) params.set('date_from', overviewState.dateFrom);
+    if (overviewState.dateTo) params.set('date_to', overviewState.dateTo);
+    const query = params.toString();
+    return query ? `?${query}` : '';
   }
 
-  // Atualizar textos de tendência
-  function updateTrendTexts(data, totalScraped, totalReviews, failures) {
-    // Total - mostrar última raspagem
-    const totalTrend = document.getElementById('stat-total-trend');
-    const totalTrendText = document.getElementById('stat-total-trend-text');
-    if (data.last_scrape_time) {
-      const lastScrape = new Date(data.last_scrape_time);
-      const now = new Date();
-      const diffHours = Math.round((now - lastScrape) / (1000 * 60 * 60));
-      if (diffHours < 1) {
-        totalTrendText.textContent = 'Última raspagem: agora';
-      } else if (diffHours < 24) {
-        totalTrendText.textContent = `Última: há ${diffHours}h`;
-      } else {
-        const diffDays = Math.round(diffHours / 24);
-        totalTrendText.textContent = `Última: há ${diffDays}d`;
-      }
-      totalTrend.classList.add('up');
-      totalTrend.querySelector('i').className = 'fas fa-clock';
-    } else if (totalScraped > 0) {
-      totalTrendText.textContent = `${totalScraped} médico(s)`;
-    } else {
-      totalTrendText.textContent = 'Nenhum dado';
-    }
-
-    // Sucesso - mostrar média de reviews por médico
-    const successTrend = document.getElementById('stat-success-trend');
-    const successTrendText = document.getElementById('stat-success-trend-text');
-    if (totalScraped > 0 && totalReviews > 0) {
-      const avgReviews = (totalReviews / totalScraped).toFixed(1);
-      successTrendText.textContent = `~${avgReviews} reviews/médico`;
-      successTrend.classList.add('up');
-      successTrend.querySelector('i').className = 'fas fa-arrow-up';
-    } else {
-      successTrendText.textContent = 'Nenhuma review';
-    }
-
-    // Falhas - mostrar taxa
-    const failuresTrend = document.getElementById('stat-failures-trend');
-    const failuresTrendText = document.getElementById('stat-failures-trend-text');
-    if (totalScraped > 0) {
-      const failureRate = ((failures / (totalScraped + failures)) * 100).toFixed(1);
-      failuresTrendText.textContent = `${failureRate}% taxa de falha`;
-      if (failures === 0) {
-        failuresTrend.querySelector('i').className = 'fas fa-check';
-      } else {
-        failuresTrend.classList.add('down');
-        failuresTrend.querySelector('i').className = 'fas fa-arrow-down';
-      }
-    } else {
-      failuresTrendText.textContent = '-';
-    }
-
-    // Tempo/Rating - mostrar info de plataformas
-    const avgTimeTrend = document.getElementById('stat-avg-time-trend');
-    const avgTimeTrendText = document.getElementById('stat-avg-time-trend-text');
-    if (data.platform_stats && Object.keys(data.platform_stats).length > 0) {
-      const platforms = Object.keys(data.platform_stats);
-      avgTimeTrendText.textContent = `${platforms.length} plataforma(s)`;
-      avgTimeTrend.querySelector('i').className = 'fas fa-globe';
-    } else {
-      avgTimeTrendText.textContent = '-';
-    }
+  function showOverviewAlert(message, type = 'info') {
+    const container = document.getElementById('overview-alert');
+    container.innerHTML = `
+      <div class="alert alert-${type}">
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <div>${message}</div>
+      </div>
+    `;
+    setTimeout(() => { container.innerHTML = ''; }, 4000);
   }
 
-  // Load performance data
-  async function loadPerformance() {
-    try {
-      const response = await fetch('/api/performance');
-      const result = await response.json();
-      const data = result.data || result;
-
-      // Se não há dados de performance, tentar usar stats
-      if (data.message && !data.total_operations) {
-        // Buscar stats como fallback
-        const statsResponse = await fetch('/api/stats');
-        const statsResult = await statsResponse.json();
-        const statsData = statsResult.data || statsResult;
-
-        if (statsData && statsData.platform_stats) {
-          updatePerformanceChartWithStats(statsData);
-        }
-        return;
-      }
-
-      updatePerformanceChart(data);
-    } catch (error) {
-      console.error('Error loading performance:', error);
-    }
+  function updateOverviewFilters(filters) {
+    const select = document.getElementById('overview-profile-filter');
+    const current = overviewState.profileId;
+    select.innerHTML = '<option value="">Todos os perfis</option>' + filters.map((item) => `
+      <option value="${item.profile_id}">${item.doctor_name}</option>
+    `).join('');
+    select.value = current;
   }
 
-  // Update performance chart com dados de stats (fallback)
-  function updatePerformanceChartWithStats(data) {
-    const chartElement = document.getElementById('performanceChart');
-    if (!chartElement) {
-      console.warn('Performance chart element not found');
+  function renderFavorites(items) {
+    const container = document.getElementById('overview-favorites-list');
+    if (!items.length) {
+      container.innerHTML = '<div class="text-secondary">Nenhum favorito salvo ainda. Use a página Minha Área ou Perfis para marcar médicos estratégicos.</div>';
       return;
     }
 
-    const ctx = chartElement.getContext('2d');
-
-    if (performanceChart) {
-      performanceChart.destroy();
-    }
-
-    // Usar dados de plataformas ou médicos/reviews
-    const platforms = data.platform_stats || {};
-    const platformNames = Object.keys(platforms);
-
-    if (platformNames.length === 0) {
-      // Sem dados - mostrar médicos vs reviews
-      const doctors = data.total_scraped_doctors || 0;
-      const reviews = data.total_reviews || 0;
-
-      if (doctors === 0 && reviews === 0) {
-        // Sem nenhum dado
-        chartElement.parentElement.innerHTML = `
-            <div class="text-center" style="padding: 40px 20px; color: var(--text-secondary);">
-              <i class="fas fa-chart-pie" style="font-size: 48px; opacity: 0.2;"></i>
-              <p style="margin-top: 16px;">Sem dados para exibir</p>
-              <p style="font-size: 12px;">Execute um scraping para visualizar métricas</p>
+    container.innerHTML = items.map((item) => `
+      <div class="card mb-2" style="box-shadow:none;">
+        <div class="card-body" style="padding:16px;">
+          <div class="flex justify-between items-center">
+            <div>
+              <div style="font-weight:600;">${item.doctor_name}</div>
+              <div class="text-secondary" style="font-size:13px;">${item.reviews_count} reviews atuais • ${item.unanswered_count} pendentes</div>
             </div>
-          `;
-        return;
-      }
-
-      performanceChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Médicos', 'Reviews'],
-          datasets: [{
-            data: [doctors, reviews],
-            backgroundColor: ['#0A84FF', '#34C759'],
-            borderWidth: 0
-          }]
-        },
-        options: getChartOptions()
-      });
-      return;
-    }
-
-    // Mostrar dados por plataforma
-    const colors = ['#0A84FF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE'];
-    performanceChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: platformNames.map(p => p.charAt(0).toUpperCase() + p.slice(1)),
-        datasets: [{
-          data: platformNames.map(p => platforms[p].reviews || 0),
-          backgroundColor: colors.slice(0, platformNames.length),
-          borderWidth: 0
-        }]
-      },
-      options: getChartOptions()
-    });
-  }
-
-  // Update performance chart com dados de operações
-  function updatePerformanceChart(data) {
-    const chartElement = document.getElementById('performanceChart');
-    if (!chartElement) {
-      console.warn('Performance chart element not found');
-      return;
-    }
-
-    const ctx = chartElement.getContext('2d');
-
-    if (performanceChart) {
-      performanceChart.destroy();
-    }
-
-    const successful = data.successful_operations || 0;
-    const total = data.total_operations || 0;
-    const failed = total - successful;
-
-    if (total === 0) {
-      // Sem operações - mostrar placeholder
-      chartElement.parentElement.innerHTML = `
-          <div class="text-center" style="padding: 40px 20px; color: var(--text-secondary);">
-            <i class="fas fa-chart-pie" style="font-size: 48px; opacity: 0.2;"></i>
-            <p style="margin-top: 16px;">Aguardando operações</p>
+            <div class="text-right">
+              <div style="font-weight:700; color: var(--apple-orange);">${Number(item.average_rating || 0).toFixed(1)} ★</div>
+              <a href="/profiles" style="font-size:12px; text-decoration:none;">abrir perfil</a>
+            </div>
           </div>
-        `;
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderRecentScrapes(items) {
+    const container = document.getElementById('overview-recent-scrapes');
+    if (!items.length) {
+      container.innerHTML = '<div class="text-secondary">Nenhum rastreio encontrado para os filtros atuais.</div>';
       return;
     }
 
-    performanceChart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Sucesso', 'Falha'],
-        datasets: [{
-          data: [successful, failed],
-          backgroundColor: ['#34C759', '#FF3B30'],
-          borderWidth: 0
-        }]
-      },
-      options: getChartOptions()
-    });
-  }
-
-  // Opções comuns do gráfico
-  function getChartOptions() {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: {
-            padding: 20,
-            font: {
-              family: '-apple-system, BlinkMacSystemFont, SF Pro Display',
-              size: 13
-            }
-          }
-        }
-      },
-      cutout: '70%'
-    };
-  }
-
-  async function loadTrends() {
-    try {
-      const response = await fetch('/api/trends');
-      const result = await response.json();
-      const data = result.data || result;
-      updateTrendsChart(data);
-    } catch (error) {
-      console.error('Error loading trends:', error);
-    }
-  }
-
-  function updateTrendsChart(data) {
-    const chartElement = document.getElementById('trendsChart');
-    if (!chartElement) {
-      return;
-    }
-
-    const dates = data.dates || [];
-    const reviews = data.reviews || [];
-    const scrapes = data.scrapes || [];
-
-    if (trendsChart) {
-      trendsChart.destroy();
-    }
-
-    if (dates.length === 0) {
-      chartElement.parentElement.innerHTML = `
-          <div class="text-center" style="padding: 40px 20px; color: var(--text-secondary);">
-            <i class="fas fa-chart-line" style="font-size: 48px; opacity: 0.2;"></i>
-            <p style="margin-top: 16px;">Sem tendência disponível</p>
-            <p style="font-size: 12px;">Execute scrapes em dias diferentes para visualizar evolução</p>
+    container.innerHTML = items.map((item) => `
+      <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+        <div class="flex justify-between items-center">
+          <div>
+            <div style="font-weight:600;">${item.doctor_name}</div>
+            <div class="text-secondary" style="font-size:13px;">${item.reviews_count} reviews • ${item.unanswered_count} sem resposta</div>
           </div>
-        `;
+          <div class="text-right">
+            <div style="font-weight:700;">${Number(item.average_rating || 0).toFixed(1)} ★</div>
+            <div class="text-secondary" style="font-size:12px;">${item.extracted_at ? new Date(item.extracted_at).toLocaleString('pt-BR') : '-'}</div>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderOverviewTimeline(timeline) {
+    const canvas = document.getElementById('overview-timeline-chart');
+    if (overviewTimelineChart) overviewTimelineChart.destroy();
+
+    if (!timeline.dates || timeline.dates.length === 0) {
+      canvas.parentElement.innerHTML = `
+        <div class="text-center text-secondary" style="padding: 48px 16px;">
+          <i class="fas fa-chart-area" style="font-size: 40px; opacity: 0.2;"></i>
+          <p style="margin-top: 16px;">Sem histórico suficiente para os filtros atuais.</p>
+        </div>
+      `;
       return;
     }
 
-    trendsChart = new Chart(chartElement.getContext('2d'), {
+    overviewTimelineChart = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
-        labels: dates,
+        labels: timeline.dates,
         datasets: [
           {
-            label: 'Reviews por dia',
-            data: reviews,
+            label: 'Rastreios',
+            data: timeline.scrapes,
             borderColor: '#0A84FF',
-            backgroundColor: 'rgba(10, 132, 255, 0.15)',
+            backgroundColor: 'rgba(10, 132, 255, 0.14)',
             fill: true,
             tension: 0.35,
-            pointRadius: 3
           },
           {
-            label: 'Scrapes por dia',
-            data: scrapes,
+            label: 'Reviews',
+            data: timeline.reviews,
             borderColor: '#34C759',
-            backgroundColor: 'rgba(52, 199, 89, 0.12)',
+            backgroundColor: 'rgba(52, 199, 89, 0.10)',
             fill: false,
             tension: 0.3,
-            pointRadius: 3
+          },
+          {
+            label: 'Pendentes',
+            data: timeline.unanswered,
+            borderColor: '#FF3B30',
+            backgroundColor: 'rgba(255, 59, 48, 0.08)',
+            fill: false,
+            tension: 0.3,
           }
         ]
       },
@@ -473,160 +327,130 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 20,
-              font: {
-                family: '-apple-system, BlinkMacSystemFont, SF Pro Display',
-                size: 13
-              }
-            }
-          }
+          legend: { position: 'bottom' }
         },
         scales: {
-          x: {
-            ticks: {
-              maxTicksLimit: 8
-            }
-          },
-          y: {
-            beginAtZero: true
-          }
+          y: { beginAtZero: true }
         }
       }
     });
   }
 
-  // Load recent activity
-  async function loadRecentActivity() {
-    try {
-      const response = await fetch('/api/recent-activity');
-      const activities = await response.json();
-      const container = document.getElementById('activities-content');
+  function renderHealth(readyData) {
+    const container = document.getElementById('overview-health-list');
+    const components = readyData.components || {};
+    const entries = Object.entries(components);
 
-      if (activities.length === 0) {
-        container.innerHTML = `
-            <div class="text-center" style="padding: 40px 20px; color: var(--text-secondary);">
-              <i class="fas fa-history" style="font-size: 48px; opacity: 0.2;"></i>
-              <p style="margin-top: 16px;">Nenhuma atividade recente</p>
-            </div>
-          `;
-        return;
-      }
-
-      container.innerHTML = activities.map(activity => {
-        const ratingStr = activity.average_rating > 0
-          ? `${Number(activity.average_rating).toFixed(1)} ★`
-          : '-';
-        const dateStr = activity.scraped_at
-          ? new Date(activity.scraped_at).toLocaleDateString('pt-BR')
-          : '-';
-        return `
-          <div class="activity-item" style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-weight: 500;">${activity.doctor_name || 'Desconhecido'}</div>
-                <div style="font-size: 12px;" class="text-secondary">
-                  ${activity.reviews_count || 0} reviews • ${activity.platform || 'doctoralia'}
-                </div>
-              </div>
-              <div style="text-align: right;">
-                <div style="font-weight: 600; color: var(--apple-green);">${ratingStr}</div>
-                <div style="font-size: 11px;" class="text-secondary">${dateStr}</div>
-              </div>
-            </div>
-          </div>`;
-      }).join('');
-
-    } catch (error) {
-      console.error('Error loading activities:', error);
-      document.getElementById('activities-content').innerHTML = `
-          <div class="text-center" style="padding: 20px; color: var(--apple-red, #ff3b30);">
-            Erro ao carregar atividades
-          </div>
-        `;
-    }
-  }
-
-  // Analyze quality
-  async function analyzeQuality() {
-    const text = document.getElementById('response-text').value.trim();
-    const resultDiv = document.getElementById('quality-result');
-
-    if (!text) {
-      resultDiv.style.display = 'block';
-      resultDiv.innerHTML = '<div style="color: var(--apple-red); font-size: 13px; padding: 8px 0;"><i class="fas fa-exclamation-circle"></i> Por favor, insira o texto da resposta para análise.</div>';
+    if (!entries.length) {
+      container.innerHTML = '<div class="text-secondary">Sem detalhes de readiness disponíveis.</div>';
       return;
     }
 
-    resultDiv.style.display = 'block';
-    resultDiv.innerHTML = '<div class="text-center text-secondary" style="padding: 16px 0;"><i class="fas fa-spinner fa-spin"></i> Analisando...</div>';
+    container.innerHTML = entries.map(([name, component]) => `
+      <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+        <div class="flex justify-between items-center">
+          <div>
+            <div style="font-weight:600; text-transform:capitalize;">${name}</div>
+            <div class="text-secondary" style="font-size:13px;">${component.error || 'Operacional'}</div>
+          </div>
+          <div style="font-size:13px; font-weight:600; color:${component.status ? 'var(--apple-green)' : 'var(--apple-red)'};">
+            ${component.status ? 'OK' : 'Falha'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
 
+  function renderNextActions(summary, favorites) {
+    const container = document.getElementById('overview-next-actions');
+    const actions = [];
+
+    if ((summary.unanswered_reviews_current || 0) > 0) {
+      actions.push(`Existem <strong>${summary.unanswered_reviews_current}</strong> comentários sem resposta no recorte atual. A página <a href="/responses">Respostas</a> deve ser a próxima parada.`);
+    }
+    if ((summary.favorite_profiles_count || 0) === 0) {
+      actions.push('Nenhum perfil favorito foi salvo ainda. Use <a href="/me">Minha Área</a> para montar uma shortlist operacional.');
+    }
+    if ((favorites || []).length > 0) {
+      actions.push(`Seu favorito mais crítico agora é <strong>${favorites[0].doctor_name}</strong>, com ${favorites[0].unanswered_count} comentários pendentes.`);
+    }
+    if (!actions.length) {
+      actions.push('Sem gargalos imediatos. Você pode revisar a página <a href="/profiles">Perfis</a> para acompanhar tendências e estabilidade.');
+    }
+
+    container.innerHTML = actions.map((action) => `<div style="padding: 10px 0; border-bottom: 1px solid var(--border-color);">${action}</div>`).join('');
+  }
+
+  function applyOverviewSummary(summary, recentScrapes) {
+    document.getElementById('overview-total-scrapes').textContent = summary.total_scrapes ?? 0;
+    document.getElementById('overview-profiles-tracked').textContent = summary.profiles_tracked ?? 0;
+    document.getElementById('overview-total-reviews').textContent = summary.total_reviews_current ?? 0;
+    document.getElementById('overview-unanswered').textContent = summary.unanswered_reviews_current ?? 0;
+    document.getElementById('overview-generated-ready').textContent = `${summary.generated_suggestions_current ?? 0} sugestões prontas`;
+    document.getElementById('overview-favorite-count').textContent = `${summary.favorite_profiles_count ?? 0} favoritos`;
+    document.getElementById('overview-average-rating').textContent = summary.average_rating_current ? `${Number(summary.average_rating_current).toFixed(1)} ★` : '-';
+    document.getElementById('overview-pending-profiles').textContent = `${summary.profiles_tracked ?? 0} perfis ativos`;
+
+    const latest = (recentScrapes || [])[0];
+    document.getElementById('overview-last-scrape').textContent = latest?.extracted_at
+      ? `Último rastreio: ${new Date(latest.extracted_at).toLocaleString('pt-BR')}`
+      : 'Nenhum rastreio encontrado';
+  }
+
+  async function loadOverview() {
     try {
-      const response = await fetch('/api/quality-analysis', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ response: text })
-      });
+      const query = buildOverviewQuery();
+      const [overviewResponse, readyResponse] = await Promise.all([
+        fetch(`/api/workspace/overview${query}`),
+        fetch('/api/ready'),
+      ]);
 
-      const result = await response.json();
+      const overview = await overviewResponse.json();
+      const ready = await readyResponse.json();
 
-      if (result.error) {
-        resultDiv.innerHTML = `<div class="alert alert-error">${result.error}</div>`;
-        return;
+      if (overview.error) {
+        throw new Error(overview.error);
       }
 
-      // Render results
-      const scoreColor = result.score.total_score >= 80 ? '#34C759' : (result.score.total_score >= 60 ? '#FF9500' : '#FF3B30');
+      updateOverviewFilters(overview.filters || []);
+      applyOverviewSummary(overview.summary || {}, overview.recent_scrapes || []);
+      renderFavorites(overview.favorite_profiles || []);
+      renderRecentScrapes(overview.recent_scrapes || []);
+      renderOverviewTimeline(overview.timeline || { dates: [], scrapes: [], reviews: [], unanswered: [] });
+      renderNextActions(overview.summary || {}, overview.favorite_profiles || []);
 
-      resultDiv.innerHTML = `
-          <div style="background: var(--bg-tertiary, #3a3a3c); border-radius: 12px; padding: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h4 style="margin: 0;">Resultado da Análise</h4>
-              <div style="background: ${scoreColor}; color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600;">
-                Score: ${result.score.total_score}/100
-              </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-              <div>
-                <h5 style="color: var(--apple-green, #34c759); margin-bottom: 8px;">Pontos Fortes</h5>
-                <ul style="padding-left: 20px; font-size: 13px;">
-                  ${result.strengths.map(s => `<li>${s}</li>`).join('')}
-                </ul>
-              </div>
-              <div>
-                <h5 style="color: var(--apple-red, #ff3b30); margin-bottom: 8px;">Pontos de Melhoria</h5>
-                <ul style="padding-left: 20px; font-size: 13px;">
-                  ${result.weaknesses.map(w => `<li>${w}</li>`).join('')}
-                </ul>
-              </div>
-            </div>
-
-            <div>
-              <h5 style="color: var(--apple-blue, #0a84ff); margin-bottom: 8px;">Sugestões</h5>
-              <ul style="padding-left: 20px; font-size: 13px;">
-                ${result.suggestions.map(s => `<li>${s}</li>`).join('')}
-              </ul>
-            </div>
-          </div>
-        `;
-
+      const readyFlag = ready.ready === true;
+      document.getElementById('overview-stack-status').textContent = readyFlag ? 'OK' : 'Atenção';
+      document.getElementById('overview-stack-trend').className = `stat-trend ${readyFlag ? 'up' : 'down'}`;
+      document.getElementById('overview-stack-trend-text').textContent = readyFlag
+        ? 'API, Redis, fila e Selenium operacionais'
+        : 'Há componentes degradados';
+      renderHealth(ready);
     } catch (error) {
-      console.error('Error analyzing quality:', error);
-      resultDiv.innerHTML = `<div class="alert alert-error">Erro ao analisar qualidade: ${error.message}</div>`;
+      console.error('Error loading overview:', error);
+      showOverviewAlert(`Erro ao carregar overview: ${error.message}`, 'error');
     }
   }
 
-  // Initialize
-  document.addEventListener('DOMContentLoaded', function () {
-    loadStats();
-    loadPerformance();
-    loadTrends();
-    loadRecentActivity();
+  function applyOverviewFilters() {
+    overviewState.profileId = document.getElementById('overview-profile-filter').value;
+    overviewState.dateFrom = document.getElementById('overview-date-from').value;
+    overviewState.dateTo = document.getElementById('overview-date-to').value;
+    loadOverview();
+  }
+
+  function resetOverviewFilters() {
+    overviewState.profileId = '';
+    overviewState.dateFrom = '';
+    overviewState.dateTo = '';
+    document.getElementById('overview-profile-filter').value = '';
+    document.getElementById('overview-date-from').value = '';
+    document.getElementById('overview-date-to').value = '';
+    loadOverview();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadOverview();
   });
 </script>
 {% endblock %}

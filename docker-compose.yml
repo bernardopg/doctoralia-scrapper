@@ -11,6 +11,8 @@ services:
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MASK_PII=${MASK_PII:-true}
     depends_on:
@@ -22,6 +24,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+      - ./config:/app/config
     networks:
       - doctoralia-net
     restart: unless-stopped
@@ -54,6 +57,8 @@ services:
       - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MASK_PII=${MASK_PII:-true}
     depends_on:
@@ -63,6 +68,7 @@ services:
       # only when a scraping task is actually executed.
     volumes:
       - ./data:/app/data
+      - ./config:/app/config
     networks:
       - doctoralia-net
     restart: unless-stopped
@@ -152,7 +158,7 @@ services:
       - doctoralia-net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5678/healthz"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:5678/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -181,6 +187,7 @@ services:
       - "5000:5000"
     volumes:
       - ./data:/app/data
+      - ./config:/app/config
     networks:
       - doctoralia-net
     restart: unless-stopped
