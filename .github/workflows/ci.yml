@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.12"
+  LINT_PATHS: "src/ tests/ config/ scripts/"
 
 jobs:
   lint:
@@ -54,13 +56,17 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run Black
-        run: poetry run black --check src/ tests/ config/ scripts/
+        run: |
+          poetry run black --check --diff \
+            --target-version py310 \
+            --target-version py311 \
+            ${{ env.LINT_PATHS }}
 
       - name: Run isort
-        run: poetry run isort --check-only src/ tests/ config/ scripts/
+        run: poetry run isort --check-only ${{ env.LINT_PATHS }}
 
       - name: Run Flake8
-        run: poetry run flake8 src/ tests/ config/ scripts/ --extend-ignore=E203,W503,E501
+        run: poetry run flake8 ${{ env.LINT_PATHS }} --extend-ignore=E203,W503,E501
 
       - name: Run MyPy
         run: poetry run mypy src/ --ignore-missing-imports
