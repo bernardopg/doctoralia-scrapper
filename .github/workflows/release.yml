@@ -10,6 +10,11 @@ on:
         description: 'Version to release (e.g., v1.0.0)'
         required: true
         type: string
+      publish_to_pypi:
+        description: 'Publish package to PyPI (stable releases only)'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -153,8 +158,15 @@ jobs:
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
 
+      - name: Require PyPI token for publication
+        if: needs.prepare-release.outputs.prerelease == 'false' && (github.event_name != 'workflow_dispatch' || inputs.publish_to_pypi) && steps.check_pypi.outputs.has_token != 'true'
+        run: |
+          echo "PYPI_TOKEN secret is required to publish stable releases."
+          echo "Configure it in Settings -> Secrets and variables -> Actions."
+          exit 1
+
       - name: Publish to PyPI
-        if: needs.prepare-release.outputs.prerelease == 'false' && steps.check_pypi.outputs.has_token == 'true'
+        if: needs.prepare-release.outputs.prerelease == 'false' && (github.event_name != 'workflow_dispatch' || inputs.publish_to_pypi) && steps.check_pypi.outputs.has_token == 'true'
         env:
           POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         run: poetry publish --skip-existing

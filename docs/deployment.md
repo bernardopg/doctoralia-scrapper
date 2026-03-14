@@ -56,6 +56,35 @@ N8N_BASIC_AUTH_PASSWORD=<senha_segura>
 LOG_LEVEL=INFO
 ```
 
+## GitHub Actions (Secrets e Pages)
+
+Nunca versione tokens em arquivos do repositório (`.env`, `config/`, workflows, etc.).
+Use apenas **GitHub Actions Secrets**.
+
+Secrets recomendados:
+
+- `PYPI_TOKEN` (obrigatório para publicar release estável no PyPI)
+- `CODECOV_TOKEN` (opcional, para upload de cobertura no CI)
+
+Exemplo com GitHub CLI:
+
+```bash
+gh secret set PYPI_TOKEN --repo <owner>/<repo>
+gh secret set CODECOV_TOKEN --repo <owner>/<repo>
+```
+
+> Se algum token foi exposto em texto plano, revogue imediatamente e gere um novo.
+
+### GitHub Pages
+
+O workflow `pages.yml` publica automaticamente uma versão HTML da documentação (`README.md` + `docs/*.md`) no GitHub Pages.
+
+Para habilitar:
+
+1. Vá em **Settings → Pages** do repositório.
+2. Em **Build and deployment**, selecione **Source: GitHub Actions**.
+3. Faça merge/push na branch `main` (ou execute o workflow manualmente).
+
 ## Docker Compose (Desenvolvimento / Staging)
 
 O `docker-compose.yml` na raiz do projeto já inclui health checks e resource limits para todos os serviços:
