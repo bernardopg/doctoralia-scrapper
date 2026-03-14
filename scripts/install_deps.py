@@ -91,14 +91,12 @@ def check_installation() -> bool:
 
 
 def main() -> bool:
-    print(
-        """
+    print("""
 ╔══════════════════════════════════════════════════════════════╗
 ║                 📦 INSTALAÇÃO DE DEPENDÊNCIAS                ║
 ║                    Doctoralia Bot Setup                      ║
 ╚══════════════════════════════════════════════════════════════╝
-    """
-    )
+    """)
 
     print("Este script irá instalar:")
     print("• Pacotes Python necessários")
