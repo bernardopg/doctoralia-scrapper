@@ -280,14 +280,14 @@ jobs:
       - name: Run basic integration tests
         run: |
           echo "Testing health endpoint..."
-          curl -f http://localhost:8000/v1/health
+          curl --connect-timeout 5 --max-time 15 -f http://localhost:8000/v1/health
 
           echo "Testing API with authentication..."
-          curl -X POST http://localhost:8000/v1/scrape:run \
+          curl --connect-timeout 5 --max-time 30 -X POST http://localhost:8000/v1/scrape:run \
             -H "X-API-Key: test-integration-key" \
             -H "Content-Type: application/json" \
             -d '{"doctor_url": "https://www.doctoralia.com.br/medico/test"}' \
-            --fail-with-body || echo "Expected to fail without real URL"
+            --fail-with-body || echo "Expected to fail without real URL or after timeout"
 
       - name: Show logs on failure
         if: failure()
