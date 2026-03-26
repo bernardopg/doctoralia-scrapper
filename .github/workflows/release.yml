@@ -25,11 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
         with:
           fetch-depth: 0
 
@@ -78,15 +77,28 @@ jobs:
           echo "Generated changelog for ${VERSION}"
 
       - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          name: Release ${{ steps.get_version.outputs.version }}
-          body_path: CHANGELOG.txt
-          draft: false
-          prerelease: ${{ contains(steps.get_version.outputs.version, '-') }}
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            gh release edit "${VERSION}" \
+              --title "Release ${VERSION}" \
+              --notes-file CHANGELOG.txt
+          else
+            create_args=(
+              release create "${VERSION}"
+              --title "Release ${VERSION}"
+              --notes-file CHANGELOG.txt
+            )
+
+            if [[ "${VERSION}" == *-* ]]; then
+              create_args+=(--prerelease)
+            fi
+
+            gh "${create_args[@]}"
+          fi
 
   build-and-publish:
     name: Build and Publish Package
@@ -95,15 +107,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
           python-version: '3.11'
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        with:
+          version: "2.2.1"
 
       - name: Update version in pyproject.toml
         run: |
@@ -132,12 +146,13 @@ jobs:
         run: poetry publish --skip-existing
 
       - name: Upload Release Assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: |
-            dist/*.whl
-            dist/*.tar.gz
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.version }}" \
+            dist/*.whl \
+            dist/*.tar.gz \
+            --clobber
 
   build-docker:
     name: Build Release Docker Images
@@ -152,13 +167,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # docker/setup-buildx-action v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # docker/login-action v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -166,7 +181,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # docker/metadata-action v6
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.target }}
           tags: |
@@ -176,7 +191,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # docker/build-push-action v7
         with:
           context: .
           target: ${{ matrix.target }}
