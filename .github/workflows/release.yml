@@ -81,11 +81,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ steps.get_version.outputs.version }}"
+          IS_PRERELEASE=false
+
+          if [[ "${VERSION}" == *-* ]]; then
+            IS_PRERELEASE=true
+          fi
 
           if gh release view "${VERSION}" >/dev/null 2>&1; then
-            gh release edit "${VERSION}" \
-              --title "Release ${VERSION}" \
+            edit_args=(
+              release edit "${VERSION}"
+              --title "Release ${VERSION}"
               --notes-file CHANGELOG.txt
+              --draft=false
+            )
+
+            if [[ "${IS_PRERELEASE}" == true ]]; then
+              edit_args+=(--prerelease)
+            fi
+
+            gh "${edit_args[@]}"
           else
             create_args=(
               release create "${VERSION}"
@@ -93,7 +107,7 @@ jobs:
               --notes-file CHANGELOG.txt
             )
 
-            if [[ "${VERSION}" == *-* ]]; then
+            if [[ "${IS_PRERELEASE}" == true ]]; then
               create_args+=(--prerelease)
             fi
 
