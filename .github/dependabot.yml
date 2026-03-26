@@ -6,7 +6,6 @@ updates:
     target-branch: "main"
     exclude-paths:
       - "requirements.txt"
-      - "requirements-optimized.txt"
     schedule:
       interval: "weekly"
       day: "monday"

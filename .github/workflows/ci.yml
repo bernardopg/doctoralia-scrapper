@@ -72,6 +72,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
+      - name: Verify dependency manifest set
+        run: |
+          unexpected_manifests=$(find . -maxdepth 1 -type f -name 'requirements*.txt' ! -name 'requirements.txt' -print)
+          if [[ -n "${unexpected_manifests}" ]]; then
+            echo "Unexpected dependency manifests found:"
+            echo "${unexpected_manifests}"
+            echo "Keep Poetry as the source of truth and export only requirements.txt."
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
