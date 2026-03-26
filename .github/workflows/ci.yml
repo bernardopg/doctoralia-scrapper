@@ -71,7 +71,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
-
       - name: Verify dependency manifest set
         run: |
           unexpected_manifests=$(find . -maxdepth 1 -type f -name 'requirements*.txt' ! -name 'requirements.txt' -print)
