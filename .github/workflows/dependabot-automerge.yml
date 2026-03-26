@@ -11,11 +11,11 @@ permissions:
 jobs:
   enable-automerge:
     name: Enable auto-merge on Dependabot PRs
-    if: github.actor == 'dependabot[bot]' && github.event.pull_request.draft == false
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # actions/github-script v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
