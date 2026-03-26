@@ -3,6 +3,10 @@ name: Dependabot Generated Files
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - pyproject.toml
+      - poetry.lock
+      - requirements.txt
 
 permissions:
   contents: write
@@ -18,7 +22,7 @@ env:
 jobs:
   sync-requirements:
     name: Sync exported requirements for Dependabot
-    if: github.actor == 'dependabot[bot]' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Inspect changed files
