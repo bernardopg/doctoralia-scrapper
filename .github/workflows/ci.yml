@@ -23,17 +23,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
       - name: Set up Python
         id: setup-python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
         with:
           version: "2.2.1"
           virtualenvs-create: true
@@ -41,7 +41,7 @@ jobs:
 
       - name: Load cached venv
         id: cached-poetry-dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # actions/cache v5
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
@@ -70,18 +70,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
         with:
-          version: latest
+          version: "2.2.1"
 
       - name: Install Poetry export plugin
         run: poetry self add poetry-plugin-export==1.10.0
@@ -94,18 +94,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
         with:
           # Ensure commit history is available for TruffleHog diff scans
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        with:
+          version: "2.2.1"
 
       - name: Install dependencies
         run: poetry install --no-interaction
@@ -114,7 +116,7 @@ jobs:
         run: poetry run bandit -r src/ -ll -f json -o bandit-report.json
 
       - name: Upload Bandit report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact v7
         if: always()
         with:
           name: bandit-report
@@ -126,7 +128,7 @@ jobs:
       # TruffleHog: scan PR diffs when base and head differ
       - name: Check for secrets (PR diff)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha != github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -136,7 +138,7 @@ jobs:
       # Fallback: PR full scan when base and head are identical (e.g., re-runs)
       - name: Check for secrets (PR full scan)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha == github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -144,7 +146,7 @@ jobs:
       # TruffleHog: scan push diffs when before SHA is valid and differs
       - name: Check for secrets (push diff)
         if: github.event_name == 'push' && github.event.before != '' && github.event.before != github.sha && !startsWith(github.event.before, '000000')
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.before }}
@@ -154,7 +156,7 @@ jobs:
       # Fallback: push full scan when no valid diff available (e.g., new branch)
       - name: Check for secrets (push full scan)
         if: github.event_name == 'push' && (github.event.before == '' || github.event.before == github.sha || startsWith(github.event.before, '000000'))
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -162,7 +164,7 @@ jobs:
       # TruffleHog: fallback for manual triggers or other events
       - name: "Check for secrets (manual full scan)"
         if: github.event_name == 'workflow_dispatch'
-        uses: trufflesecurity/trufflehog@main
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -190,16 +192,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        with:
+          version: "2.2.1"
 
       - name: Install dependencies
         run: |
@@ -220,7 +224,7 @@ jobs:
             --junitxml=junit.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # codecov/codecov-action v5
         if: matrix.python-version == '3.11' && env.CODECOV_TOKEN != ''
         with:
           files: ./coverage.xml
@@ -228,7 +232,7 @@ jobs:
           token: ${{ env.CODECOV_TOKEN }}
 
       - name: Upload test results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact v7
         if: always()
         with:
           name: test-results-${{ matrix.python-version }}
@@ -242,21 +246,23 @@ jobs:
     needs: [lint, security, test]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Poetry
-        uses: snok/install-poetry@v1
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        with:
+          version: "2.2.1"
 
       - name: Build package
         run: poetry build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # actions/upload-artifact v7
         with:
           name: dist
           path: dist/
