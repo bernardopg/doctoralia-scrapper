@@ -1,0 +1,104 @@
+name: Dependabot Generated Files
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: dependabot-generated-files-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  sync-requirements:
+    name: Sync exported requirements for Dependabot
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect changed files
+        id: changes
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100,
+            });
+
+            const filenames = files.map(file => file.filename);
+            const allowedFiles = new Set(["pyproject.toml", "poetry.lock", "requirements.txt"]);
+            const unexpectedFiles = filenames.filter(filename => !allowedFiles.has(filename));
+            const shouldSync = filenames.some(
+              filename => filename === "pyproject.toml" || filename === "poetry.lock"
+            );
+
+            core.info(`Changed files: ${filenames.join(", ") || "(none)"}`);
+
+            if (unexpectedFiles.length > 0) {
+              core.info(
+                `Skipping generated file sync because PR touches non-dependency files: ${unexpectedFiles.join(", ")}`
+              );
+              core.setOutput("should_sync", "false");
+              return;
+            }
+
+            core.setOutput("should_sync", shouldSync ? "true" : "false");
+
+      - name: Checkout Dependabot branch
+        if: steps.changes.outputs.should_sync == 'true'
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        if: steps.changes.outputs.should_sync == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Poetry
+        if: steps.changes.outputs.should_sync == 'true'
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+
+      - name: Install Poetry export plugin
+        if: steps.changes.outputs.should_sync == 'true'
+        run: poetry self add poetry-plugin-export==1.10.0
+
+      - name: Export requirements.txt
+        if: steps.changes.outputs.should_sync == 'true'
+        run: poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main
+
+      - name: Commit updated generated files
+        if: steps.changes.outputs.should_sync == 'true'
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if git diff --quiet -- requirements.txt; then
+            echo "requirements.txt already matches the lockfile."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add requirements.txt
+          git commit -m "chore(deps): sync exported requirements"
+
+          git push origin "HEAD:${HEAD_REF}" || {
+            git pull --rebase origin "${HEAD_REF}"
+            git push origin "HEAD:${HEAD_REF}"
+          }
