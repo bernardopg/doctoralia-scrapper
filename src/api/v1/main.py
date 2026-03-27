@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Optional  # noqa: F401 (kept for future extensibility)
+from typing import Any, Optional, cast  # noqa: F401 (kept for future extensibility)
 from urllib.parse import urlparse
 
 import redis
@@ -244,7 +244,7 @@ async def readiness_check():
     redis_latency = None
     try:
         start = time.perf_counter()
-        r = redis.from_url(config.integrations.redis_url)
+        r = redis.Redis.from_url(config.integrations.redis_url)
         r.ping()
         redis_latency = int((time.perf_counter() - start) * 1000)
         redis_ok = True
@@ -566,11 +566,17 @@ async def create_job(request: JobCreateRequest):
     # Get or create job ID
     config = _load_config()
     if request.idempotency_key:
-        r = redis.from_url(config.integrations.redis_url)
-        existing_job_id = r.get(f"idem:{request.idempotency_key}")
+        r = redis.Redis.from_url(config.integrations.redis_url)
+        existing_job_id = cast(
+            bytes | str | None, r.get(f"idem:{request.idempotency_key}")
+        )
         if existing_job_id:
             return JobResponse(
-                job_id=existing_job_id.decode(),
+                job_id=(
+                    existing_job_id.decode()
+                    if isinstance(existing_job_id, bytes)
+                    else existing_job_id
+                ),
                 status="queued",
                 message="Job already exists",
             )
@@ -590,7 +596,7 @@ async def create_job(request: JobCreateRequest):
 
     # Store idempotency key if provided
     if request.idempotency_key:
-        r = redis.from_url(config.integrations.redis_url)
+        r = redis.Redis.from_url(config.integrations.redis_url)
         r.setex(f"idem:{request.idempotency_key}", 3600, job_id)
 
     return JobResponse(
