@@ -5,7 +5,7 @@ Redis-backed metrics storage for the API.
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import redis
 
@@ -111,8 +111,11 @@ class RedisAPIMetricsStore:
 
     def snapshot(self, now_s: Optional[float] = None) -> dict[str, Any]:
         self.cleanup_stale_active_requests(now_s)
-        counters = self._normalize_hash(self.redis.hgetall(self.counters_key) or {})
-        durations_raw = self.redis.lrange(self.durations_key, 0, self.max_samples - 1)
+        raw_counters = cast(dict[Any, Any], self.redis.hgetall(self.counters_key) or {})
+        counters = self._normalize_hash(raw_counters)
+        durations_raw = cast(
+            list[Any], self.redis.lrange(self.durations_key, 0, self.max_samples - 1)
+        )
         durations = [self._as_int(value) for value in durations_raw]
 
         return {

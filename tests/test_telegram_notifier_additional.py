@@ -1,8 +1,6 @@
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
 import requests
 
 from src.telegram_notifier import TelegramNotifier

@@ -97,7 +97,6 @@ async def startup_notification_scheduler() -> None:
 
 @app.on_event("shutdown")
 async def shutdown_notification_scheduler() -> None:
-    global _telegram_schedule_service
     if _telegram_schedule_service is not None:
         _telegram_schedule_service.stop()
 

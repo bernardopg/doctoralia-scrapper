@@ -6,20 +6,20 @@ from __future__ import annotations
 
 import copy
 import csv
+import ipaddress
 import json
 import logging
 import threading
-import time
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 import redis
 import requests
-from croniter import croniter
+from croniter import croniter  # type: ignore[import-untyped]
 
 from config.settings import AppConfig
 from src.integrations.n8n.normalize import extract_scraper_result
@@ -37,11 +37,11 @@ VALID_PARSE_MODES = {"", "Markdown", "MarkdownV2", "HTML"}
 
 
 def _utcnow() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def _isoformat(value: datetime) -> str:
-    return value.astimezone(UTC).isoformat()
+    return value.astimezone(timezone.utc).isoformat()
 
 
 def _parse_iso(value: Optional[str]) -> Optional[datetime]:
@@ -54,9 +54,9 @@ def _safe_json_loads(raw: Any) -> Dict[str, Any]:
     if isinstance(raw, bytes):
         raw = raw.decode("utf-8")
     if isinstance(raw, str):
-        return json.loads(raw)
+        return cast(Dict[str, Any], json.loads(raw))
     if isinstance(raw, dict):
-        return raw
+        return cast(Dict[str, Any], raw)
     raise ValueError("Unsupported schedule payload")
 
 
@@ -132,7 +132,7 @@ class TelegramScheduleService:
             self._stop_event.wait(self.poll_interval_s)
 
     def list_schedules(self) -> List[Dict[str, Any]]:
-        raw = self.redis.hgetall(self.schedules_key)
+        raw = cast(dict[Any, Any], self.redis.hgetall(self.schedules_key))
         schedules: List[Dict[str, Any]] = []
         for payload in raw.values():
             schedule = _safe_json_loads(payload)
@@ -149,9 +149,18 @@ class TelegramScheduleService:
         return _safe_json_loads(payload)
 
     def list_history(self, limit: int = 50) -> List[Dict[str, Any]]:
-        entries = self.redis.lrange(self.history_key, 0, max(limit - 1, 0))
+        entries = cast(
+            list[Any], self.redis.lrange(self.history_key, 0, max(limit - 1, 0))
+        )
         history = [_safe_json_loads(item) for item in entries]
         return history
+
+    @staticmethod
+    def _is_unspecified_host(host: str) -> bool:
+        try:
+            return ipaddress.ip_address(host).is_unspecified
+        except ValueError:
+            return False
 
     def get_summary(self) -> Dict[str, Any]:
         schedules = self.list_schedules()
@@ -589,7 +598,8 @@ class TelegramScheduleService:
         if recurrence_type == "weekdays":
             return f"{int(minute)} {int(hour)} * * 1-5"
         if recurrence_type == "weekly":
-            return f"{int(minute)} {int(hour)} * * {int(day_of_week)}"
+            normalized_day_of_week = 0 if day_of_week is None else int(day_of_week)
+            return f"{int(minute)} {int(hour)} * * {normalized_day_of_week}"
         raise ValueError("Unsupported recurrence_type")
 
     def _build_recurrence_label(
@@ -614,7 +624,11 @@ class TelegramScheduleService:
                 5: "sexta",
                 6: "sábado",
             }
-            return f"Semanal ({weekday_names.get(day_of_week, 'dia')}) às {time_of_day}"
+            normalized_day_of_week = 0 if day_of_week is None else day_of_week
+            return (
+                f"Semanal ({weekday_names.get(normalized_day_of_week, 'dia')})"
+                f" às {time_of_day}"
+            )
         if recurrence_type == "interval":
             return f"A cada {interval_minutes} minuto(s)"
         return f"Cron customizado: {cron_expression}"
@@ -933,9 +947,11 @@ class TelegramScheduleService:
         default_port = 443 if parsed_api_url.scheme == "https" else 80
         api_port = parsed_api_url.port or default_port
         local_api_port = int(getattr(runtime_config.api, "port", 8000))
-        is_in_process_api = api_host in {"127.0.0.1", "localhost", "0.0.0.0"} and (
-            api_port == local_api_port
-        )
+        is_local_host = api_host in {
+            "127.0.0.1",
+            "localhost",
+        } or self._is_unspecified_host(api_host)
+        is_in_process_api = is_local_host and api_port == local_api_port
         try:
             if is_in_process_api:
                 snapshot["api"] = {"status": "ok", "mode": "in-process"}
