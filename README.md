@@ -1,30 +1,64 @@
-# Doctoralia Scrapper
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Doctoralia Scrapper banner" width="100%">
+</p>
 
-Sistema para coletar reviews do Doctoralia, analisar sentimento, gerar respostas sugeridas e operar o fluxo por API, worker assíncrono, dashboard web e n8n.
+<p align="center">
+  <strong>Pipeline Docker-first para scraping de reviews, geração de respostas e relatórios Telegram com API, dashboard, Redis/RQ, Selenium e n8n.</strong>
+</p>
 
-## Estado atual
+<p align="center">
+  <a href="docs/Home.md"><strong>Wiki</strong></a> ·
+  <a href="docs/quickstart.md">Quickstart</a> ·
+  <a href="docs/api.md">API REST</a> ·
+  <a href="docs/dashboard-workspace.md">Dashboard</a> ·
+  <a href="docs/telegram-notifications.md">Telegram</a> ·
+  <a href="docs/n8n.md">n8n</a> ·
+  <a href="docs/about.md">About</a>
+</p>
 
-- Stack Docker com `api`, `worker`, `dashboard`, `redis`, `selenium` e `n8n`
-- API FastAPI em `http://localhost:8000`
-- Dashboard Flask em `http://localhost:5000`
-- Página de agendamentos Telegram em `http://localhost:5000/notifications/telegram/schedule`
-- n8n em `http://localhost:5678`
-- Redis/RQ para jobs assíncronos e retenção/rate limiting de integrações
-- Métricas da API persistidas em Redis para visibilidade multi-processo
-- Selenium remoto para scraping via browser
+## Por que este projeto existe
 
-## Componentes
+Este repositório organiza uma rotina operacional completa para reviews do Doctoralia. Em vez de tratar scraping como um script solto, ele une coleta, análise, geração de respostas, snapshots persistidos, histórico, observabilidade e distribuição por Telegram em uma mesma stack local.
 
-| Serviço | Porta | Função |
-|---|---:|---|
-| API | `8000` | Endpoints REST, health, jobs, settings, geração unitária |
-| Dashboard | `5000` | Workspace operacional, histórico, relatórios, perfis e agendamentos Telegram |
-| n8n | `5678` | Orquestração de workflows |
-| Redis | `6379` | Fila RQ, estado transitório e TTL de jobs |
-| Selenium | `4444` | Navegador remoto para scraping |
-| Selenium VNC | `7900` | Debug visual do browser |
+## O que você encontra aqui
 
-## Início rápido com Docker
+| Bloco | O que faz |
+|---|---|
+| `api` | Expõe endpoints sync e async, settings, health, metrics e notificações Telegram |
+| `worker` | Processa scraping, análise, geração e snapshots em background |
+| `dashboard` | Workspace visual para operação diária, histórico, relatórios e scheduler |
+| `redis` | Fila RQ, métricas Redis-backed, agendamentos, locks e histórico |
+| `selenium` | Navegador remoto para scraping resiliente |
+| `n8n` | Orquestrações externas, callbacks e automações multi-sistema |
+
+## Tour visual
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="docs/assets/dashboard-overview.png">
+        <img src="docs/assets/dashboard-overview.png" alt="Overview do dashboard" width="100%">
+      </a>
+    </td>
+    <td width="50%">
+      <a href="docs/assets/dashboard-notifications.png">
+        <img src="docs/assets/dashboard-notifications.png" alt="Agendamentos Telegram do dashboard" width="100%">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Workspace operacional</strong><br>Perfis, pendências, saúde da stack, relatórios e histórico de snapshots.</td>
+    <td><strong>Scheduler Telegram</strong><br>Recorrência, scraping novo, geração, anexos, health e histórico persistido.</td>
+  </tr>
+</table>
+
+## Como a stack funciona
+
+![Workflow principal do projeto](docs/assets/workflow-platform.svg)
+
+## Início rápido
+
+### Docker
 
 ```bash
 cp .env.example .env
@@ -34,109 +68,67 @@ docker compose up -d --build
 docker compose ps
 ```
 
-Serviços esperados:
+URLs locais esperadas:
 
-- `api` saudável em `http://localhost:8000/docs`
-- `dashboard` saudável em `http://localhost:5000`
-- `n8n` saudável em `http://localhost:5678`
-- `redis` saudável internamente e exposto em `localhost:6379`
-- `selenium` saudável em `http://localhost:4444/status`
+- API: `http://localhost:8000/docs`
+- Dashboard: `http://localhost:5000`
+- Telegram scheduling: `http://localhost:5000/notifications/telegram/schedule`
+- n8n: `http://localhost:5678`
+- Selenium status: `http://localhost:4444/status`
 
-## Desenvolvimento local
+### Desenvolvimento local
 
 ```bash
 make venv
 cp .env.example .env
 cp config/config.example.json config/config.json
+
+make api
+make dashboard
 ```
 
 Comandos úteis:
 
 ```bash
-make api
-make dashboard
 make run-url URL="https://www.doctoralia.com.br/medico/exemplo"
 make run-full URL="https://www.doctoralia.com.br/medico/exemplo"
 make test
 make lint
 ```
 
-## Variáveis de ambiente principais
-
-Use [.env.example](.env.example) como base.
-
-Obrigatórias:
-
-```env
-API_KEY=sua-chave
-WEBHOOK_SIGNING_SECRET=seu-segredo
-```
-
-Comuns no Docker:
-
-```env
-REDIS_URL=redis://redis:6379/0
-SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
-LOG_LEVEL=INFO
-MASK_PII=true
-```
-
-Opcionais:
-
-```env
-OPENAI_API_KEY=
-GEMINI_API_KEY=
-ANTHROPIC_API_KEY=
-TELEGRAM_TOKEN=
-TELEGRAM_CHAT_ID=
-N8N_BASIC_AUTH_ACTIVE=false
-N8N_BASIC_AUTH_USER=
-N8N_BASIC_AUTH_PASSWORD=
-```
-
-## API principal
-
-Endpoints mais usados:
+## Endpoints que importam
 
 | Método | Endpoint | Uso |
 |---|---|---|
 | `POST` | `/v1/scrape:run` | Scraping síncrono |
 | `POST` | `/v1/jobs` | Cria job assíncrono |
-| `GET` | `/v1/jobs` | Lista jobs |
 | `GET` | `/v1/jobs/{job_id}` | Consulta job |
-| `POST` | `/v1/generate/response` | Gera resposta unitária |
-| `GET` | `/v1/settings` | Lê settings efetivos |
-| `PUT` | `/v1/settings` | Atualiza settings |
-| `POST` | `/v1/settings/validate` | Valida payload de settings |
-| `GET` | `/v1/health` | Health básico |
 | `GET` | `/v1/ready` | Readiness com Redis, Selenium e NLTK |
-| `GET` | `/v1/metrics` | Métricas Redis-backed da API |
-| `GET/POST/PUT/DELETE` | `/v1/notifications/telegram/schedules` | CRUD de agendamentos Telegram |
-| `POST` | `/v1/notifications/telegram/schedules/{schedule_id}/run` | Disparo manual de um agendamento |
-| `GET` | `/v1/notifications/telegram/history` | Histórico persistido das notificações |
-| `POST` | `/v1/notifications/telegram/test` | Envio de teste real via Telegram |
+| `GET` | `/v1/metrics` | Métricas da API persistidas em Redis |
+| `GET/POST/PUT/DELETE` | `/v1/notifications/telegram/schedules` | CRUD do scheduler Telegram |
+| `POST` | `/v1/notifications/telegram/schedules/{schedule_id}/run` | Disparo manual |
+| `GET` | `/v1/notifications/telegram/history` | Histórico persistido |
+| `POST` | `/v1/notifications/telegram/test` | Validação real do bot |
 | `POST` | `/v1/hooks/n8n/scrape` | Webhook dedicado do n8n |
 
-Exemplo:
+## Estado atual do projeto
 
-```bash
-curl -X POST http://localhost:8000/v1/scrape:run \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "doctor_url": "https://www.doctoralia.com.br/medico/exemplo",
-    "include_analysis": true,
-    "include_generation": false
-  }'
-```
+| Tema | Situação |
+|---|---|
+| Stack Docker | `api`, `worker`, `dashboard`, `redis`, `selenium`, `n8n` |
+| Workspace web | Operacional e com scheduler Telegram integrado |
+| Persistência | Snapshots em `data/` e histórico/schedules em Redis |
+| Métricas da API | Redis-backed, multi-processo |
+| Testes | `250 passed` |
+| Coverage | `74%` |
 
 ## Redis em `localhost:6379`
 
-Se abrir `http://localhost:6379` no navegador e receber `ERR_EMPTY_RESPONSE`, isso é esperado.
+Se você abrir `http://localhost:6379` no navegador e receber `ERR_EMPTY_RESPONSE`, isso é esperado.
 
+- Redis está rodando.
+- O browser fala HTTP.
 - Redis não fala HTTP.
-- O browser envia HTTP.
-- Redis responde no protocolo próprio dele, então a conexão parece “vazia” para o navegador.
 
 Validação correta:
 
@@ -150,49 +142,45 @@ Saída esperada:
 PONG
 ```
 
-## Testes e coverage
+## Wiki do repositório
 
-```bash
-poetry run pytest --cov=src --cov-report=term-missing
-```
+O `README` agora é só a entrada. A documentação foi reorganizada em formato de wiki dentro de `docs/`.
 
-Estado validado localmente nesta revisão:
+| Página | Para que serve |
+|---|---|
+| [docs/Home.md](docs/Home.md) | Hub principal da wiki |
+| [docs/about.md](docs/about.md) | Texto de vitrine, metadata e assets do repositório |
+| [docs/quickstart.md](docs/quickstart.md) | Setup rápido |
+| [docs/overview.md](docs/overview.md) | Arquitetura e responsabilidades |
+| [docs/dashboard-workspace.md](docs/dashboard-workspace.md) | Operação diária no dashboard |
+| [docs/telegram-notifications.md](docs/telegram-notifications.md) | Scheduler Telegram completo |
+| [docs/api.md](docs/api.md) | Referência da API |
+| [docs/n8n.md](docs/n8n.md) | Workflows e integração externa |
+| [docs/operations.md](docs/operations.md) | Runbook e troubleshooting |
+| [docs/development.md](docs/development.md) | Padrões de desenvolvimento |
+| [docs/deployment.md](docs/deployment.md) | Guia de deploy |
+| [docs/templates.md](docs/templates.md) | Templates e mensagens |
 
-- `250 passed`
-- coverage total: `74%`
+## Assets visuais adicionados
 
-Áreas já fortalecidas recentemente:
+- [docs/assets/logo.svg](docs/assets/logo.svg)
+- [docs/assets/banner.svg](docs/assets/banner.svg)
+- [docs/assets/social-card.svg](docs/assets/social-card.svg)
+- [docs/assets/workflow-platform.svg](docs/assets/workflow-platform.svg)
+- [docs/assets/workflow-telegram.svg](docs/assets/workflow-telegram.svg)
 
-- jobs assíncronos e snapshots
-- integração real com Redis/RQ
-- autenticação e assinatura HMAC
-- validação de ambiente
-- scheduler Redis-backed para notificações Telegram
-- dashboard de agendamentos e histórico de notificações
-
-## Convenções de código
+## Convenções técnicas
 
 - Imports internos padronizados em formato absoluto: `from src...` e `from config...`
+- Dependências gerenciadas por `poetry`
 - Formatação com `black` e `isort`
 - Testes com `pytest`
-- Dependências gerenciadas por `poetry`
 
-## Limitações conhecidas
+## Limitações atuais
 
-- Rate limiting da API REST como middleware global ainda não está implementado
-- Cobertura ainda baixa em `src/scraper.py`, `src/response_generator.py`, `src/telegram_notifier.py` e `src/dashboard.py`
-- O runner automático dos agendamentos Telegram roda no processo da API; se o serviço `api` estiver parado, os disparos recorrentes não acontecem
-
-## Documentação complementar
-
-- [docs/quickstart.md](docs/quickstart.md)
-- [docs/api.md](docs/api.md)
-- [docs/dashboard-workspace.md](docs/dashboard-workspace.md)
-- [docs/n8n.md](docs/n8n.md)
-- [docs/development.md](docs/development.md)
-- [docs/deployment.md](docs/deployment.md)
-- [docs/overview.md](docs/overview.md)
-- [docs/operations.md](docs/operations.md)
+- Rate limiting global da API REST ainda não existe como middleware completo.
+- O scheduler recorrente depende da API estar de pé.
+- Ainda há espaço para subir coverage em `src/scraper.py`, `src/response_generator.py`, `src/telegram_notifier.py` e `src/dashboard.py`.
 
 ## Licença
 

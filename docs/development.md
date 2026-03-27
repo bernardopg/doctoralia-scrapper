@@ -1,44 +1,48 @@
-# 🧪 Desenvolvimento
+[Wiki Home](Home.md) · [Visão Geral](overview.md) · [API REST](api.md) · [Templates](templates.md)
 
-## Ambiente
+# Desenvolvimento
+
+## Ambiente local
 
 ```bash
-make install-dev   # dependências + extras
-override? pip install -r requirements.txt
+make install-dev
+cp .env.example .env
+cp config/config.example.json config/config.json
 ```
 
-## Make Targets Úteis
+Se quiser rodar a stack inteira com menos atrito, prefira Docker. Use este guia quando o objetivo for desenvolvimento e testes mais finos.
+
+## Comandos úteis
 
 | Comando | Descrição |
-|---------|-----------|
-| make install | Produção básica |
-| make install-dev | Dev completo |
-| make lint | flake8 / mypy / etc. |
-| make format | black + isort |
-| make test | pytest completo |
-| make test-unit | unit tests |
-| make test-integration | integração |
-| make security | safety + bandit |
-| make clean | remove artefatos |
+|---|---|
+| `make install-dev` | instala dependências de desenvolvimento |
+| `make lint` | checagens de qualidade |
+| `make format` | formatação |
+| `make test` | suíte completa |
+| `make api` | sobe a API local |
+| `make dashboard` | sobe o dashboard local |
+| `make run-url URL=...` | scraping rápido |
+| `make run-full URL=...` | fluxo mais completo |
 
-## Estrutura de Código
+## Estrutura do código
 
-| Arquivo | Função |
-|---------|--------|
-| `src/scraper.py` | Lógica principal de scraping |
-| `src/multi_site_scraper.py` | Extensão futura multi-plataforma |
-| `src/response_generator.py` | Geração baseada em templates |
-| `src/response_quality_analyzer.py` | Métricas de sentimento/qualidade |
-| `src/api/v1/main.py` | FastAPI / endpoints |
-| `src/performance_monitor.py` | Métricas internas |
-| `src/telegram_notifier.py` | Envio de notificações |
+| Área | Responsabilidade |
+|---|---|
+| `src/api/` | schemas, deps e endpoints |
+| `src/jobs/` | fila, tasks e execução assíncrona |
+| `src/services/` | serviços de domínio, como scheduler Telegram e estatísticas |
+| `src/` | scraping, geração, análise e utilitários centrais |
+| `templates/` | páginas do dashboard |
+| `tests/` | suíte automatizada |
 
-## Padrões de Código
+## Padrões que o projeto já segue
 
-- Type hints obrigatórios em novas funções
-- Docstrings estilo Google ou concisas com objetivo claro
-- Imports agrupados: stdlib / terceiros / internos
-- Evitar lógica complexa sem testes associados
+- imports internos absolutos: `from src...` e `from config...`
+- type hints em código novo
+- documentação atualizada junto de features relevantes
+- testes obrigatórios para lógica não trivial
+- sem `print`; use logger com contexto
 
 ## Testes
 
@@ -47,68 +51,57 @@ pytest -q
 pytest --cov=src --cov-report=term-missing
 ```
 
-Estrutura:
-
-- `tests/test_*.py` (atual)
-- Adicionar `fixtures/` para dados reutilizáveis
-
-## Estratégia de Testes
+Categorias principais:
 
 | Tipo | Foco |
-|------|------|
-| Unit | Funções puras / parsing |
-| Integração | Fluxo scraping + análise |
-| Contrato | Formato de respostas da API |
+|---|---|
+| Unitário | funções puras e normalização |
+| Integração | API, Redis, fila e serviços |
+| Fluxo | dashboard, scheduler Telegram e jobs |
 
-## Logs & Debug
+## Mudanças que exigem atenção extra
 
-```python
-logger.debug("extraindo bloco", extra={"url": url, "step": step})
-```
+### Configuração
 
-Não usar prints. Em falhas críticas incluir `exc_info=True`.
+Se uma alteração impactar runtime, atualize:
 
-## Erros & Exceções
+- `.env.example`
+- `config/config.example.json`
+- a página correspondente em `docs/`
 
-Criar exceções específicas quando necessário (ex: `ScrapingError`, `RateLimitError`).
+### Scheduler Telegram
 
-## Feature Flags / Config
+Se tocar em notificações, revise:
 
-Adicionar chaves novas no `config/config.example.json` e documentar em `docs/templates.md` se impactar templates ou comportamento de resposta.
+- `src/services/telegram_schedule_service.py`
+- `src/api/schemas/notifications.py`
+- `src/api/v1/main.py`
+- `src/dashboard.py`
+- `docs/telegram-notifications.md`
+
+### Workspace do dashboard
+
+Se tocar em snapshots, histórico ou relatórios, valide também o comportamento do dashboard com dados reais em `data/`.
 
 ## Commits
 
-Seguir Conventional Commits:
+Use Conventional Commits:
 
-- feat:
-- fix:
-- docs:
-- test:
-- chore:
+- `feat:`
+- `fix:`
+- `docs:`
+- `test:`
+- `chore:`
 
-## Pull Requests (Checklist Interno)
+## Checklist antes de fechar um ciclo
 
-- [ ] Testes verdes
-- [ ] Lint sem warnings críticos
-- [ ] Documentação atualizada (se aplicável)
-- [ ] Sem TODOs pendentes críticos
-- [ ] Sem credenciais acidentais
+- testes verdes
+- docs coerentes com o runtime
+- nenhuma credencial exposta
+- comportamento validado nos fluxos principais afetados
 
-## Performance
+## Próximas leituras
 
-- Medir duração total e por etapa antes de otimizar
-- Evitar micro-otimizações prematuras
-- Abrir issue se latência média > alvo definido
-
-## Roadmap Técnico (Sugestivo)
-
-| Tema | Próximo Passo |
-|------|---------------|
-| Observabilidade | Exportador Prometheus |
-| Armazenamento | Abstrair persistence para DB |
-| Scraping | Introduzir rotas proxy opcionais |
-| Templates | Suporte LLM com fallback |
-| Segurança | JWT + escopos |
-
----
-Dúvidas frequentes? Ver `CONTRIBUTING.md` ou abrir issue.
+- [Templates](templates.md)
+- [Operations](operations.md)
+- [Deployment](deployment.md)

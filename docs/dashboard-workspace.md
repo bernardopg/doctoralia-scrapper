@@ -1,97 +1,104 @@
-# Dashboard Workspace & Geração de Respostas
+[Wiki Home](Home.md) · [Quickstart](quickstart.md) · [Telegram Notifications](telegram-notifications.md) · [Operations](operations.md)
 
-## Visão Geral
+# Dashboard Workspace
 
-O dashboard foi reorganizado em um workspace operacional com páginas separadas por tarefa:
+<table>
+  <tr>
+    <td width="50%">
+      <img src="assets/dashboard-overview.png" alt="Overview do dashboard" width="100%">
+    </td>
+    <td width="50%">
+      <img src="assets/dashboard-notifications.png" alt="Agendamentos Telegram no dashboard" width="100%">
+    </td>
+  </tr>
+</table>
 
-- `/`:
-  overview consolidado com volume de rastreios, perfis monitorados, pendências, favoritos e linha do tempo.
-- `/profiles`:
-  análise por perfil com filtros por data, favoritos, avaliação média, histórico de rastreios e últimos comentários.
-- `/responses`:
-  fila de comentários sem resposta, com geração manual de sugestões, edição e persistência no snapshot local.
-- `/me`:
-  perfil do operador, nome de exibição, username e favoritos para acelerar scraping e priorização.
-- `/history`:
-  inventário de snapshots persistidos, com status `latest` vs `outdated`, exclusão individual e prune global.
-- `/reports`:
-  visão analítica com timeline, top perfis, inventário de arquivos e candidatos de limpeza.
-- `/settings`:
-  configuração central de scraping, integrações, segurança e geração automática.
+## O papel do dashboard
 
-## Modos de Geração
+O dashboard é a mesa de operação do projeto. Ele organiza o que no backend já existe, mas de forma navegável para o operador:
 
-A geração de respostas agora aceita quatro modos:
+- visão consolidada de perfis, reviews, pendências e saúde
+- fila de respostas sugeridas
+- gestão de favoritos e preferências do operador
+- inventário e limpeza de snapshots
+- relatórios operacionais
+- configuração central
+- agendamentos Telegram com histórico
 
-- `local`:
-  usa templates e heurísticas locais, sem dependência de provedor externo.
-- `openai`:
-  usa `OPENAI_API_KEY` e o modelo configurado em `generation.openai_model`.
-- `gemini`:
-  usa `GEMINI_API_KEY` ou `GOOGLE_API_KEY` e `generation.gemini_model`.
-- `claude`:
-  usa `CLAUDE_API_KEY` ou `ANTHROPIC_API_KEY` e `generation.claude_model`.
+## Rotas principais
 
-Os parâmetros expostos na UI incluem:
+| Rota | Função |
+|---|---|
+| `/` | Overview do workspace |
+| `/profiles` | Recorte por perfil e histórico recente |
+| `/responses` | Fila de comentários sem resposta |
+| `/history` | Snapshots persistidos e limpeza |
+| `/reports` | Inventário, timeline e relatórios |
+| `/me` | Preferências do operador |
+| `/settings` | Configuração central |
+| `/notifications/telegram/schedule` | Scheduler Telegram |
+| `/health-check` | Leitura operacional da stack |
 
-- provedor padrão (`generation.mode`)
-- API keys por provedor
+## Como os dados aparecem na UI
+
+O dashboard trabalha principalmente sobre snapshots em `data/`.
+
+1. O worker conclui um scraping válido.
+2. O resultado é normalizado.
+3. Um snapshot JSON é salvo.
+4. O dashboard passa a enxergar esse perfil em overview, profiles, responses, history e reports.
+
+Se o job falhar antes de salvar snapshot, o perfil não entra no workspace.
+
+## Modos de geração disponíveis
+
+| Modo | Uso |
+|---|---|
+| `local` | templates e heurísticas locais |
+| `openai` | usa `OPENAI_API_KEY` |
+| `gemini` | usa `GEMINI_API_KEY` ou `GOOGLE_API_KEY` |
+| `claude` | usa `CLAUDE_API_KEY` ou `ANTHROPIC_API_KEY` |
+
+Os parâmetros expostos em `/settings` incluem:
+
+- modo padrão
 - modelo por provedor
 - `temperature`
 - `max_tokens`
 - `system_prompt`
 
-## Persistência de Configuração
+## Scheduler Telegram dentro do dashboard
 
-O arquivo `config/config.json` passou a concentrar também:
+O bloco `/notifications/telegram/schedule` cobre:
 
-- `generation`
-- `user_profile`
+- teste manual de conectividade com o bot
+- criação e edição de recorrências
+- escolha de scraping novo ou reaproveitamento de snapshot
+- geração opcional de respostas
+- anexos em múltiplos formatos
+- health da stack junto do relatório
+- histórico persistido das execuções
 
-No Docker Compose, `api`, `worker` e `dashboard` compartilham `./config:/app/config`, então alterações feitas na UI ficam disponíveis para toda a stack sem divergência entre containers.
+## Fluxo operacional recomendado
 
-## Fluxo de Jobs e Snapshot
+1. Configure chaves e providers em `/settings`.
+2. Rode um scraping inicial para popular snapshots.
+3. Priorize perfis em `/profiles` e `/me`.
+4. Trate a fila em `/responses`.
+5. Use `/reports` para entender acúmulo, storage e evolução.
+6. Agende relatórios ou health checks em `/notifications/telegram/schedule`.
 
-O workspace do dashboard depende de snapshots persistidos em `data/`. O comportamento esperado é:
+## Quando algo parece "sumir"
 
-- o `worker` conclui o scrape
-- normaliza os reviews e converte seus IDs para `string`
-- salva um snapshot JSON local
-- só então o perfil passa a aparecer em `/`, `/profiles`, `/responses`, `/history` e `/reports`
+| Sintoma | Verificar |
+|---|---|
+| Perfil não aparece no workspace | Se o snapshot foi salvo em `data/` |
+| Histórico vazio | Se houve execução válida ou prune agressivo |
+| Respostas pendentes zeradas do nada | Se o snapshot mais recente realmente contém reviews sem resposta |
+| Agendamentos não disparam | Se a API está rodando e o `next_run_at` está correto |
 
-Com isso:
+## Próximas leituras
 
-- jobs que terminam com `status=failed` não poluem mais o workspace
-- `/history` reflete o status lógico do job em vez de assumir `completed` apenas porque o RQ encerrou a execução
-- snapshots antigos podem ser limpos com prune sem apagar o último estado válido de cada perfil
-
-Se um perfil não aparecer nas páginas do workspace após o scraping:
-
-1. confira `/history` e o inventário de snapshots
-2. confira `/api/tasks/<job_id>` para ver o `status` lógico
-3. valide se o arquivo JSON foi salvo em `data/`
-4. se necessário, execute prune dos snapshots antigos antes de um novo scrape
-
-## Favoritos e Operação
-
-Os favoritos do operador ficam em `user_profile.favorite_profiles` e são usados para:
-
-- priorizar navegação e visualização na sidebar
-- destacar perfis nas páginas de overview e perfis
-- filtrar a fila de respostas pendentes
-- acelerar o preenchimento de novos scrapes e atalhos operacionais
-
-## Fluxo Recomendado
-
-1. Configure o modo padrão de geração e as chaves em `/settings`.
-2. Cadastre seus médicos prioritários em `/me`.
-3. Use `/history` para remover snapshots antigos e manter a base sem sobreposição.
-4. Use `/profiles` para acompanhar histórico e pendências por perfil.
-5. Use `/responses` para gerar, editar e salvar sugestões para reviews sem resposta.
-6. Use `/reports` para monitorar o inventário agregado e identificar novos excessos de snapshots.
-
-## Próximos Passos Sugeridos
-
-- mascarar segredos na UI
-- adicionar geração em lote por perfil
-- registrar custo/uso por provedor externo
+- [Telegram Notifications](telegram-notifications.md)
+- [Operations](operations.md)
+- [API REST](api.md)

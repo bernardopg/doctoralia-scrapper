@@ -1,0 +1,48 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="socialTitle socialDesc">
+  <title id="socialTitle">Doctoralia Scrapper social preview</title>
+  <desc id="socialDesc">Social preview image for the Doctoralia Scrapper repository.</desc>
+  <defs>
+    <linearGradient id="socialBg" x1="90" y1="64" x2="1148" y2="584" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8F3E9"/>
+      <stop offset="0.52" stop-color="#F1EBDD"/>
+      <stop offset="1" stop-color="#E9E4D7"/>
+    </linearGradient>
+    <linearGradient id="socialMark" x1="124" y1="106" x2="296" y2="302" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="0.58" stop-color="#155E75"/>
+      <stop offset="1" stop-color="#102033"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" rx="28" fill="url(#socialBg)"/>
+  <rect x="30" y="30" width="1220" height="580" rx="22" stroke="#D5CDBF" stroke-width="2"/>
+  <ellipse cx="1080" cy="112" rx="220" ry="166" fill="#F1BDA0" fill-opacity="0.48"/>
+  <ellipse cx="208" cy="542" rx="238" ry="160" fill="#9ED7D0" fill-opacity="0.4"/>
+
+  <rect x="94" y="92" width="228" height="228" rx="56" fill="url(#socialMark)"/>
+  <circle cx="274" cy="136" r="18" fill="#E76F51"/>
+  <circle cx="274" cy="136" r="6" fill="#FFF5E8" fill-opacity="0.72"/>
+  <path d="M138 140C138 127.85 147.85 118 160 118H238C250.15 118 260 127.85 260 140V189C260 201.15 250.15 211 238 211H198L170 233V211H160C147.85 211 138 201.15 138 189V140Z" fill="#FFF5E8" fill-opacity="0.14"/>
+  <path d="M156 175H177L189 149L206 205L217 171L243 171" stroke="#FFF5E8" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M126 229C126 216.85 135.85 207 148 207H217C229.15 207 239 216.85 239 229V250C239 262.15 229.15 272 217 272H188L162 294V272H148C135.85 272 126 262.15 126 250V229Z" fill="#FFF5E8" fill-opacity="0.11"/>
+  <path d="M148 236H214" stroke="#FFF5E8" stroke-width="8" stroke-linecap="round"/>
+  <path d="M148 254H191" stroke="#F6D184" stroke-width="8" stroke-linecap="round"/>
+
+  <text x="380" y="148" fill="#102033" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="700" letter-spacing="4">DOCTORALIA SCRAPPER</text>
+  <text x="378" y="246" fill="#102033" font-family="Georgia, 'Times New Roman', serif" font-size="92" font-style="italic" font-weight="700">Reviews in motion.</text>
+  <text x="378" y="332" fill="#102033" font-family="Georgia, 'Times New Roman', serif" font-size="92" font-style="italic" font-weight="700">Operations in one place.</text>
+  <text x="382" y="396" fill="#51606F" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" font-weight="500">FastAPI, Redis/RQ, Selenium, dashboard workspace, n8n and Telegram scheduling.</text>
+
+  <g>
+    <rect x="382" y="452" width="164" height="42" rx="21" fill="#E7F1EF"/>
+    <text x="412" y="480" fill="#0F766E" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">FastAPI + RQ</text>
+    <rect x="562" y="452" width="148" height="42" rx="21" fill="#F5EAE3"/>
+    <text x="590" y="480" fill="#D96D3C" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">Dashboard</text>
+    <rect x="726" y="452" width="162" height="42" rx="21" fill="#EEE8DA"/>
+    <text x="757" y="480" fill="#7D6516" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">Redis metrics</text>
+    <rect x="904" y="452" width="170" height="42" rx="21" fill="#E8EEF6"/>
+    <text x="935" y="480" fill="#155E75" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">Telegram ops</text>
+  </g>
+
+  <text x="92" y="572" fill="#6A7781" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="600">Use this file as the repository social preview if you want a custom GitHub card.</text>
+</svg>

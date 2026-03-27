@@ -1,3 +1,5 @@
+[Wiki Home](Home.md) · [Development](development.md) · [Telegram Notifications](telegram-notifications.md)
+
 # 📝 Templates & Mensagens
 
 ## Objetivo

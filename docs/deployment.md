@@ -1,3 +1,5 @@
+[Wiki Home](Home.md) · [Operations](operations.md) · [Development](development.md) · [API REST](api.md)
+
 # Deployment
 
 Guia para deploy do sistema em produção com Docker.
@@ -58,11 +60,11 @@ LOG_LEVEL=INFO
 
 ## Docker Compose (Desenvolvimento / Staging)
 
-O `docker-compose.yml` na raiz do projeto já inclui health checks e resource limits para todos os serviços:
+O `docker-compose.yml` na raiz do projeto já inclui health checks e limites para os serviços principais:
 
 ```bash
-docker-compose up -d --build
-docker-compose ps
+docker compose up -d --build
+docker compose ps
 ```
 
 ## Docker Compose para Produção

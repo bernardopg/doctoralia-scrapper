@@ -1,10 +1,21 @@
+[Wiki Home](Home.md) · [API REST](api.md) · [Telegram Notifications](telegram-notifications.md) · [Operations](operations.md)
+
 # Integração n8n
 
 Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 
+## Quando usar n8n e quando usar o scheduler interno
+
+| Cenário | Melhor escolha |
+|---|---|
+| Relatório Telegram recorrente sem branching complexo | Scheduler interno em [Telegram Notifications](telegram-notifications.md) |
+| Fluxos com múltiplos destinos, aprovações ou conectores externos | n8n |
+| Batch a partir de planilhas, CRMs ou webhooks externos | n8n |
+| Operação centrada no dashboard, com histórico local e replay manual | Scheduler interno |
+
 ## Pré-Requisitos
 
-- Stack rodando (`docker-compose up -d` ou serviços locais)
+- Stack rodando (`docker compose up -d` ou serviços locais)
 - API acessível em `http://api:8000` (rede Docker) ou `http://localhost:8000` (local)
 - n8n acessível em `http://localhost:5678`
 
@@ -33,8 +44,8 @@ Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 cp .env.example .env
 # Edite .env com suas chaves
 
-docker-compose up -d
-docker-compose ps
+docker compose up -d
+docker compose ps
 ```
 
 Serviços esperados: `api` (:8000), `worker`, `redis` (:6379), `selenium` (:4444), `n8n` (:5678).
