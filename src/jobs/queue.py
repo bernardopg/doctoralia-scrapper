@@ -17,7 +17,7 @@ def get_redis_connection():
         redis_url = AppConfig.load().integrations.redis_url or redis_url
     except Exception:
         pass
-    return redis.from_url(redis_url)
+    return redis.Redis.from_url(redis_url)
 
 
 def get_queue(name: str = "doctoralia") -> Queue:
