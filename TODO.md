@@ -40,6 +40,7 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 
 ### Dashboard e Web UI
 
+- [x] Adicionar página dedicada para agendamentos Telegram com teste manual, CRUD, disparo imediato e histórico persistido
 - [ ] Mascarar segredos na tela de settings sem perder a possibilidade de rotação de chave
 - [ ] Adicionar paginação/virtualização na fila de respostas pendentes quando houver backlog grande
 - [ ] Permitir aplicar geração em lote por perfil na página de respostas

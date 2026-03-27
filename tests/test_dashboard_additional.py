@@ -166,6 +166,36 @@ def test_call_api_handles_http_errors_and_exceptions(tmp_path, response, side_ef
         assert dashboard._call_api("/v1/health") is None
 
 
+def test_request_api_with_status_preserves_payload_and_status(tmp_path):
+    dashboard = build_dashboard(tmp_path)
+    dashboard._get_runtime_config = MagicMock(
+        return_value=SimpleNamespace(
+            api=SimpleNamespace(port=8000),
+            integrations=SimpleNamespace(
+                api_url="http://api.internal:8000", api_public_url=None
+            ),
+            security=SimpleNamespace(api_key="api-key"),
+        )
+    )
+
+    with patch("src.dashboard.requests.request") as mock_request:
+        mock_request.return_value = DummyHTTPResponse(
+            status_code=422,
+            payload={"error": {"message": "payload inválido"}},
+            text="unprocessable",
+        )
+
+        payload, status_code = dashboard._request_api_with_status(
+            "/v1/notifications/telegram/schedules",
+            method="POST",
+            json={"name": "teste"},
+        )
+
+    assert status_code == 422
+    assert payload == {"error": {"message": "payload inválido"}}
+    mock_request.assert_called_once()
+
+
 def test_get_api_health_disconnected_uses_base_url(tmp_path):
     dashboard = build_dashboard(tmp_path)
     dashboard._call_api = MagicMock(return_value=None)

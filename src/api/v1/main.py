@@ -25,6 +25,13 @@ from src.api.schemas.common import (
     ReadyResponse,
     UnifiedResult,
 )
+from src.api.schemas.notifications import (
+    TelegramNotificationHistoryResponse,
+    TelegramNotificationRunResponse,
+    TelegramNotificationScheduleListResponse,
+    TelegramNotificationScheduleModel,
+    TelegramNotificationTestRequest,
+)
 from src.api.schemas.requests import (
     GenerateResponseRequest,
     JobCreateRequest,
@@ -46,6 +53,7 @@ from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 from src.jobs.queue import get_queue
 from src.jobs.tasks import scrape_and_process
+from src.services.telegram_schedule_service import TelegramScheduleService
 
 # API metadata
 API_VERSION = "1.0.0"
@@ -57,6 +65,8 @@ METRICS_ACTIVE_REQUEST_TTL_S = 3600
 METRICS_PREFIX = "doctoralia:api:metrics"
 _metrics_store_cache: Optional[RedisAPIMetricsStore] = None
 _metrics_store_cache_url: Optional[str] = None
+_telegram_schedule_service: Optional[TelegramScheduleService] = None
+_telegram_schedule_service_url: Optional[str] = None
 
 # Create FastAPI app
 app = FastAPI(
@@ -76,6 +86,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_notification_scheduler() -> None:
+    if _should_disable_notification_scheduler():
+        return
+    _get_telegram_schedule_service(start_runner=True)
+
+
+@app.on_event("shutdown")
+async def shutdown_notification_scheduler() -> None:
+    global _telegram_schedule_service
+    if _telegram_schedule_service is not None:
+        _telegram_schedule_service.stop()
 
 
 def start_api(
@@ -135,6 +159,43 @@ def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
         _metrics_store_cache_url = redis_url
 
     return _metrics_store_cache
+
+
+def _should_disable_notification_scheduler() -> bool:
+    if os.getenv("DISABLE_NOTIFICATION_SCHEDULER", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return True
+    return bool(os.getenv("PYTEST_CURRENT_TEST"))
+
+
+def _get_telegram_schedule_service(
+    start_runner: bool = False,
+) -> TelegramScheduleService:
+    global _telegram_schedule_service, _telegram_schedule_service_url
+
+    config = _load_config()
+    redis_url = config.integrations.redis_url or os.getenv(
+        "REDIS_URL", "redis://localhost:6379/0"
+    )
+
+    if (
+        _telegram_schedule_service is None
+        or _telegram_schedule_service_url != redis_url
+    ):
+        _telegram_schedule_service = TelegramScheduleService(
+            logger=logger,
+            config_loader=_load_config,
+        )
+        _telegram_schedule_service_url = redis_url
+
+    if start_runner and not _should_disable_notification_scheduler():
+        _telegram_schedule_service.start()
+
+    return _telegram_schedule_service
 
 
 def _record_request_start_metric(request_id: str, started_at_s: float) -> None:
@@ -903,6 +964,118 @@ async def metrics_endpoint():
         },
     }
     return body
+
+
+@app.get(
+    "/v1/notifications/telegram/schedules",
+    response_model=TelegramNotificationScheduleListResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def list_telegram_notification_schedules():
+    service = _get_telegram_schedule_service(start_runner=True)
+    return {
+        "schedules": service.list_schedules(),
+        "summary": service.get_summary(),
+    }
+
+
+@app.post(
+    "/v1/notifications/telegram/schedules",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def create_telegram_notification_schedule(
+    schedule: TelegramNotificationScheduleModel,
+):
+    try:
+        service = _get_telegram_schedule_service(start_runner=True)
+        saved = service.save_schedule(schedule.model_dump())
+        return {"success": True, "schedule": saved}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.put(
+    "/v1/notifications/telegram/schedules/{schedule_id}",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def update_telegram_notification_schedule(
+    schedule_id: str,
+    schedule: TelegramNotificationScheduleModel,
+):
+    try:
+        service = _get_telegram_schedule_service(start_runner=True)
+        if service.get_schedule(schedule_id) is None:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+        saved = service.save_schedule(schedule.model_dump(), schedule_id=schedule_id)
+        return {"success": True, "schedule": saved}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete(
+    "/v1/notifications/telegram/schedules/{schedule_id}",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def delete_telegram_notification_schedule(schedule_id: str):
+    service = _get_telegram_schedule_service(start_runner=True)
+    deleted = service.delete_schedule(schedule_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return {"success": True}
+
+
+@app.post(
+    "/v1/notifications/telegram/schedules/{schedule_id}/run",
+    response_model=TelegramNotificationRunResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def run_telegram_notification_schedule(schedule_id: str):
+    try:
+        service = _get_telegram_schedule_service(start_runner=True)
+        result = service.execute_schedule(schedule_id, manual=True)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get(
+    "/v1/notifications/telegram/history",
+    response_model=TelegramNotificationHistoryResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def list_telegram_notification_history(
+    limit: int = Query(default=50, ge=1, le=200)
+):
+    service = _get_telegram_schedule_service(start_runner=True)
+    return {"history": service.list_history(limit=limit)}
+
+
+@app.post(
+    "/v1/notifications/telegram/test",
+    response_model=TelegramNotificationRunResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def send_test_telegram_notification(payload: TelegramNotificationTestRequest):
+    service = _get_telegram_schedule_service(start_runner=True)
+    result = service.send_test_notification(
+        message=payload.message,
+        telegram_token=payload.telegram_token,
+        telegram_chat_id=payload.telegram_chat_id,
+        parse_mode=payload.parse_mode or "Markdown",
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,971 @@
+{% extends "base.html" %}
+
+{% block title %}Agendamentos Telegram - Doctoralia Scraper{% endblock %}
+
+{% block page_title %}Agendamentos Telegram{% endblock %}
+
+{% block top_bar_actions %}
+<button class="btn btn-secondary" onclick="refreshNotificationWorkspace()">
+  <i class="fas fa-sync-alt"></i>
+  Atualizar
+</button>
+<button class="btn btn-primary" onclick="document.getElementById('schedule-name').focus()">
+  <i class="fas fa-plus"></i>
+  Novo Agendamento
+</button>
+{% endblock %}
+
+{% block content %}
+<div id="telegram-schedule-alert"></div>
+
+<div class="alert alert-info mb-3">
+  <i class="fab fa-telegram"></i>
+  <div>
+    Os agendamentos são persistidos no Redis. O histórico das execuções fica no Redis e os anexos/snapshots
+    são gravados em <code>data/notifications</code> e <code>data/</code>. O runner automático roda no processo da API:
+    mantenha o serviço <code>api</code> ativo para disparos recorrentes.
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Agendamentos</span><div class="stat-icon blue"><i class="fas fa-calendar-check"></i></div></div>
+    <div class="stat-value" id="schedule-total">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Ativos</span><div class="stat-icon green"><i class="fas fa-play"></i></div></div>
+    <div class="stat-value" id="schedule-active">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Pausados</span><div class="stat-icon orange"><i class="fas fa-pause"></i></div></div>
+    <div class="stat-value" id="schedule-paused">0</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Último Sucesso</span><div class="stat-icon green"><i class="fas fa-paper-plane"></i></div></div>
+    <div class="stat-value stat-value-sm" id="schedule-last-success">-</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-header"><span class="stat-label">Última Falha</span><div class="stat-icon red"><i class="fas fa-triangle-exclamation"></i></div></div>
+    <div class="stat-value stat-value-sm" id="schedule-last-failure">-</div>
+  </div>
+</div>
+
+<div class="notification-grid">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-vial"></i>
+        Teste Rápido do Telegram
+      </h3>
+    </div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="alert alert-info mb-2">
+          <i class="fas fa-circle-info"></i>
+          <div>
+            Use esta ação para validar token, chat e conectividade antes de ativar um agendamento.
+            Se deixar token/chat vazios, a API usa a configuração global atual.
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Token do Bot</label>
+            <input type="password" id="test-telegram-token" class="form-control" placeholder="Opcional: usar credencial global">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Chat ID</label>
+            <input type="text" id="test-telegram-chat-id" class="form-control" placeholder="Opcional: usar chat global">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parse Mode</label>
+            <select id="test-parse-mode" class="form-control">
+              <option value="Markdown">Markdown</option>
+              <option value="">Nenhum</option>
+              <option value="MarkdownV2">MarkdownV2</option>
+              <option value="HTML">HTML</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Mensagem de Teste</label>
+          <textarea id="test-message" class="form-control" rows="3" placeholder="Opcional: se vazio, a API monta uma mensagem padrão."></textarea>
+        </div>
+
+        <div class="flex gap-2" style="flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="sendTelegramTestNotification()">
+            <i class="fas fa-paper-plane"></i>
+            Enviar Teste
+          </button>
+          <button class="btn btn-secondary" onclick="clearTelegramTestForm()">
+            <i class="fas fa-eraser"></i>
+            Limpar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-sliders-h"></i>
+        Configuração do Agendamento
+      </h3>
+      <div class="card-actions">
+        <span class="status-inline" id="schedule-form-status">Criando novo</span>
+      </div>
+    </div>
+    <div class="card-body">
+      <input type="hidden" id="schedule-edit-id">
+
+      <div class="form-grid">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nome Operacional</label>
+            <input type="text" id="schedule-name" class="form-control" placeholder="Ex.: Relatório matinal do perfil principal">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Timezone</label>
+            <input type="text" id="schedule-timezone" class="form-control" value="America/Sao_Paulo" placeholder="America/Sao_Paulo">
+          </div>
+        </div>
+
+        <div class="checkbox-wrapper">
+          <input type="checkbox" id="schedule-enabled" checked>
+          <label for="schedule-enabled" class="checkbox-label">
+            Ativar recorrência automaticamente
+          </label>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="form-section-title">Recorrência</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tipo</label>
+            <select id="schedule-recurrence-type" class="form-control" onchange="toggleScheduleConditionalFields()">
+              <option value="daily">Diário</option>
+              <option value="weekdays">Dias úteis</option>
+              <option value="weekly">Semanal</option>
+              <option value="interval">Intervalo fixo</option>
+              <option value="custom_cron">Cron customizado</option>
+            </select>
+          </div>
+          <div class="form-group conditional-field" data-field="time-of-day">
+            <label class="form-label">Hora</label>
+            <input type="time" id="schedule-time-of-day" class="form-control" value="09:00">
+          </div>
+          <div class="form-group conditional-field" data-field="day-of-week" style="display:none;">
+            <label class="form-label">Dia da Semana</label>
+            <select id="schedule-day-of-week" class="form-control">
+              <option value="0">Domingo</option>
+              <option value="1">Segunda</option>
+              <option value="2">Terça</option>
+              <option value="3">Quarta</option>
+              <option value="4">Quinta</option>
+              <option value="5">Sexta</option>
+              <option value="6">Sábado</option>
+            </select>
+          </div>
+          <div class="form-group conditional-field" data-field="interval" style="display:none;">
+            <label class="form-label">Intervalo (min)</label>
+            <input type="number" id="schedule-interval-minutes" class="form-control" min="5" step="5" value="60">
+          </div>
+        </div>
+
+        <div class="form-group conditional-field" data-field="cron" style="display:none;">
+          <label class="form-label">Expressão Cron</label>
+          <input type="text" id="schedule-cron-expression" class="form-control" placeholder="0 8 * * 1-5">
+          <small class="form-help">Use a sintaxe tradicional de 5 campos: minuto hora dia mês dia-da-semana.</small>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="form-section-title">Escopo da Notificação</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Perfil / Rótulo</label>
+            <input type="text" id="schedule-profile-label" class="form-control" placeholder="Ex.: Dra. Ana - perfil principal">
+          </div>
+          <div class="form-group">
+            <label class="form-label">URL do Perfil</label>
+            <input type="url" id="schedule-profile-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
+            <small class="form-help">Usada para scraping novo ou para localizar o snapshot mais recente desse perfil.</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Relatório</label>
+            <select id="schedule-report-type" class="form-control">
+              <option value="complete">Completo</option>
+              <option value="simple">Simples</option>
+              <option value="health">Health / Operacional</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Formato do Anexo</label>
+            <select id="schedule-attachment-format" class="form-control">
+              <option value="txt">TXT</option>
+              <option value="json">JSON</option>
+              <option value="csv">CSV</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Escopo do Anexo</label>
+            <select id="schedule-attachment-scope" class="form-control">
+              <option value="responses">Respostas geradas</option>
+              <option value="comments">Comentários coletados</option>
+              <option value="snapshot">Snapshot consolidado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="schedule-trigger-new-scrape" checked>
+            <label for="schedule-trigger-new-scrape" class="checkbox-label">
+              Executar scraping novo antes de enviar
+            </label>
+          </div>
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="schedule-include-generation" onchange="toggleScheduleConditionalFields()">
+            <label for="schedule-include-generation" class="checkbox-label">
+              Gerar respostas automáticas
+            </label>
+          </div>
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="schedule-send-attachment" checked onchange="toggleScheduleConditionalFields()">
+            <label for="schedule-send-attachment" class="checkbox-label">
+              Enviar anexo junto da mensagem
+            </label>
+          </div>
+          <div class="checkbox-wrapper">
+            <input type="checkbox" id="schedule-include-health-status">
+            <label for="schedule-include-health-status" class="checkbox-label">
+              Incluir health da API, Redis e Selenium
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row conditional-field" data-field="generation-settings" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Modo de Geração</label>
+            <select id="schedule-generation-mode" class="form-control">
+              <option value="default">Padrão do sistema</option>
+              <option value="local">Local</option>
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="claude">Claude</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Máximo de Reviews</label>
+            <input type="number" id="schedule-max-reviews" class="form-control" min="1" max="100" step="1" value="20">
+          </div>
+        </div>
+
+        <div class="section-divider"></div>
+        <div class="form-section-title">Destino Telegram</div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Token do Bot</label>
+            <input type="password" id="schedule-telegram-token" class="form-control" placeholder="Opcional: usa a configuração global">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Chat ID</label>
+            <input type="text" id="schedule-telegram-chat-id" class="form-control" placeholder="Opcional: usa a configuração global">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Parse Mode</label>
+            <select id="schedule-parse-mode" class="form-control">
+              <option value="Markdown">Markdown</option>
+              <option value="">Nenhum</option>
+              <option value="MarkdownV2">MarkdownV2</option>
+              <option value="HTML">HTML</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex gap-2" style="flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="saveSchedule()">
+            <i class="fas fa-save"></i>
+            Salvar Agendamento
+          </button>
+          <button class="btn btn-secondary" onclick="resetScheduleForm()">
+            <i class="fas fa-rotate-left"></i>
+            Resetar Formulário
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-calendar-days"></i>
+      Agendamentos Persistidos
+    </h3>
+    <div class="card-actions">
+      <button class="btn btn-secondary btn-sm" onclick="loadSchedules()">
+        <i class="fas fa-sync-alt"></i>
+        Recarregar
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Recorrência</th>
+            <th>Perfil</th>
+            <th>Próxima Execução</th>
+            <th>Último Resultado</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="schedule-table-body">
+          <tr>
+            <td colspan="6" class="text-center text-secondary">Carregando agendamentos...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-clock-rotate-left"></i>
+      Histórico das Notificações
+    </h3>
+    <div class="card-actions">
+      <button class="btn btn-secondary btn-sm" onclick="loadScheduleHistory()">
+        <i class="fas fa-sync-alt"></i>
+        Atualizar Histórico
+      </button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Execução</th>
+            <th>Status</th>
+            <th>Resumo</th>
+            <th>Reviews</th>
+            <th>Respostas</th>
+            <th>Anexo</th>
+            <th>Detalhes</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body">
+          <tr>
+            <td colspan="7" class="text-center text-secondary">Carregando histórico...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .notification-grid {
+    display: grid;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  @media (min-width: 1200px) {
+    .notification-grid {
+      grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.6fr);
+    }
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table th,
+  .table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+  }
+
+  .table th {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .table td {
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+
+  .stat-value-sm {
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 8px 0 4px;
+  }
+
+  .form-section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+  }
+
+  .status-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-full);
+    background: rgba(10, 132, 255, 0.12);
+    color: var(--apple-blue);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .status-pill.sent,
+  .status-pill.success,
+  .status-pill.enabled {
+    background: rgba(52, 199, 89, 0.14);
+    color: var(--apple-green);
+  }
+
+  .status-pill.failed,
+  .status-pill.error,
+  .status-pill.disabled {
+    background: rgba(255, 59, 48, 0.14);
+    color: var(--apple-red);
+  }
+
+  .status-pill.pending,
+  .status-pill.paused,
+  .status-pill.info {
+    background: rgba(255, 149, 0, 0.14);
+    color: var(--apple-orange);
+  }
+
+  .schedule-name {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .schedule-subtitle,
+  .muted-line {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .mono-text {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    word-break: break-all;
+    font-size: 12px;
+  }
+
+  .table-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .table-actions .btn {
+    min-width: auto;
+  }
+
+  .history-detail {
+    max-width: 340px;
+  }
+</style>
+
+<script>
+  const notificationState = {
+    schedules: [],
+    history: [],
+    editingId: null,
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function extractErrorMessage(payload, fallback) {
+    if (!payload) return fallback;
+    if (typeof payload === 'string') return payload;
+    if (payload.error?.message) return payload.error.message;
+    if (typeof payload.error === 'string') return payload.error;
+    if (payload.detail) return payload.detail;
+    if (payload.message) return payload.message;
+    return fallback;
+  }
+
+  async function apiRequest(url, options = {}) {
+    const requestOptions = { ...options };
+    const headers = { ...(requestOptions.headers || {}) };
+
+    if (requestOptions.body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    requestOptions.headers = headers;
+
+    const response = await fetch(url, requestOptions);
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+      ? await response.json()
+      : null;
+
+    if (!response.ok) {
+      throw new Error(extractErrorMessage(payload, `Erro ${response.status}`));
+    }
+
+    return payload;
+  }
+
+  function showTelegramScheduleAlert(type, message) {
+    const container = document.getElementById('telegram-schedule-alert');
+    const level = type === 'error' ? 'danger' : type;
+    container.innerHTML = `
+      <div class="alert alert-${level}">
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i>
+        <div>${escapeHtml(message)}</div>
+      </div>
+    `;
+  }
+
+  function clearTelegramScheduleAlert() {
+    document.getElementById('telegram-schedule-alert').innerHTML = '';
+  }
+
+  function formatDateTime(value) {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString('pt-BR');
+  }
+
+  function formatFileName(pathValue) {
+    if (!pathValue) return '—';
+    const parts = String(pathValue).split('/');
+    return parts[parts.length - 1] || pathValue;
+  }
+
+  function statusPill(status, enabled = true) {
+    const normalized = (status || (enabled ? 'enabled' : 'paused')).toLowerCase();
+    const labelMap = {
+      sent: 'Enviado',
+      failed: 'Falhou',
+      success: 'Ativo',
+      enabled: 'Ativo',
+      paused: 'Pausado',
+      disabled: 'Desativado',
+      error: 'Erro',
+      info: 'Info',
+    };
+    const className = normalized === 'sent' ? 'sent'
+      : normalized === 'failed' ? 'failed'
+      : normalized === 'paused' || normalized === 'disabled' ? 'paused'
+      : normalized === 'error' ? 'error'
+      : 'enabled';
+
+    return `<span class="status-pill ${className}">${escapeHtml(labelMap[normalized] || status || 'Ativo')}</span>`;
+  }
+
+  function notificationModeSummary(schedule) {
+    const tokens = [];
+    tokens.push(schedule.trigger_new_scrape ? 'scraping novo' : 'snapshot salvo');
+    if (schedule.include_generation) {
+      tokens.push(`geração ${schedule.generation_mode === 'default' ? 'padrão' : schedule.generation_mode}`);
+    }
+    if (schedule.include_health_status) {
+      tokens.push('health');
+    }
+    if (!schedule.send_attachment) {
+      tokens.push('sem anexo');
+    } else {
+      tokens.push(`${schedule.attachment_scope}/${schedule.attachment_format}`);
+    }
+    return tokens.join(' • ');
+  }
+
+  function updateScheduleSummary(summary = {}) {
+    document.getElementById('schedule-total').textContent = summary.total || 0;
+    document.getElementById('schedule-active').textContent = summary.active || 0;
+    document.getElementById('schedule-paused').textContent = summary.paused || 0;
+    document.getElementById('schedule-last-success').textContent = formatDateTime(summary.last_success_at);
+    document.getElementById('schedule-last-failure').textContent = formatDateTime(summary.last_failure_at);
+  }
+
+  function renderSchedulesTable(schedules) {
+    const tbody = document.getElementById('schedule-table-body');
+    if (!schedules.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Nenhum agendamento salvo.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = schedules.map((schedule) => `
+      <tr>
+        <td>
+          <div class="schedule-name">${escapeHtml(schedule.name)}</div>
+          <span class="schedule-subtitle">${statusPill(schedule.last_status || (schedule.enabled ? 'enabled' : 'paused'), schedule.enabled)}</span>
+          <span class="muted-line">${escapeHtml(notificationModeSummary(schedule))}</span>
+        </td>
+        <td>
+          ${escapeHtml(schedule.recurrence_label || schedule.recurrence_type)}
+          <span class="muted-line">${escapeHtml(schedule.timezone || 'America/Sao_Paulo')}</span>
+        </td>
+        <td>
+          ${escapeHtml(schedule.profile_label || 'Perfil sem rótulo')}
+          <span class="muted-line mono-text">${escapeHtml(schedule.profile_url || 'Usando perfil padrão / snapshot geral')}</span>
+        </td>
+        <td>
+          ${escapeHtml(formatDateTime(schedule.next_run_at))}
+          <span class="muted-line">Criado em ${escapeHtml(formatDateTime(schedule.created_at))}</span>
+        </td>
+        <td>
+          ${escapeHtml(formatDateTime(schedule.last_run_at))}
+          <span class="muted-line">${escapeHtml(schedule.last_error || 'Sem erros recentes')}</span>
+        </td>
+        <td>
+          <div class="table-actions">
+            <button class="btn btn-secondary btn-sm" onclick="editSchedule('${schedule.id}')">
+              <i class="fas fa-pen"></i>
+              Editar
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="runScheduleNow('${schedule.id}')">
+              <i class="fas fa-bolt"></i>
+              Rodar Agora
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSchedule('${schedule.id}')">
+              <i class="fas fa-trash"></i>
+              Excluir
+            </button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function renderHistoryTable(history) {
+    const tbody = document.getElementById('history-table-body');
+    if (!history.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">Nenhuma execução registrada ainda.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = history.map((entry) => `
+      <tr>
+        <td>
+          ${escapeHtml(entry.schedule_name || 'Execução manual')}
+          <span class="muted-line">${escapeHtml(formatDateTime(entry.completed_at || entry.run_at))}</span>
+          <span class="muted-line">${entry.manual ? 'Execução manual' : 'Execução automática'}</span>
+        </td>
+        <td>${statusPill(entry.status || 'info')}</td>
+        <td class="history-detail">
+          ${escapeHtml(entry.summary || 'Sem resumo')}
+          <span class="muted-line">${escapeHtml(entry.error || 'Sem erro registrado')}</span>
+        </td>
+        <td>${escapeHtml(String(entry.metrics?.total_reviews ?? 0))}</td>
+        <td>${escapeHtml(String(entry.metrics?.generated_responses ?? 0))}</td>
+        <td>
+          ${escapeHtml(formatFileName(entry.attachment_path))}
+          <span class="muted-line mono-text">${escapeHtml(entry.attachment_path || 'Sem anexo')}</span>
+        </td>
+        <td>
+          <span class="muted-line mono-text">${escapeHtml(entry.metrics?.profile_url || 'Sem perfil')}</span>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function fillScheduleForm(schedule) {
+    notificationState.editingId = schedule.id;
+    document.getElementById('schedule-edit-id').value = schedule.id;
+    document.getElementById('schedule-form-status').textContent = `Editando ${schedule.name}`;
+    document.getElementById('schedule-name').value = schedule.name || '';
+    document.getElementById('schedule-enabled').checked = Boolean(schedule.enabled);
+    document.getElementById('schedule-timezone').value = schedule.timezone || 'America/Sao_Paulo';
+    document.getElementById('schedule-recurrence-type').value = schedule.recurrence_type || 'daily';
+    document.getElementById('schedule-time-of-day').value = schedule.time_of_day || '09:00';
+    document.getElementById('schedule-day-of-week').value = String(schedule.day_of_week ?? 1);
+    document.getElementById('schedule-interval-minutes').value = schedule.interval_minutes || 60;
+    document.getElementById('schedule-cron-expression').value = schedule.cron_expression || '';
+    document.getElementById('schedule-profile-label').value = schedule.profile_label || '';
+    document.getElementById('schedule-profile-url').value = schedule.profile_url || '';
+    document.getElementById('schedule-trigger-new-scrape').checked = Boolean(schedule.trigger_new_scrape);
+    document.getElementById('schedule-include-generation').checked = Boolean(schedule.include_generation);
+    document.getElementById('schedule-generation-mode').value = schedule.generation_mode || 'default';
+    document.getElementById('schedule-report-type').value = schedule.report_type || 'complete';
+    document.getElementById('schedule-include-health-status').checked = Boolean(schedule.include_health_status);
+    document.getElementById('schedule-send-attachment').checked = Boolean(schedule.send_attachment);
+    document.getElementById('schedule-attachment-scope').value = schedule.attachment_scope || 'responses';
+    document.getElementById('schedule-attachment-format').value = schedule.attachment_format || 'txt';
+    document.getElementById('schedule-max-reviews').value = schedule.max_reviews || 20;
+    document.getElementById('schedule-telegram-token').value = schedule.telegram_token || '';
+    document.getElementById('schedule-telegram-chat-id').value = schedule.telegram_chat_id || '';
+    document.getElementById('schedule-parse-mode').value = schedule.parse_mode ?? 'Markdown';
+    toggleScheduleConditionalFields();
+    clearTelegramScheduleAlert();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function editSchedule(scheduleId) {
+    const schedule = notificationState.schedules.find((item) => item.id === scheduleId);
+    if (!schedule) {
+      showTelegramScheduleAlert('error', 'Agendamento não encontrado para edição.');
+      return;
+    }
+    fillScheduleForm(schedule);
+  }
+
+  function resetScheduleForm() {
+    notificationState.editingId = null;
+    document.getElementById('schedule-edit-id').value = '';
+    document.getElementById('schedule-form-status').textContent = 'Criando novo';
+    document.getElementById('schedule-name').value = '';
+    document.getElementById('schedule-enabled').checked = true;
+    document.getElementById('schedule-timezone').value = 'America/Sao_Paulo';
+    document.getElementById('schedule-recurrence-type').value = 'daily';
+    document.getElementById('schedule-time-of-day').value = '09:00';
+    document.getElementById('schedule-day-of-week').value = '1';
+    document.getElementById('schedule-interval-minutes').value = '60';
+    document.getElementById('schedule-cron-expression').value = '';
+    document.getElementById('schedule-profile-label').value = '';
+    document.getElementById('schedule-profile-url').value = '';
+    document.getElementById('schedule-trigger-new-scrape').checked = true;
+    document.getElementById('schedule-include-generation').checked = false;
+    document.getElementById('schedule-generation-mode').value = 'default';
+    document.getElementById('schedule-report-type').value = 'complete';
+    document.getElementById('schedule-include-health-status').checked = false;
+    document.getElementById('schedule-send-attachment').checked = true;
+    document.getElementById('schedule-attachment-scope').value = 'responses';
+    document.getElementById('schedule-attachment-format').value = 'txt';
+    document.getElementById('schedule-max-reviews').value = '20';
+    document.getElementById('schedule-telegram-token').value = '';
+    document.getElementById('schedule-telegram-chat-id').value = '';
+    document.getElementById('schedule-parse-mode').value = 'Markdown';
+    toggleScheduleConditionalFields();
+  }
+
+  function clearTelegramTestForm() {
+    document.getElementById('test-telegram-token').value = '';
+    document.getElementById('test-telegram-chat-id').value = '';
+    document.getElementById('test-message').value = '';
+    document.getElementById('test-parse-mode').value = 'Markdown';
+  }
+
+  function toggleScheduleConditionalFields() {
+    const recurrenceType = document.getElementById('schedule-recurrence-type').value;
+    const includeGeneration = document.getElementById('schedule-include-generation').checked;
+    const sendAttachment = document.getElementById('schedule-send-attachment').checked;
+
+    document.querySelector('[data-field="time-of-day"]').style.display =
+      recurrenceType === 'interval' || recurrenceType === 'custom_cron' ? 'none' : '';
+    document.querySelector('[data-field="day-of-week"]').style.display =
+      recurrenceType === 'weekly' ? '' : 'none';
+    document.querySelector('[data-field="interval"]').style.display =
+      recurrenceType === 'interval' ? '' : 'none';
+    document.querySelector('[data-field="cron"]').style.display =
+      recurrenceType === 'custom_cron' ? '' : 'none';
+    document.querySelector('[data-field="generation-settings"]').style.display =
+      includeGeneration ? '' : 'none';
+
+    document.getElementById('schedule-generation-mode').disabled = !includeGeneration;
+    document.getElementById('schedule-max-reviews').disabled = !includeGeneration;
+    document.getElementById('schedule-attachment-scope').disabled = !sendAttachment;
+    document.getElementById('schedule-attachment-format').disabled = !sendAttachment;
+  }
+
+  function serializeScheduleForm() {
+    const recurrenceType = document.getElementById('schedule-recurrence-type').value;
+    const includeGeneration = document.getElementById('schedule-include-generation').checked;
+    const sendAttachment = document.getElementById('schedule-send-attachment').checked;
+
+    const payload = {
+      name: document.getElementById('schedule-name').value.trim(),
+      enabled: document.getElementById('schedule-enabled').checked,
+      timezone: document.getElementById('schedule-timezone').value.trim() || 'America/Sao_Paulo',
+      recurrence_type: recurrenceType,
+      time_of_day: recurrenceType === 'interval' || recurrenceType === 'custom_cron'
+        ? null
+        : document.getElementById('schedule-time-of-day').value || null,
+      day_of_week: recurrenceType === 'weekly'
+        ? Number(document.getElementById('schedule-day-of-week').value)
+        : null,
+      interval_minutes: recurrenceType === 'interval'
+        ? Number(document.getElementById('schedule-interval-minutes').value || 0)
+        : null,
+      cron_expression: recurrenceType === 'custom_cron'
+        ? document.getElementById('schedule-cron-expression').value.trim() || null
+        : null,
+      profile_label: document.getElementById('schedule-profile-label').value.trim() || null,
+      profile_url: document.getElementById('schedule-profile-url').value.trim() || null,
+      trigger_new_scrape: document.getElementById('schedule-trigger-new-scrape').checked,
+      include_generation: includeGeneration,
+      generation_mode: includeGeneration
+        ? document.getElementById('schedule-generation-mode').value
+        : 'default',
+      report_type: document.getElementById('schedule-report-type').value,
+      include_health_status: document.getElementById('schedule-include-health-status').checked,
+      send_attachment: sendAttachment,
+      attachment_scope: document.getElementById('schedule-attachment-scope').value,
+      attachment_format: document.getElementById('schedule-attachment-format').value,
+      max_reviews: Number(document.getElementById('schedule-max-reviews').value || 20),
+      telegram_token: document.getElementById('schedule-telegram-token').value.trim() || null,
+      telegram_chat_id: document.getElementById('schedule-telegram-chat-id').value.trim() || null,
+      parse_mode: document.getElementById('schedule-parse-mode').value,
+    };
+
+    if (!payload.name) {
+      throw new Error('O nome do agendamento é obrigatório.');
+    }
+
+    return payload;
+  }
+
+  async function loadSchedules() {
+    const data = await apiRequest('/api/notifications/telegram/schedules');
+    notificationState.schedules = data.schedules || [];
+    renderSchedulesTable(notificationState.schedules);
+    updateScheduleSummary(data.summary || {});
+  }
+
+  async function loadScheduleHistory() {
+    const data = await apiRequest('/api/notifications/telegram/history?limit=100');
+    notificationState.history = data.history || [];
+    renderHistoryTable(notificationState.history);
+  }
+
+  async function refreshNotificationWorkspace() {
+    clearTelegramScheduleAlert();
+    try {
+      await Promise.all([loadSchedules(), loadScheduleHistory()]);
+    } catch (error) {
+      showTelegramScheduleAlert('error', error.message || 'Falha ao atualizar o workspace.');
+    }
+  }
+
+  async function saveSchedule() {
+    try {
+      const payload = serializeScheduleForm();
+      const scheduleId = notificationState.editingId;
+      const endpoint = scheduleId
+        ? `/api/notifications/telegram/schedules/${scheduleId}`
+        : '/api/notifications/telegram/schedules';
+      const method = scheduleId ? 'PUT' : 'POST';
+      const result = await apiRequest(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
+
+      showTelegramScheduleAlert('success', scheduleId ? 'Agendamento atualizado com sucesso.' : 'Agendamento criado com sucesso.');
+      resetScheduleForm();
+      await refreshNotificationWorkspace();
+      return result;
+    } catch (error) {
+      showTelegramScheduleAlert('error', error.message || 'Não foi possível salvar o agendamento.');
+      return null;
+    }
+  }
+
+  async function deleteSchedule(scheduleId) {
+    if (!window.confirm('Deseja remover este agendamento? O histórico já executado será preservado.')) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/notifications/telegram/schedules/${scheduleId}`, {
+        method: 'DELETE',
+      });
+      if (notificationState.editingId === scheduleId) {
+        resetScheduleForm();
+      }
+      showTelegramScheduleAlert('success', 'Agendamento removido.');
+      await refreshNotificationWorkspace();
+    } catch (error) {
+      showTelegramScheduleAlert('error', error.message || 'Não foi possível excluir o agendamento.');
+    }
+  }
+
+  async function runScheduleNow(scheduleId) {
+    try {
+      const result = await apiRequest(`/api/notifications/telegram/schedules/${scheduleId}/run`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      showTelegramScheduleAlert('success', result.message || 'Execução disparada com sucesso.');
+      await refreshNotificationWorkspace();
+    } catch (error) {
+      showTelegramScheduleAlert('error', error.message || 'Não foi possível executar o agendamento.');
+    }
+  }
+
+  async function sendTelegramTestNotification() {
+    const payload = {
+      telegram_token: document.getElementById('test-telegram-token').value.trim() || null,
+      telegram_chat_id: document.getElementById('test-telegram-chat-id').value.trim() || null,
+      message: document.getElementById('test-message').value.trim() || null,
+      parse_mode: document.getElementById('test-parse-mode').value,
+    };
+
+    try {
+      const result = await apiRequest('/api/notifications/telegram/test', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      showTelegramScheduleAlert('success', result.message || 'Notificação de teste enviada.');
+      await loadScheduleHistory();
+    } catch (error) {
+      showTelegramScheduleAlert('error', error.message || 'Falha ao enviar o teste do Telegram.');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    resetScheduleForm();
+    clearTelegramTestForm();
+    refreshNotificationWorkspace();
+  });
+</script>
+{% endblock %}

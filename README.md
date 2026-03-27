@@ -7,6 +7,7 @@ Sistema para coletar reviews do Doctoralia, analisar sentimento, gerar respostas
 - Stack Docker com `api`, `worker`, `dashboard`, `redis`, `selenium` e `n8n`
 - API FastAPI em `http://localhost:8000`
 - Dashboard Flask em `http://localhost:5000`
+- Página de agendamentos Telegram em `http://localhost:5000/notifications/telegram/schedule`
 - n8n em `http://localhost:5678`
 - Redis/RQ para jobs assíncronos e retenção/rate limiting de integrações
 - Métricas da API persistidas em Redis para visibilidade multi-processo
@@ -17,7 +18,7 @@ Sistema para coletar reviews do Doctoralia, analisar sentimento, gerar respostas
 | Serviço | Porta | Função |
 |---|---:|---|
 | API | `8000` | Endpoints REST, health, jobs, settings, geração unitária |
-| Dashboard | `5000` | Workspace operacional, histórico, relatórios, perfis |
+| Dashboard | `5000` | Workspace operacional, histórico, relatórios, perfis e agendamentos Telegram |
 | n8n | `5678` | Orquestração de workflows |
 | Redis | `6379` | Fila RQ, estado transitório e TTL de jobs |
 | Selenium | `4444` | Navegador remoto para scraping |
@@ -110,6 +111,10 @@ Endpoints mais usados:
 | `GET` | `/v1/health` | Health básico |
 | `GET` | `/v1/ready` | Readiness com Redis, Selenium e NLTK |
 | `GET` | `/v1/metrics` | Métricas Redis-backed da API |
+| `GET/POST/PUT/DELETE` | `/v1/notifications/telegram/schedules` | CRUD de agendamentos Telegram |
+| `POST` | `/v1/notifications/telegram/schedules/{schedule_id}/run` | Disparo manual de um agendamento |
+| `GET` | `/v1/notifications/telegram/history` | Histórico persistido das notificações |
+| `POST` | `/v1/notifications/telegram/test` | Envio de teste real via Telegram |
 | `POST` | `/v1/hooks/n8n/scrape` | Webhook dedicado do n8n |
 
 Exemplo:
@@ -153,8 +158,8 @@ poetry run pytest --cov=src --cov-report=term-missing
 
 Estado validado localmente nesta revisão:
 
-- `200 passed`
-- coverage total: `65%`
+- `250 passed`
+- coverage total: `74%`
 
 Áreas já fortalecidas recentemente:
 
@@ -162,6 +167,8 @@ Estado validado localmente nesta revisão:
 - integração real com Redis/RQ
 - autenticação e assinatura HMAC
 - validação de ambiente
+- scheduler Redis-backed para notificações Telegram
+- dashboard de agendamentos e histórico de notificações
 
 ## Convenções de código
 
@@ -174,6 +181,7 @@ Estado validado localmente nesta revisão:
 
 - Rate limiting da API REST como middleware global ainda não está implementado
 - Cobertura ainda baixa em `src/scraper.py`, `src/response_generator.py`, `src/telegram_notifier.py` e `src/dashboard.py`
+- O runner automático dos agendamentos Telegram roda no processo da API; se o serviço `api` estiver parado, os disparos recorrentes não acontecem
 
 ## Documentação complementar
 
