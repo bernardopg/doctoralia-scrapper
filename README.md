@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Doctoralia Scrapper banner" width="100%">
+  <img src="docs/assets/banner.svg" width="100%">
 </p>
 
 <p align="center">
