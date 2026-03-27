@@ -55,8 +55,13 @@ TELEGRAM_CHAT_ID=<chat_id>
 OPENAI_API_KEY=<chave_openai>
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=<senha_segura>
+N8N_ENCRYPTION_KEY=<64_hex_chars>
+N8N_EDITOR_BASE_URL=https://automations.seudominio.com
+WEBHOOK_URL=https://automations.seudominio.com/
 LOG_LEVEL=INFO
 ```
+
+No compose local atual, o n8n também fica preso em `127.0.0.1:5678` e exige auth básica.
 
 ## Docker Compose (Desenvolvimento / Staging)
 

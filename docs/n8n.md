@@ -17,7 +17,7 @@ Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 
 - Stack rodando (`docker compose up -d` ou serviços locais)
 - API acessível em `http://api:8000` (rede Docker) ou `http://localhost:8000` (local)
-- n8n acessível em `http://localhost:5678`
+- n8n acessível em `http://localhost:5678`, exposto apenas em `127.0.0.1` no compose local
 
 ## Workflows Disponíveis (`examples/n8n/`)
 
@@ -48,13 +48,19 @@ docker compose up -d
 docker compose ps
 ```
 
-Serviços esperados: `api` (:8000), `worker`, `redis` (:6379), `selenium` (:4444), `n8n` (:5678).
+Serviços esperados: `api` (:8000), `worker`, `redis` (:6379), `selenium` (:4444), `n8n` (:5678 local-only).
 
 ### 2. Acessar o n8n
 
-Abra `http://localhost:5678`. Se configurou autenticação:
+Abra `http://localhost:5678`. No setup atual do compose local, autenticação é obrigatória:
 - Usuário: `N8N_BASIC_AUTH_USER` do `.env`
 - Senha: `N8N_BASIC_AUTH_PASSWORD` do `.env`
+
+Também configure:
+
+- `N8N_ENCRYPTION_KEY`
+- `N8N_EDITOR_BASE_URL`
+- `WEBHOOK_URL`
 
 ## Importação dos Workflows
 

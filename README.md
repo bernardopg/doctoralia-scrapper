@@ -73,7 +73,7 @@ URLs locais esperadas:
 - API: `http://localhost:8000/docs`
 - Dashboard: `http://localhost:5000`
 - Telegram scheduling: `http://localhost:5000/notifications/telegram/schedule`
-- n8n: `http://localhost:5678`
+- n8n: `http://localhost:5678` com Basic Auth configurada no `.env`
 - Selenium status: `http://localhost:4444/status`
 
 ### Desenvolvimento local
@@ -119,6 +119,7 @@ make lint
 | Workspace web | Operacional e com scheduler Telegram integrado |
 | Persistência | Snapshots em `data/` e histórico/schedules em Redis |
 | Métricas da API | Redis-backed, multi-processo |
+| n8n local | preso em `127.0.0.1:5678`, com auth e encryption key obrigatórias |
 | Testes | `250 passed` |
 | Coverage | `74%` |
 

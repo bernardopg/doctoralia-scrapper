@@ -340,7 +340,7 @@ class DashboardApp:
                     "dashboard": {
                         "status": "healthy",
                         "timestamp": datetime.now().isoformat(),
-                        "version": "1.0.0",
+                        "version": "1.2.0-rc.1",
                     },
                     "api": api_health,
                 }

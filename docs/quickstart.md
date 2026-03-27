@@ -25,7 +25,7 @@ docker compose ps
 - API: `http://localhost:8000/docs`
 - Dashboard: `http://localhost:5000`
 - Scheduler Telegram: `http://localhost:5000/notifications/telegram/schedule`
-- n8n: `http://localhost:5678`
+- n8n: `http://localhost:5678` com Basic Auth do `.env`
 - Selenium: `http://localhost:4444/status`
 
 ### 4. Validar Redis
@@ -67,6 +67,12 @@ curl -X POST http://localhost:8000/v1/scrape:run \
 2. Use o bloco **Teste Rápido do Telegram**.
 3. Informe token/chat ou deixe vazio para usar a configuração global.
 4. Envie a mensagem de teste antes de ativar qualquer recorrência.
+
+## Primeiro acesso ao n8n
+
+- O serviço local está exposto em `127.0.0.1:5678`.
+- Use `N8N_BASIC_AUTH_USER` e `N8N_BASIC_AUTH_PASSWORD` do `.env`.
+- Defina também `N8N_ENCRYPTION_KEY` antes de subir a stack.
 
 ## Desenvolvimento local sem Docker
 
