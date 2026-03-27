@@ -5,15 +5,15 @@ Sistema de scraping com circuit breaker e error handling melhorado
 import logging
 from typing import Any, Dict, Optional
 
-from .circuit_breaker import CircuitBreaker
-from .error_handling import (
+from src.circuit_breaker import CircuitBreaker
+from src.error_handling import (
     ErrorReporter,
     PageNotFoundError,
     RateLimitError,
     ScrapingError,
     retry_with_backoff,
 )
-from .scraper import DoctoraliaScraper
+from src.scraper import DoctoraliaScraper
 
 
 class EnhancedDoctoraliaScraper(DoctoraliaScraper):

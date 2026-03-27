@@ -24,7 +24,7 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 ### Imports e Estrutura de Pacote
 
 - [x] Eliminar hacks de `sys.path.insert()` em `api_server.py`, `dashboard.py`, `telegram_notifier.py`
-- [ ] Padronizar imports: escolher entre relativos (`from .scraper`) ou absolutos (`from src.scraper`) consistentemente
+- [x] Padronizar imports: escolher entre relativos (`from .scraper`) ou absolutos (`from src.scraper`) consistentemente
 - [x] Remover try/except com fallback para `None` nos imports de `api_server.py` e `dashboard.py` — mascara erros reais
 
 ### Docker e Deploy
@@ -57,7 +57,7 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 - [ ] Adicionar rate limiting por IP/API key nos endpoints da API
 - [ ] Implementar paginação nos endpoints que retornam listas grandes
 - [ ] Adicionar cache de respostas para endpoints frequentes (stats, health)
-- [ ] Melhorar métricas para suporte multi-processo (Prometheus ou Redis-backed)
+- [x] Melhorar métricas para suporte multi-processo (Prometheus ou Redis-backed)
 - [ ] Adicionar endpoint para download direto de arquivo de dados específico
 - [ ] Implementar WebSocket para progresso de scraping em tempo real (substituir polling)
 
@@ -75,7 +75,6 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 - [ ] Criar testes end-to-end do workflow completo (scrape → analyze → generate → notify)
 - [ ] Implementar testes de carga/stress para a API
 - [ ] Adicionar testes de memory leak para execuções longas
-- [ ] Criar testes de integração com Redis real (não mockado)
 - [x] Adicionar testes para os endpoints de reports e settings proxy
 
 ### Scripts e Automação
@@ -170,13 +169,14 @@ Lista organizada de tarefas pendentes, melhorias e features planejadas.
 - [x] Adicionar health checks (liveness/readiness) no Dockerfile e docker-compose
 - [x] Definir resource limits (CPU/memória) no docker-compose para todos os serviços
 - [x] Adicionar testes para reports (files, summary, export JSON/CSV) e settings proxy (503 quando API indisponível)
+- [x] Adicionar testes de integração com Redis real para fila RQ, TTL e rate limiting
 
 ---
 
 ## Notas
 
 - **Python**: Projeto roda em Python 3.14 (Arch Linux); lxml 6.0.2+ necessário
-- **Dados**: 272 arquivos JSON em `data/`, ~10.880 reviews coletados
-- **Cobertura de testes**: ~87% (132 test methods em 18 arquivos)
-- **Serviços**: API (FastAPI :8000), Dashboard (Flask :5000), Redis (:6379), Selenium (:4444)
+- **Dados**: snapshots, relatórios e respostas persistidos em `data/`
+- **Cobertura de testes**: medir via `poetry run pytest --cov=src --cov-report=term-missing` e manter foco nas integrações críticas (API, jobs, Redis, dashboard)
+- **Serviços**: API (FastAPI :8000), Worker (RQ), Dashboard (Flask :5000), Redis (:6379), Selenium (:4444), n8n (:5678)
 - **Estrutura recomendada para `src/`**: reorganizar em subpacotes temáticos (core, responses, notifications, monitoring, infrastructure) — ver seção de Refatoração Estrutural

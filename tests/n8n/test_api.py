@@ -3,9 +3,11 @@ Tests for n8n API integration.
 """
 
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,6 +35,34 @@ from src.api.v1.main import app
 def client():
     """Create test client."""
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def dynamic_app_config_from_env():
+    """Keep tests isolated from the developer's local config.json while preserving env-based behavior."""
+
+    def _build_config():
+        return SimpleNamespace(
+            api=SimpleNamespace(debug=False),
+            security=SimpleNamespace(
+                api_key=os.getenv("API_KEY", ""),
+                webhook_signing_secret=os.getenv("WEBHOOK_SIGNING_SECRET", ""),
+                openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            ),
+            integrations=SimpleNamespace(
+                redis_url=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+                selenium_remote_url=os.getenv(
+                    "SELENIUM_REMOTE_URL", "http://localhost:4444/wd/hub"
+                ),
+            ),
+            generation=SimpleNamespace(mode=os.getenv("GENERATION_MODE", "local")),
+        )
+
+    with patch(
+        "config.settings.AppConfig.load",
+        side_effect=_build_config,
+    ):
+        yield
 
 
 @pytest.fixture
@@ -134,6 +164,47 @@ class TestHealthEndpoints:
             mock_redis.side_effect = Exception("Redis connection failed")
             response = client.get("/v1/ready")
             assert response.status_code == 503
+
+    def test_metrics_endpoint_uses_redis_backed_store(self, client):
+        """Metrics endpoint should expose Redis-backed counters and middleware timings."""
+        metrics_store = MagicMock()
+        metrics_store.snapshot.return_value = {
+            "requests_total": 12,
+            "requests_in_progress": 1,
+            "requests_failed_total": 2,
+            "scrapes_total": 5,
+            "scrapes_failed_total": 1,
+            "generation_total": 4,
+            "analysis_total": 3,
+            "request_durations_ms": [110, 90, 70],
+        }
+
+        with patch("src.api.v1.main._get_metrics_store", return_value=metrics_store):
+            response = client.get("/v1/metrics")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["backend"] == {"type": "redis", "available": True}
+        assert data["requests"]["total"] == 12
+        assert data["requests"]["latest_ms"] == 110
+        assert data["requests"]["sample_size"] == 3
+        assert data["scraping"]["generation_total"] == 4
+        metrics_store.record_request_start.assert_called()
+        metrics_store.record_request_end.assert_called()
+
+    def test_metrics_endpoint_handles_store_failure(self, client):
+        """Metrics endpoint should stay available even if Redis metrics cannot be read."""
+        with patch(
+            "src.api.v1.main._get_metrics_store",
+            side_effect=RuntimeError("metrics redis unavailable"),
+        ):
+            response = client.get("/v1/metrics")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["backend"] == {"type": "redis", "available": False}
+        assert data["requests"]["total"] == 0
+        assert data["requests"]["sample_size"] == 0
 
 
 class TestAuthentication:
