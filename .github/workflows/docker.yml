@@ -230,6 +230,15 @@ jobs:
           WEBHOOK_SIGNING_SECRET=test-webhook-secret
           REDIS_URL=redis://redis:6379/0
           SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+          N8N_BASIC_AUTH_ACTIVE=true
+          N8N_BASIC_AUTH_USER=ci-admin
+          N8N_BASIC_AUTH_PASSWORD=ci-password
+          N8N_ENCRYPTION_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          N8N_EDITOR_BASE_URL=http://localhost:5678
+          WEBHOOK_URL=http://localhost:5678/
+          N8N_DIAGNOSTICS_ENABLED=false
+          N8N_VERSION_NOTIFICATIONS_ENABLED=false
+          GENERIC_TIMEZONE=America/Sao_Paulo
           EOF
 
       - name: Pull latest images

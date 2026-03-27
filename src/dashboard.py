@@ -198,6 +198,49 @@ class DashboardApp:
                 self.logger.error(f"Error calling API: {e}")
             return None
 
+    def _request_api_with_status(
+        self, endpoint: str, method: str = "GET", **kwargs
+    ) -> tuple[Optional[Dict[str, Any]], int]:
+        """Make an API call preserving the upstream status code and payload."""
+        try:
+            api_base_url = self._get_api_base_url()
+            url = f"{api_base_url}{endpoint}"
+            headers = kwargs.pop("headers", {})
+            api_key = self._get_api_key()
+            if api_key:
+                headers["X-API-Key"] = api_key
+
+            response = requests.request(
+                method, url, headers=headers, timeout=self.api_timeout, **kwargs
+            )
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {"error": response.text or "Resposta inválida da API"}
+
+            return payload, response.status_code
+        except requests.exceptions.ConnectionError:
+            if self.logger:
+                self.logger.debug("API not available for %s %s", method, endpoint)
+            return None, 503
+        except requests.exceptions.Timeout:
+            if self.logger:
+                self.logger.warning("API timeout: %s %s", method, endpoint)
+            return {"error": "Timeout ao comunicar com a API"}, 504
+        except Exception as e:
+            if self.logger:
+                self.logger.error("Error calling API with status: %s", e)
+            return {"error": str(e)}, 500
+
+    def _proxy_api_response(self, endpoint: str, method: str = "GET", **kwargs):
+        """Proxy a backend response to the dashboard while preserving status codes."""
+        payload, status_code = self._request_api_with_status(
+            endpoint, method=method, **kwargs
+        )
+        if payload is None:
+            return jsonify({"error": "API não disponível"}), 503
+        return jsonify(payload), status_code
+
     def _get_api_health(self) -> Dict[str, Any]:
         """Get health status from main API."""
         api_data = self._call_api("/v1/health")
@@ -278,6 +321,11 @@ class DashboardApp:
             """Reports page."""
             return render_template("reports.html")
 
+        @self.app.route("/notifications/telegram/schedule")
+        def telegram_notification_schedule():
+            """Telegram notification scheduling page."""
+            return render_template("telegram_schedule.html")
+
         @self.app.route("/health-check")
         def health_check_page():
             """Health check visual page."""
@@ -292,7 +340,7 @@ class DashboardApp:
                     "dashboard": {
                         "status": "healthy",
                         "timestamp": datetime.now().isoformat(),
-                        "version": "1.0.0",
+                        "version": "1.2.0-rc.1",
                     },
                     "api": api_health,
                 }
@@ -513,6 +561,93 @@ class DashboardApp:
                 if result is not None:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/notifications/telegram/schedules")
+        def get_telegram_notification_schedules():
+            """List Telegram notification schedules."""
+            try:
+                return self._proxy_api_response("/v1/notifications/telegram/schedules")
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/notifications/telegram/schedules", methods=["POST"])
+        def create_telegram_notification_schedule():
+            """Create a Telegram notification schedule."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                return self._proxy_api_response(
+                    "/v1/notifications/telegram/schedules",
+                    method="POST",
+                    json=data,
+                )
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route(
+            "/api/notifications/telegram/schedules/<schedule_id>", methods=["PUT"]
+        )
+        def update_telegram_notification_schedule(schedule_id):
+            """Update a Telegram notification schedule."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                return self._proxy_api_response(
+                    f"/v1/notifications/telegram/schedules/{schedule_id}",
+                    method="PUT",
+                    json=data,
+                )
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route(
+            "/api/notifications/telegram/schedules/<schedule_id>", methods=["DELETE"]
+        )
+        def delete_telegram_notification_schedule(schedule_id):
+            """Delete a Telegram notification schedule."""
+            try:
+                return self._proxy_api_response(
+                    f"/v1/notifications/telegram/schedules/{schedule_id}",
+                    method="DELETE",
+                )
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route(
+            "/api/notifications/telegram/schedules/<schedule_id>/run",
+            methods=["POST"],
+        )
+        def run_telegram_notification_schedule(schedule_id):
+            """Run a Telegram notification schedule immediately."""
+            try:
+                return self._proxy_api_response(
+                    f"/v1/notifications/telegram/schedules/{schedule_id}/run",
+                    method="POST",
+                    json={},
+                )
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/notifications/telegram/history")
+        def get_telegram_notification_history():
+            """List Telegram notification history."""
+            try:
+                limit = request.args.get("limit", default=50, type=int)
+                endpoint = f"/v1/notifications/telegram/history?limit={limit}"
+                return self._proxy_api_response(endpoint)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+
+        @self.app.route("/api/notifications/telegram/test", methods=["POST"])
+        def send_test_telegram_notification():
+            """Send a manual Telegram test notification."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                return self._proxy_api_response(
+                    "/v1/notifications/telegram/test",
+                    method="POST",
+                    json=data,
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 

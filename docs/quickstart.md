@@ -1,109 +1,121 @@
+[Wiki Home](Home.md) · [Visão Geral](overview.md) · [Dashboard Workspace](dashboard-workspace.md) · [API REST](api.md)
+
 # Quickstart
 
-Este guia mostra o fluxo mínimo para colocar o sistema em funcionamento.
+> O caminho mais curto para ter a stack rodando, validar que está saudável e fazer o primeiro scraping sem cair em setup desnecessário.
 
-## 1. Pré-requisitos
+## Caminho recomendado: Docker
 
-- Python 3.10+
-- Google Chrome instalado
-- Git
-- (Opcional) Docker + Docker Compose
-
-## 2. Clonar e Instalar
-
-```bash
-git clone <REPO_URL>
-cd doctoralia-scrapper
-make install
-```
-
-## 3. Configuração Essencial
+### 1. Preparar arquivos locais
 
 ```bash
 cp .env.example .env
 cp config/config.example.json config/config.json
 ```
 
-Edite `.env` com `API_KEY` e, opcionalmente, credenciais do Telegram.
-
-## 4. Primeiro Scraping
+### 2. Subir a stack
 
 ```bash
-make run-url URL=https://www.doctoralia.com.br/medico/exemplo/especialidade/cidade
+docker compose up -d --build
+docker compose ps
 ```
 
-Saída esperada: JSON da extração em `data/` + logs em `logs/`.
+### 3. Conferir URLs principais
 
-## 5. Geração de Respostas (Opcional)
+- API: `http://localhost:8000/docs`
+- Dashboard: `http://localhost:5000`
+- Scheduler Telegram: `http://localhost:5000/notifications/telegram/schedule`
+- n8n: `http://localhost:5678` com Basic Auth do `.env`
+- Selenium: `http://localhost:4444/status`
+
+### 4. Validar Redis
 
 ```bash
-make generate
+docker compose exec -T redis redis-cli ping
 ```
 
-## 6. Dashboard
+Saída esperada:
 
-```bash
-make dashboard   # http://localhost:5000
+```text
+PONG
 ```
 
-## 7. API
+## Primeiro scraping
+
+### Pela CLI
 
 ```bash
-make api         # http://localhost:8000/docs
+make run-url URL="https://www.doctoralia.com.br/medico/exemplo"
 ```
 
-Teste rápido (substitua pela sua chave configurada no `.env`):
+### Pela API
 
 ```bash
-make run-url URL="https://www.doctoralia.com.br/medico/exemplo/especialidade/cidade"
+curl -X POST http://localhost:8000/v1/scrape:run \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "doctor_url": "https://www.doctoralia.com.br/medico/exemplo",
+    "include_analysis": true,
+    "include_generation": false
+  }'
 ```
 
-Ou via API diretamente — consulte `docs/api.md` para exemplos com autenticação.
+## Primeiro teste de notificação Telegram
 
-## 8. Execução Contínua
+1. Abra `http://localhost:5000/notifications/telegram/schedule`.
+2. Use o bloco **Teste Rápido do Telegram**.
+3. Informe token/chat ou deixe vazio para usar a configuração global.
+4. Envie a mensagem de teste antes de ativar qualquer recorrência.
+
+## Primeiro acesso ao n8n
+
+- O serviço local está exposto em `127.0.0.1:5678`.
+- Use `N8N_BASIC_AUTH_USER` e `N8N_BASIC_AUTH_PASSWORD` do `.env`.
+- Defina também `N8N_ENCRYPTION_KEY` antes de subir a stack.
+
+## Desenvolvimento local sem Docker
 
 ```bash
-make daemon      # Loop de scraping agendado
-make status      # Estado atual
-make stop        # Parar daemon
-```
-
-## 9. Modo Docker (Recomendado para Produção)
-
-```bash
+make venv
 cp .env.example .env
-# Edite .env com suas chaves
+cp config/config.example.json config/config.json
 
-docker-compose up -d
-docker-compose ps
+make api
+make dashboard
 ```
 
-Serviços disponíveis:
-- **API**: http://localhost:8000/docs
-- **n8n**: http://localhost:5678
-- **Selenium VNC**: http://localhost:7900
+Comandos úteis:
 
-Para importar workflows n8n: abra o n8n e importe os JSONs de `examples/n8n/`.
+```bash
+make test
+make lint
+make run-full URL="https://www.doctoralia.com.br/medico/exemplo"
+```
 
-## 10. Troubleshooting Rápido
+## Checklist de saúde rápida
+
+| Item | O que verificar |
+|---|---|
+| API | `GET /v1/health` e `GET /v1/ready` |
+| Redis | `redis-cli ping` |
+| Selenium | `http://localhost:4444/status` |
+| Dashboard | abertura do overview e da página de notificações |
+| Telegram | teste manual em `/notifications/telegram/schedule` |
+
+## Problemas comuns
 
 | Sintoma | Ação |
-|---------|------|
-| Chrome/WebDriver erro | Verificar versão do Chrome, reinstalar driver |
-| Timeout frequente | Aumentar `scraping.timeout` em `config/config.json` |
-| Bloqueio/site lento | Ajustar `delay_min`/`delay_max` no config |
-| Sem avaliações detectadas | Validar URL no navegador manualmente |
-| Connection refused (Docker) | `docker-compose ps` e verificar logs |
-| Invalid API key | Conferir `API_KEY` no `.env` e reiniciar: `docker-compose restart api` |
+|---|---|
+| `ERR_EMPTY_RESPONSE` em `localhost:6379` | Normal. Redis não responde HTTP. |
+| Job assíncrono não sai da fila | Verifique `worker` e Redis. |
+| Scheduler Telegram não dispara | Confirme se a API está rodando e se o agendamento está ativo. |
+| Dashboard sem dados | Confira se existem snapshots em `data/`. |
+| Scraping não abre browser remoto | Revise `SELENIUM_REMOTE_URL`. |
 
-## 11. Próximos Passos
+## Próximos passos
 
-- Referência da API: `docs/api.md`
-- Workflows n8n: `docs/n8n.md`
-- Operações e monitoramento: `docs/operations.md`
-- Deploy em produção: `docs/deployment.md`
-- Desenvolvimento: `docs/development.md`
-
----
-
-Para diagnóstico rápido: `python scripts/system_diagnostic.py` ou `make health`.
+- [Visão Geral](overview.md)
+- [Dashboard Workspace](dashboard-workspace.md)
+- [Telegram Notifications](telegram-notifications.md)
+- [Operations](operations.md)

@@ -1,9 +1,11 @@
+[Wiki Home](Home.md) · [Quickstart](quickstart.md) · [Telegram Notifications](telegram-notifications.md) · [n8n](n8n.md)
+
 # 🔌 API REST v1
 
-A API expõe operações de scraping, análise, geração e monitoramento através de endpoints RESTful.
+A API expõe scraping, jobs assíncronos, settings, métricas Redis-backed, health checks, geração de respostas e o scheduler Telegram através de endpoints RESTful.
 
 **Base URL**: `http://localhost:8000` (desenvolvimento) ou seu domínio em produção
-**Versão Atual**: `1.0.0`
+**Versão Atual**: `1.2.0-rc.1`
 
 ## Autenticação
 
@@ -18,7 +20,7 @@ Configure a chave no arquivo `.env`:
 API_KEY=sua_chave_secreta_aqui
 ```
 
-**Nota**: Endpoints de saúde (`/v1/health`, `/v1/ready`) não requerem autenticação.
+**Nota**: endpoints de saúde (`/v1/health`, `/v1/ready`) não requerem autenticação.
 
 ## Convenções de Resposta
 
@@ -319,7 +321,7 @@ Verifica saúde básica da API.
 ```json
 {
   "status": "ok",
-  "version": "1.0.0",
+  "version": "1.2.0-rc.1",
   "uptime_s": 3600
 }
 ```
@@ -372,7 +374,7 @@ Verifica disponibilidade de todas as dependências.
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.2.0-rc.1",
   "start_time": "2024-01-15T10:00:00.000000"
 }
 ```
@@ -381,13 +383,13 @@ Verifica disponibilidade de todas as dependências.
 
 **Endpoint**: `GET /v1/metrics`
 
-Métricas de performance e uso da API (process-local, não Prometheus).
+Métricas de performance e uso da API persistidas em Redis para leitura consistente entre processos.
 
 ##### Response
 
 ```json
 {
-  "version": "1.0.0",
+  "version": "1.2.0-rc.1",
   "uptime_s": 3600,
   "requests": {
     "total": 1523,
@@ -407,6 +409,24 @@ Métricas de performance e uso da API (process-local, não Prometheus).
   }
 }
 ```
+
+#### 4.5. Notificações Telegram
+
+**Base**: `/v1/notifications/telegram`
+
+Principais rotas:
+
+| Método | Endpoint | Uso |
+|---|---|---|
+| `GET` | `/schedules` | Lista agendamentos e resumo |
+| `POST` | `/schedules` | Cria novo agendamento |
+| `PUT` | `/schedules/{schedule_id}` | Atualiza um agendamento |
+| `DELETE` | `/schedules/{schedule_id}` | Remove um agendamento |
+| `POST` | `/schedules/{schedule_id}/run` | Executa manualmente |
+| `GET` | `/history` | Histórico persistido das execuções |
+| `POST` | `/test` | Envio real de teste para validar bot e chat |
+
+Use [Telegram Notifications](telegram-notifications.md) para o fluxo operacional completo e os detalhes de payload.
 
 ### 5. Endpoint Raiz
 
@@ -658,13 +678,15 @@ curl http://localhost:8000/v1/metrics | jq '.requests'
 
 ## Documentação Adicional
 
-- **n8n Integration**: Ver `docs/n8n.md`
-- **Deployment**: Ver `docs/deployment.md`
-- **Operations**: Ver `docs/operations.md`
-- **Development**: Ver `docs/development.md`
+- **Wiki Home**: ver `docs/Home.md`
+- **Telegram Notifications**: ver `docs/telegram-notifications.md`
+- **n8n Integration**: ver `docs/n8n.md`
+- **Deployment**: ver `docs/deployment.md`
+- **Operations**: ver `docs/operations.md`
+- **Development**: ver `docs/development.md`
 
 ## Suporte
 
-- **Issues**: [GitHub Issues](https://github.com/seu-repo/doctoralia-scrapper/issues)
 - **API Docs**: `/docs` (Swagger UI)
 - **Health Status**: `/v1/health` e `/v1/ready`
+- **Wiki**: `docs/Home.md`

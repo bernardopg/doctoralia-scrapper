@@ -1,146 +1,102 @@
-# 🛠️ Operações & Monitoramento
+[Wiki Home](Home.md) · [Quickstart](quickstart.md) · [Visão Geral](overview.md) · [Telegram Notifications](telegram-notifications.md)
+
+# Operations & Monitoring
 
 ## Objetivo
 
-Centralizar práticas de operação, saúde, logs, automação e recuperação.
+Esta página concentra o runbook do projeto: health, logs, agendamentos, retenção, backup e diagnóstico rápido.
 
-## Health & Status
+## Endpoints de saúde
 
 | Endpoint | Uso |
-|----------|-----|
-| `/v1/health` | Verifica serviço básico |
-| `/v1/ready` | Checa dependências (Redis, etc.) |
-| `/v1/statistics` | Estatísticas de scraping agregadas |
-| `/v1/metrics` | Métricas de performance da API |
+|---|---|
+| `/v1/health` | disponibilidade básica da API |
+| `/v1/ready` | readiness com Redis, queue, Selenium e NLTK |
+| `/v1/statistics` | estatísticas agregadas |
+| `/v1/metrics` | métricas Redis-backed da API |
 
-## Workspace Web
+## Painéis operacionais no dashboard
 
-Páginas operacionais principais:
+| Página | Uso |
+|---|---|
+| `/` | visão consolidada do workspace |
+| `/history` | auditoria e prune de snapshots |
+| `/reports` | inventário e resumo executivo |
+| `/health-check` | leitura visual de saúde |
+| `/notifications/telegram/schedule` | agendamentos e histórico de notificações |
 
-- `/`: overview consolidado do workspace
-- `/profiles`: análise por perfil com filtros por data
-- `/responses`: fila de reviews sem resposta e geração manual
-- `/history`: limpeza de snapshots antigos e acompanhamento dos arquivos persistidos
-- `/reports`: visão analítica de storage, timeline e candidatos de limpeza
-- `/me`: perfil do operador e favoritos
-- `/settings`: configuração de scraping, integrações e provedores de IA
+## Fluxo assíncrono do projeto
 
-## Fluxo Assíncrono de Scraping
+1. A API enfileira um job em Redis.
+2. O worker processa scraping, análise e geração.
+3. O resultado final é salvo como snapshot em `data/`.
+4. O dashboard passa a enxergar o novo estado operacional.
+5. O scheduler Telegram pode usar esse snapshot ou disparar um novo scraping.
 
-- Jobs assíncronos agora persistem um snapshot JSON em `data/` ao final de uma execução bem-sucedida.
-- `overview`, `profiles`, `responses`, `history` e `reports` leem esses snapshots persistidos, não o payload transitório do RQ.
-- O status exibido em `/history` e em `/api/tasks` usa o `status` lógico do resultado (`completed` ou `failed`), e não apenas o estado bruto de `FinishedJobRegistry`.
-- IDs de reviews são normalizados como `string` no resultado unificado e no snapshot salvo para evitar falhas de validação no worker.
-- Se um job falhar antes de salvar o snapshot, ele não deve aparecer nas páginas do workspace; nesse caso, verifique `/history`, `/api/tasks/<job_id>` e os logs do worker.
+## Logs e arquivos importantes
 
-## Logs
+| Item | Caminho |
+|---|---|
+| Snapshots | `data/` |
+| Anexos de notificações | `data/notifications/` |
+| Logs locais | `data/logs/` ou `logs/` |
+| Config local | `config/config.json` |
 
-- Local: `data/logs/` ou `logs/` (conforme config)
-- Rotacionar (recomendado >30 dias): script cron + `find -mtime +30 -delete`
-- Formato: preferir JSON estruturado onde possível
-
-## Diagnóstico Rápido
+## Diagnóstico rápido
 
 ```bash
 make health
 python scripts/system_diagnostic.py
 python scripts/monitor_scraping.py
+docker compose ps
 ```
 
-## Automação (Daemon)
+## Scheduler Telegram: regra operacional
 
-| Comando | Função |
-|---------|--------|
-| `make daemon` | Loop contínuo |
-| `make daemon-debug` | Verbose |
-| `make stop` | Interrompe |
-| `make status` | Estado atual |
+> O scheduler recorrente roda no processo da API. Se o serviço `api` cair, as recorrências param mesmo que Redis continue saudável.
 
-## Agendamento (Cron Externo / n8n)
+Checklist quando um agendamento não dispara:
 
-Sugerido usar n8n + agendadores em vez de cron local para flexibilidade.
+1. confirme que `api` está no ar
+2. confirme que o agendamento está `enabled`
+3. confira `next_run_at`
+4. confira histórico em `/v1/notifications/telegram/history`
+5. confira se há erro salvo em `last_error`
 
-## Backup
+## Backups e retenção
 
-| Item | Caminho | Frequência |
-|------|---------|------------|
-| Extrações | `data/extractions/` | Diário |
-| Respostas | `data/responses/` | Diário |
-| Config local | `config/config.json` | Ao alterar |
-| Logs críticos | `data/logs/*.log` | Semanal |
+| Item | Frequência sugerida | Observação |
+|---|---|---|
+| `data/` | diária | mantém snapshots e anexos |
+| `config/config.json` | a cada mudança | contém comportamento da stack |
+| logs críticos | semanal | rotacione ou compacte |
 
-Sugestão script simples:
+Exemplo simples:
 
 ```bash
-tar -czf backup_$(date +%Y%m%d).tgz data/extractions data/responses
+tar -czf backup_$(date +%Y%m%d).tgz data config/config.json
 ```
 
-## Retenção Sugerida
-
-| Tipo | Retenção | Ação |
-|------|----------|------|
-| Logs brutos | 30 dias | Rotacionar |
-| Extrações completas | 90 dias | Agregar resumido |
-| Respostas finais | 180 dias | Arquivo frio |
-
-## Troubleshooting (Checklist)
+## Troubleshooting
 
 | Sintoma | Verificar |
-|---------|-----------|
-| Timeout constante | Conectividade / bloqueio site / delays curtos |
-| Nenhuma avaliação | Mudança de layout / seletor quebrado |
-| Resposta vazia | Exceção silenciosa / logs de erro |
-| Jobs pendentes eternos | Worker parado / Redis inacessível |
-| Job concluído sem aparecer no workspace | Verificar se o snapshot foi salvo em `data/` e se o job terminou como `failed` lógico |
-| Webhook inválido | Assinatura ou timestamp expirado |
+|---|---|
+| Browser em `localhost:6379` retorna vazio | Normal. Redis não fala HTTP. |
+| Jobs pendentes para sempre | Worker parado ou Redis inacessível |
+| Workspace sem atualização | Snapshot não salvo ou leitura incorreta de `data/` |
+| Histórico Telegram vazio | Nenhum envio concluído ou Redis limpo |
+| Health parcial | Dependência fora do ar, especialmente Selenium |
+| Callback n8n falhando | Assinatura HMAC, timeout ou URL de callback |
 
-## Aumentando Robustez
+## Robustez sugerida
 
-- Ajustar backoff para plataformas mais lentas
-- Introduzir proxies se volume aumentar
-- Habilitar exportador de métricas (future) para Prometheus
+- rotacionar logs antigos
+- versionar ou copiar snapshots críticos
+- monitorar Redis e Selenium junto da API
+- separar filas por prioridade se o volume crescer
 
-## Alertas (Sugestão)
+## Próximas leituras
 
-| Evento | Ação |
-|--------|------|
-| Falha > N tentativas | Notificar canal de suporte |
-| Queda brusca de rating | Alerta urgente |
-| Sentimento negativo > limiar | Revisão manual |
-| Erro de parsing recorrente | Abrir incidente |
-
-## Recarga de Configuração
-
-Alterar `config/config.json` → reiniciar processo (ou recarregar se implementado hot reload no futuro).
-
-## Segurança Operacional
-
-- Revogar chave API em caso de vazamento
-- Regenerar `WEBHOOK_SECRET` e atualizar n8n
-- Auditar logs para evitar vazamento de PII
-
-## Scripts Úteis
-
-| Script | Objetivo |
-|--------|----------|
-| `scripts/system_diagnostic.py` | Checagem ampla |
-| `scripts/monitor_scraping.py` | Monitor simplificado |
-| `scripts/daemon.py` | Controle do loop contínuo |
-| `scripts/backup_restore.sh` | Rotinas de backup/restore |
-
-## Escalonamento
-
-- Multiplicar workers (containers separados) → filas isoladas por prioridade (futuro)
-- Parâmetros adaptativos de delay por plataforma
-
-## Planejado (Operações Futuras)
-
-| Feature | Status |
-|---------|--------|
-| Exportador Prometheus | Planejado |
-| Painel Grafana | Planejado |
-| Reprocessamento incremental | Em avaliação |
-| Detector automático de mudança de layout | Ideia |
-
----
-Para detalhes de arquitetura consulte `docs/overview.md`. Para deployment: `docs/deployment.md`. Para o fluxo do dashboard e geração: `docs/dashboard-workspace.md`.
+- [Telegram Notifications](telegram-notifications.md)
+- [n8n](n8n.md)
+- [Deployment](deployment.md)

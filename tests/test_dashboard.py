@@ -58,6 +58,11 @@ def test_reports_route(client):
     assert response.status_code == 200
 
 
+def test_telegram_schedule_route(client):
+    response = client.get("/notifications/telegram/schedule")
+    assert response.status_code == 200
+
+
 def test_health_check_page_route(client):
     response = client.get("/health-check")
     assert response.status_code == 200
@@ -363,6 +368,45 @@ def test_proxy_generate_response_route(mock_call_api, client):
         method="POST",
         json={"review_id": "review-1", "comment": "Ótimo atendimento"},
     )
+
+
+@patch("src.dashboard.DashboardApp._request_api_with_status")
+def test_notification_proxy_preserves_api_status(mock_request_api_with_status, client):
+    mock_request_api_with_status.return_value = (
+        {"error": {"message": "Token inválido"}},
+        400,
+    )
+
+    response = client.post("/api/notifications/telegram/test", json={"message": "oi"})
+
+    assert response.status_code == 400
+    data = json.loads(response.data)
+    assert data["error"]["message"] == "Token inválido"
+    mock_request_api_with_status.assert_called_once_with(
+        "/v1/notifications/telegram/test",
+        method="POST",
+        json={"message": "oi"},
+    )
+
+
+@patch("src.dashboard.DashboardApp._request_api_with_status")
+def test_notification_schedule_list_proxy_returns_upstream_payload(
+    mock_request_api_with_status, client
+):
+    mock_request_api_with_status.return_value = (
+        {
+            "schedules": [{"id": "schedule-1", "name": "Relatório"}],
+            "summary": {"total": 1},
+        },
+        200,
+    )
+
+    response = client.get("/api/notifications/telegram/schedules")
+
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data["summary"]["total"] == 1
+    assert data["schedules"][0]["name"] == "Relatório"
 
 
 @patch("src.dashboard.DashboardApp._get_user_profile_settings")

@@ -164,6 +164,7 @@ class TelegramNotifier:
                             "tentando sem parse_mode"
                         )
                         data.pop("parse_mode", None)
+                        file.seek(0)
                         response = requests.post(
                             url, files=files, data=data, timeout=60
                         )
@@ -440,7 +441,10 @@ class TelegramNotifier:
 
         if not self.config.telegram.chat_id:
             issues.append("Chat ID não configurado")
-        elif not str(self.config.telegram.chat_id).lstrip("-").isdigit():
+        elif not (
+            str(self.config.telegram.chat_id).lstrip("-").isdigit()
+            or str(self.config.telegram.chat_id).startswith("@")
+        ):
             issues.append("Formato do Chat ID inválido")
 
         return {

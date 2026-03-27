@@ -3,9 +3,11 @@ Tests for n8n API integration.
 """
 
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,6 +35,34 @@ from src.api.v1.main import app
 def client():
     """Create test client."""
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def dynamic_app_config_from_env():
+    """Keep tests isolated from the developer's local config.json while preserving env-based behavior."""
+
+    def _build_config():
+        return SimpleNamespace(
+            api=SimpleNamespace(debug=False),
+            security=SimpleNamespace(
+                api_key=os.getenv("API_KEY", ""),
+                webhook_signing_secret=os.getenv("WEBHOOK_SIGNING_SECRET", ""),
+                openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+            ),
+            integrations=SimpleNamespace(
+                redis_url=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+                selenium_remote_url=os.getenv(
+                    "SELENIUM_REMOTE_URL", "http://localhost:4444/wd/hub"
+                ),
+            ),
+            generation=SimpleNamespace(mode=os.getenv("GENERATION_MODE", "local")),
+        )
+
+    with patch(
+        "config.settings.AppConfig.load",
+        side_effect=_build_config,
+    ):
+        yield
 
 
 @pytest.fixture
@@ -135,6 +165,47 @@ class TestHealthEndpoints:
             response = client.get("/v1/ready")
             assert response.status_code == 503
 
+    def test_metrics_endpoint_uses_redis_backed_store(self, client):
+        """Metrics endpoint should expose Redis-backed counters and middleware timings."""
+        metrics_store = MagicMock()
+        metrics_store.snapshot.return_value = {
+            "requests_total": 12,
+            "requests_in_progress": 1,
+            "requests_failed_total": 2,
+            "scrapes_total": 5,
+            "scrapes_failed_total": 1,
+            "generation_total": 4,
+            "analysis_total": 3,
+            "request_durations_ms": [110, 90, 70],
+        }
+
+        with patch("src.api.v1.main._get_metrics_store", return_value=metrics_store):
+            response = client.get("/v1/metrics")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["backend"] == {"type": "redis", "available": True}
+        assert data["requests"]["total"] == 12
+        assert data["requests"]["latest_ms"] == 110
+        assert data["requests"]["sample_size"] == 3
+        assert data["scraping"]["generation_total"] == 4
+        metrics_store.record_request_start.assert_called()
+        metrics_store.record_request_end.assert_called()
+
+    def test_metrics_endpoint_handles_store_failure(self, client):
+        """Metrics endpoint should stay available even if Redis metrics cannot be read."""
+        with patch(
+            "src.api.v1.main._get_metrics_store",
+            side_effect=RuntimeError("metrics redis unavailable"),
+        ):
+            response = client.get("/v1/metrics")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["backend"] == {"type": "redis", "available": False}
+        assert data["requests"]["total"] == 0
+        assert data["requests"]["sample_size"] == 0
+
 
 class TestAuthentication:
     """Test API authentication."""
@@ -167,6 +238,154 @@ class TestAuthentication:
                 headers={"X-API-Key": api_key},
             )
             assert response.status_code == 200
+
+
+class TestTelegramNotificationEndpoints:
+    """Test Telegram scheduling endpoints."""
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_list_telegram_notification_schedules(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.list_schedules.return_value = [
+            {
+                "id": "schedule-1",
+                "name": "Matinal",
+                "enabled": True,
+                "timezone": "America/Sao_Paulo",
+                "recurrence_type": "daily",
+                "time_of_day": "09:00",
+                "day_of_week": None,
+                "interval_minutes": None,
+                "cron_expression": "0 9 * * *",
+                "profile_url": None,
+                "profile_label": None,
+                "trigger_new_scrape": True,
+                "include_generation": False,
+                "generation_mode": "default",
+                "report_type": "complete",
+                "include_health_status": False,
+                "send_attachment": True,
+                "attachment_scope": "responses",
+                "attachment_format": "txt",
+                "max_reviews": 20,
+                "telegram_token": None,
+                "telegram_chat_id": None,
+                "parse_mode": "Markdown",
+                "recurrence_label": "Diariamente às 09:00",
+                "next_run_at": None,
+                "last_run_at": None,
+                "last_status": None,
+                "last_error": None,
+                "last_result": None,
+                "created_at": "2026-03-26T10:00:00+00:00",
+                "updated_at": "2026-03-26T10:00:00+00:00",
+            }
+        ]
+        service.get_summary.return_value = {"total": 1, "active": 1, "paused": 0}
+        mock_get_service.return_value = service
+
+        response = client.get(
+            "/v1/notifications/telegram/schedules",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["summary"]["total"] == 1
+        assert payload["schedules"][0]["name"] == "Matinal"
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_create_telegram_notification_schedule_validation_error(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.save_schedule.side_effect = ValueError("Unsupported recurrence_type")
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules",
+            headers={"X-API-Key": api_key},
+            json={"name": "Invalido", "recurrence_type": "broken"},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["error"]["message"] == "Unsupported recurrence_type"
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_run_telegram_notification_schedule_not_found(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.execute_schedule.side_effect = ValueError("Schedule abc not found")
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/abc/run",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 404
+        assert response.json()["error"]["message"] == "Schedule abc not found"
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_list_telegram_notification_history(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.list_history.return_value = [
+            {
+                "id": "history-1",
+                "schedule_id": "schedule-1",
+                "schedule_name": "Matinal",
+                "status": "sent",
+                "manual": True,
+                "run_at": "2026-03-26T10:00:00+00:00",
+                "completed_at": "2026-03-26T10:00:30+00:00",
+                "summary": "Relatório enviado",
+                "metrics": {},
+                "attachment_path": None,
+            }
+        ]
+        mock_get_service.return_value = service
+
+        response = client.get(
+            "/v1/notifications/telegram/history?limit=5",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["history"][0]["status"] == "sent"
+        service.list_history.assert_called_once_with(limit=5)
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_send_test_telegram_notification(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.send_test_notification.return_value = {
+            "success": True,
+            "message": "Test notification sent",
+            "result": {"sent": True},
+        }
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/test",
+            headers={"X-API-Key": api_key},
+            json={"message": "teste", "parse_mode": "Markdown"},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["result"]["sent"] is True
+        service.send_test_notification.assert_called_once_with(
+            message="teste",
+            telegram_token=None,
+            telegram_chat_id=None,
+            parse_mode="Markdown",
+        )
 
 
 class TestScrapeEndpoint:

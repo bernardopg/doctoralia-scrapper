@@ -1,12 +1,23 @@
+[Wiki Home](Home.md) · [API REST](api.md) · [Telegram Notifications](telegram-notifications.md) · [Operations](operations.md)
+
 # Integração n8n
 
 Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 
+## Quando usar n8n e quando usar o scheduler interno
+
+| Cenário | Melhor escolha |
+|---|---|
+| Relatório Telegram recorrente sem branching complexo | Scheduler interno em [Telegram Notifications](telegram-notifications.md) |
+| Fluxos com múltiplos destinos, aprovações ou conectores externos | n8n |
+| Batch a partir de planilhas, CRMs ou webhooks externos | n8n |
+| Operação centrada no dashboard, com histórico local e replay manual | Scheduler interno |
+
 ## Pré-Requisitos
 
-- Stack rodando (`docker-compose up -d` ou serviços locais)
+- Stack rodando (`docker compose up -d` ou serviços locais)
 - API acessível em `http://api:8000` (rede Docker) ou `http://localhost:8000` (local)
-- n8n acessível em `http://localhost:5678`
+- n8n acessível em `http://localhost:5678`, exposto apenas em `127.0.0.1` no compose local
 
 ## Workflows Disponíveis (`examples/n8n/`)
 
@@ -33,17 +44,23 @@ Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 cp .env.example .env
 # Edite .env com suas chaves
 
-docker-compose up -d
-docker-compose ps
+docker compose up -d
+docker compose ps
 ```
 
-Serviços esperados: `api` (:8000), `worker`, `redis` (:6379), `selenium` (:4444), `n8n` (:5678).
+Serviços esperados: `api` (:8000), `worker`, `redis` (:6379), `selenium` (:4444), `n8n` (:5678 local-only).
 
 ### 2. Acessar o n8n
 
-Abra `http://localhost:5678`. Se configurou autenticação:
+Abra `http://localhost:5678`. No setup atual do compose local, autenticação é obrigatória:
 - Usuário: `N8N_BASIC_AUTH_USER` do `.env`
 - Senha: `N8N_BASIC_AUTH_PASSWORD` do `.env`
+
+Também configure:
+
+- `N8N_ENCRYPTION_KEY`
+- `N8N_EDITOR_BASE_URL`
+- `WEBHOOK_URL`
 
 ## Importação dos Workflows
 

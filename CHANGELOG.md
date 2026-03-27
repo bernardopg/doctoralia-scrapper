@@ -1,220 +1,89 @@
-# 📆 Changelog
+# Changelog
 
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+Todas as mudanças notáveis deste projeto são documentadas aqui.
 
-O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
-e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR/).
+O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e a linha de versão publicada no repositório Git.
 
 ## [Unreleased]
 
-### 🚀 Adicionado
-- **Serviço compartilhado de estatísticas** (`src/services/stats.py`) — elimina duplicação entre API e Dashboard
-- **Endpoints migrados para API v1**: `/v1/statistics`, `/v1/analyze/quality`, `/v1/settings`
-- **Schemas Pydantic para settings** (`src/api/schemas/settings.py`)
-- **Health checks** no Dockerfile e docker-compose para todos os serviços
-- **Resource limits** (CPU/memória) no docker-compose
-- **Testes para reports e settings proxy** (11 novos testes)
-- **Página de Relatórios funcional** (`reports.html`)
-  - Resumo com total de arquivos, reviews e médicos
-  - Listagem de arquivos de dados com paginação
-  - Exportação de dados em CSV e JSON
-- **Proxy de settings no Dashboard**
-  - Rotas proxy: `GET/PUT /api/settings`, `POST /api/settings/validate`
-  - Dashboard agora centraliza todas as chamadas à API
-- **Progresso em tempo real para scraping**
-  - Callback de progresso no `DoctoraliaScraper`
-  - Polling automático a cada 2s na página de histórico
-- **Persistência de dados no scraping via API**
+### Changed
 
-### 🔄 Alterado
-- `settings.html` agora usa proxy do Dashboard (`/api/...`) em vez de URL hardcoded da API
-- `history.html` com polling automático para tasks ativas
-- Suporte a formato dual de dados (flat e nested) no Dashboard
-- `EnhancedErrorHandler` movido de `performance_monitor.py` para `error_handling.py`
-- `DoctoraliaScraper` renomeado para `DoctoraliaMultiSiteScraper` em `multi_site_scraper.py`
-- Documentação consolidada: n8n (3 arquivos -> 1), deployment (2 -> 1), quickstart (2 -> 1)
+- Ainda sem mudanças publicadas depois da prerelease `v1.2.0-rc.1`.
 
-### 🗑️ Removido
-- `src/api_server.py` — API legada removida, funcionalidade migrada para `src/api/v1/`
-- Hacks de `sys.path.insert()` em `dashboard.py` e `telegram_notifier.py`
-- Código de exemplo morto em `circuit_breaker.py` e `error_handling.py`
-- Documentação duplicada: `n8n-integration.md`, `n8n-workflows-guide.md`, `production-deployment.md`, `quick-start-guide.md`, `AUTOMATED_SETUP.md`
+## [1.2.0-rc.1] - 2026-03-27
 
-### 🐛 Corrigido
-- Fix construtores e métodos em `src/jobs/tasks.py`
-- Fix `sys.path` em `dashboard.py` para resolução correta de imports
-- Fix caminho de dados: `data/` em vez de `data/scraped_data/`
-- Fix `request.get_json()` com `force=True` para robustez no quality-analysis
-- Fix dependência NLTK `punkt_tab` para análise de qualidade
-- Fix referências incorretas na documentação (endpoints, paths de arquivos)
+### Added
 
----
+- Scheduler Telegram completo no dashboard, com teste manual, CRUD, disparo imediato e histórico persistido.
+- Serviço `TelegramScheduleService` Redis-backed para definições, locks, histórico e anexos.
+- Métricas da API persistidas em Redis para leitura consistente entre processos.
+- Wiki do repositório em `docs/`, com hub central, navegação lateral, página de `about` e documentação específica do scheduler Telegram.
+- Assets visuais locais do projeto: logo, banner, social card, diagramas SVG e screenshots reais do dashboard.
+- `DONE.md` com o inventário das funcionalidades principais já entregues e maduras.
 
-## [0.1.0] - 2025-04-12
+### Changed
 
-### 🚀 Adicionado
+- `README.md` virou uma landing page do repositório, com visual, screenshots e mapa da documentação.
+- `TODO.md` foi reduzido ao backlog aberto e realista; entregas estáveis foram separadas em `DONE.md`.
+- Compose local do n8n foi endurecido:
+  - bind em `127.0.0.1:5678`
+  - Basic Auth obrigatória
+  - `N8N_ENCRYPTION_KEY` obrigatória
+  - versão fixada em `n8nio/n8n:2.11.4`
+- Metadados de versão foram alinhados para a prerelease `1.2.0rc1` no pacote e `1.2.0-rc.1` na API.
 
-#### Core
-- **Sistema de Scraping Resiliente**
-  - Web scraping com Selenium e BeautifulSoup
-  - Circuit breaker para proteção contra falhas
-  - Retries inteligentes com backoff exponencial
-  - Delays dinâmicos anti-detecção
-  - Cache de extrações para otimização
+### Fixed
 
-- **API REST Completa (v1)**
-  - Endpoints versionados com FastAPI
-  - Autenticação via API Key
-  - Rate limiting configurável
-  - Jobs assíncronos com Redis/RQ
-  - Webhooks assinados (HMAC-SHA256)
-  - Documentação OpenAPI automática
+- Retry de envio de documento no Telegram agora reposiciona o ponteiro do arquivo antes do reenvio.
+- Health do scheduler Telegram não depende mais de self-call frágil para a própria API em execução local.
+- Workflows e checagens de GitHub Actions foram endurecidos para reduzir falsos positivos e ruído operacional.
+- Documentação passou a refletir o estado real do stack, incluindo Redis, n8n e scheduler interno.
 
-- **Análise e Geração de Respostas**
-  - Análise de sentimento com NLTK
-  - Categorização automática de reviews
-  - Geração de respostas baseadas em templates
-  - Sistema de qualidade de respostas
+### Quality
 
-- **Sistema de Notificações**
-  - Integração completa com Telegram Bot
-  - Templates de mensagens customizáveis
-  - Notificações em tempo real
+- Cobertura automatizada expandida para fluxos de dashboard, Redis real, autenticação/HMAC, jobs e Telegram.
+- Estado validado nesta linha: `250 passed` e `74%` de coverage.
 
-#### Infraestrutura
-- **Docker Support**
-  - Dockerfile otimizado para produção
-  - docker-compose para desenvolvimento
-  - Worker separado para jobs assíncronos
+### Dependencies
 
-- **CI/CD com GitHub Actions**
-  - Workflow de CI (lint, tests, security)
-  - Workflow de Docker build
-  - Workflow de release automático
+- `redis` atualizado para `7.4.0`
+- `requests` atualizado para `2.33.0`
+- `nltk` atualizado para `3.9.4`
+- `attrs` atualizado para `26.1.0`
+- `types-requests` atualizado para `2.32.4.20260324`
 
-- **Observabilidade**
-  - Dashboard web com Flask
-  - Métricas de performance
-  - Health checks configuráveis
-  - Logs estruturados
+## [1.1.1] - 2026-03-26
 
-#### Integrações
-- **n8n Workflows**
-  - `sync-scraping-workflow.json` - Scraping síncrono
-  - `async-webhook-workflow.json` - Jobs assíncronos
-  - `batch-processing-workflow.json` - Processamento em lote
-  - `complete-doctoralia-workflow.json` - Workflow completo
+### Changed
 
-#### Documentação
-- README.md profissional com badges e diagramas
-- Documentação modular em `docs/`
-  - `quickstart.md` - Guia de início rápido
-  - `overview.md` - Arquitetura do sistema
-  - `api.md` - Referência da API
-  - `n8n.md` - Guia de integração n8n
-  - `deployment.md` - Deploy para produção
-  - `operations.md` - Operações e monitoramento
-  - `development.md` - Ambiente de desenvolvimento
-  - `templates.md` - Customização de templates
+- Release de manutenção focada em atualizações de dependências e endurecimento de CI/security scanning.
 
-#### Segurança
-- SECURITY.md com política de segurança
-- CODE_OF_CONDUCT.md
-- Análise estática com Bandit
-- Verificação de dependências com Safety
-- Dependabot configurado
+### Fixed
 
-#### DevOps
-- Makefile com comandos úteis
-- Scripts de automação em `scripts/`
-- Templates de issue e PR no GitHub
-- Pre-commit hooks configurados
+- Ajustes em workflows de Actions, dependabot e verificação de segurança do repositório.
 
-### 🔄 Alterado
-- N/A (release inicial)
+## [1.1.0] - 2026-03-14
 
-### 🐛 Corrigido
-- N/A (release inicial)
+### Added
 
-### ⚠️ Deprecated
-- N/A (release inicial)
+- Workspace dashboard com páginas dedicadas para overview, perfis, respostas, histórico, relatórios, settings e área do operador.
+- Pipeline assíncrono endurecido com snapshots persistidos e melhor leitura do estado lógico dos jobs.
 
-### 🗑️ Removido
-- N/A (release inicial)
+### Changed
 
-### 🔒 Segurança
-- Implementação inicial de todas as medidas de segurança
+- Reorganização operacional do dashboard para uso contínuo em vez de monitoramento superficial.
+- Ajustes de CI e formatação para manter checks verdes com a nova superfície web.
 
----
+## [1.0.0] - 2025-06-05
 
-## [0.0.2] - 2025-03-15 (Pré-release)
+### Added
 
-### 🚀 Adicionado
-- Sistema de cache de extrações
-- Make targets: `dashboard`, `api`, `diagnostic`, `health`, `optimize`
-- Circuit breaker para proteção de requests
-
-### 🔄 Alterado
-- Redução de dependências (~40%)
-- Padronização de docstrings e type hints
-- Reorganização da estrutura de diretórios
-
-### 🗑️ Removido
-- Arquivos de debug temporários
-- Scripts não utilizados
-
----
-
-## [0.0.1] - 2025-02-01 (Pré-release)
-
-### 🚀 Adicionado
-- Implementação inicial do scraper
-- Estrutura básica do projeto
-- Testes unitários iniciais
-- Configuração básica
-
----
-
-## Legenda
-
-| Emoji | Tipo de Mudança |
-|-------|-----------------|
-| 🚀 | Adicionado - Nova feature |
-| 🔄 | Alterado - Mudança em feature existente |
-| ⚠️ | Deprecated - Feature que será removida |
-| 🗑️ | Removido - Feature removida |
-| 🐛 | Corrigido - Bug fix |
-| 🔒 | Segurança - Correção de vulnerabilidade |
-
----
+- Primeira linha estável do projeto, com scraping, geração automática de respostas, notificações Telegram, modo daemon, logging e configuração completa de desenvolvimento.
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v0.1.0...HEAD
-- [0.1.0]: https://github.com/bernardopg/doctoralia-scrapper/releases/tag/v0.1.0
-- [0.0.2]: https://github.com/bernardopg/doctoralia-scrapper/releases/tag/v0.0.2
-- [0.0.1]: https://github.com/bernardopg/doctoralia-scrapper/releases/tag/v0.0.1
-
----
-
-## Como Contribuir com o Changelog
-
-Ao fazer uma contribuição, por favor adicione uma entrada na seção `[Unreleased]` seguindo este formato:
-
-```markdown
-### 🚀 Adicionado
-- Descrição clara da nova feature ([#123](link-para-pr))
-
-### 🐛 Corrigido
-- Descrição do bug corrigido ([#124](link-para-pr))
-```
-
-**Dicas:**
-- Use tempo presente ("Adiciona", não "Adicionado" ou "Adicionando")
-- Seja conciso mas descritivo
-- Inclua link para a PR/Issue quando aplicável
-- Agrupe mudanças relacionadas
-
----
-
-*Mantido por [@bernardopg](https://github.com/bernardopg)*
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v1.2.0-rc.1...HEAD
+- [1.2.0-rc.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v1.1.1...v1.2.0-rc.1
+- [1.1.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/1.1.0...v1.1.1
+- [1.1.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v1.0.0...1.1.0
+- [1.0.0]: https://github.com/bernardopg/doctoralia-scrapper/releases/tag/v1.0.0

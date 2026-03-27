@@ -1,0 +1,111 @@
+<svg width="1600" height="940" viewBox="0 0 1600 940" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tgTitle tgDesc">
+  <title id="tgTitle">Telegram scheduler workflow</title>
+  <desc id="tgDesc">Workflow diagram for the Telegram scheduling feature in the dashboard and API.</desc>
+  <defs>
+    <linearGradient id="tgBg" x1="90" y1="72" x2="1500" y2="872" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBF6EF"/>
+      <stop offset="1" stop-color="#F0EBE2"/>
+    </linearGradient>
+    <filter id="tgShadow" x="0" y="0" width="1600" height="940" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#102033" flood-opacity="0.12"/>
+    </filter>
+    <marker id="tgArrow" viewBox="0 0 14 14" refX="11.5" refY="7" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M2 2L12 7L2 12V2Z" fill="#6F7C86"/>
+    </marker>
+  </defs>
+
+  <rect width="1600" height="940" rx="32" fill="url(#tgBg)"/>
+  <rect x="32" y="32" width="1536" height="876" rx="24" stroke="#D6CEC0" stroke-width="2"/>
+
+  <text x="82" y="104" fill="#102033" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-style="italic" font-weight="700">Telegram scheduling flow</text>
+  <text x="82" y="144" fill="#607080" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="500">Created in the dashboard, persisted in Redis, executed by the API loop and written back as history plus attachments.</text>
+
+  <g filter="url(#tgShadow)">
+    <rect x="88" y="222" width="326" height="204" rx="34" fill="#EAF3F1"/>
+    <rect x="88.8" y="222.8" width="324.4" height="202.4" rx="33.2" stroke="#C4DDD7" stroke-width="1.6"/>
+    <text x="132" y="282" fill="#0F766E" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">1. Dashboard form</text>
+    <text x="132" y="322" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Operator sets recurrence, scrape behavior,</text>
+    <text x="132" y="350" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">generation mode, file format, health checks</text>
+    <text x="132" y="378" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">and Telegram destination overrides.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="494" y="222" width="306" height="204" rx="34" fill="#FFF8EF"/>
+    <rect x="494.8" y="222.8" width="304.4" height="202.4" rx="33.2" stroke="#DCCFBF" stroke-width="1.6"/>
+    <text x="536" y="282" fill="#102033" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">2. API validation</text>
+    <text x="536" y="322" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">FastAPI validates payloads and normalizes</text>
+    <text x="536" y="350" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">cron labels, next run time and optional</text>
+    <text x="536" y="378" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">per-schedule bot credentials.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="880" y="188" width="312" height="272" rx="34" fill="#102033"/>
+    <text x="924" y="248" fill="#FFF5E8" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">3. Redis persistence</text>
+    <text x="924" y="288" fill="#D6DFE2" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Definitions hash</text>
+    <text x="924" y="316" fill="#F6D184" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">doctoralia:telegram:schedules:definitions</text>
+    <text x="924" y="362" fill="#D6DFE2" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">History list</text>
+    <text x="924" y="390" fill="#F6D184" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="700">doctoralia:telegram:schedules:history</text>
+    <text x="924" y="436" fill="#D6DFE2" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Execution locks avoid duplicate sends.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="1268" y="222" width="246" height="204" rx="34" fill="#F6ECE6"/>
+    <rect x="1268.8" y="222.8" width="244.4" height="202.4" rx="33.2" stroke="#E7D4C8" stroke-width="1.6"/>
+    <text x="1304" y="282" fill="#D96D3C" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">4. API runner</text>
+    <text x="1304" y="322" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Startup loop polls Redis,</text>
+    <text x="1304" y="350" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">claims due schedules and</text>
+    <text x="1304" y="378" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">executes them safely.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="140" y="540" width="310" height="208" rx="34" fill="#EEF3EE"/>
+    <rect x="140.8" y="540.8" width="308.4" height="206.4" rx="33.2" stroke="#D7E4DA" stroke-width="1.6"/>
+    <text x="182" y="600" fill="#0F766E" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">5. Optional fresh scrape</text>
+    <text x="182" y="640" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">If enabled, the schedule fetches a new</text>
+    <text x="182" y="668" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Doctoralia snapshot before building the</text>
+    <text x="182" y="696" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">report and attachments.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="520" y="540" width="316" height="208" rx="34" fill="#EDF2F8"/>
+    <rect x="520.8" y="540.8" width="314.4" height="206.4" rx="33.2" stroke="#CCDAE6" stroke-width="1.6"/>
+    <text x="562" y="600" fill="#155E75" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">6. Report composer</text>
+    <text x="562" y="640" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Builds simple, complete or health-only</text>
+    <text x="562" y="668" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">messages and can generate responses,</text>
+    <text x="562" y="696" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">CSV, TXT or JSON attachments.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="900" y="540" width="286" height="208" rx="34" fill="#F0ECE2"/>
+    <rect x="900.8" y="540.8" width="284.4" height="206.4" rx="33.2" stroke="#E0D8C9" stroke-width="1.6"/>
+    <text x="942" y="600" fill="#7D6516" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">7. File outputs</text>
+    <text x="942" y="640" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Attachments live in</text>
+    <text x="942" y="668" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">data/notifications and any new</text>
+    <text x="942" y="696" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">snapshots remain in data/.</text>
+  </g>
+
+  <g filter="url(#tgShadow)">
+    <rect x="1238" y="540" width="276" height="208" rx="34" fill="#F7ECE7"/>
+    <rect x="1238.8" y="540.8" width="274.4" height="206.4" rx="33.2" stroke="#E9D6CD" stroke-width="1.6"/>
+    <text x="1280" y="600" fill="#D96D3C" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">8. Delivery + audit</text>
+    <text x="1280" y="640" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Telegram send, persisted history,</text>
+    <text x="1280" y="668" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">summary metrics and replayable</text>
+    <text x="1280" y="696" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">manual executions in the UI.</text>
+  </g>
+
+  <path d="M414 324H494" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M800 324H880" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M1192 324H1268" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M1388 426V494H1042V540" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M1042 460V540" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M1042 748H1238" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M836 644H900" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+  <path d="M450 644H520" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#tgArrow)"/>
+
+  <g>
+    <rect x="88" y="802" width="1424" height="94" rx="24" fill="#FFF9F2"/>
+    <rect x="88.8" y="802.8" width="1422.4" height="92.4" rx="23.2" stroke="#DACFC0" stroke-width="1.6"/>
+    <text x="128" y="858" fill="#102033" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="26" font-weight="700">Important runtime rule</text>
+    <text x="406" y="858" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="500">Recurring execution depends on the API process being up, because the scheduler loop runs inside the FastAPI service.</text>
+  </g>
+</svg>

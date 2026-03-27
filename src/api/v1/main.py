@@ -2,6 +2,7 @@
 Main API module for n8n integration.
 """
 
+import logging
 import os
 import time
 import uuid
@@ -24,6 +25,13 @@ from src.api.schemas.common import (
     ReadyResponse,
     UnifiedResult,
 )
+from src.api.schemas.notifications import (
+    TelegramNotificationHistoryResponse,
+    TelegramNotificationRunResponse,
+    TelegramNotificationScheduleListResponse,
+    TelegramNotificationScheduleModel,
+    TelegramNotificationTestRequest,
+)
 from src.api.schemas.requests import (
     GenerateResponseRequest,
     JobCreateRequest,
@@ -41,27 +49,24 @@ from src.api.schemas.settings import (
     StatisticsResponse,
 )
 from src.api.v1.deps import require_api_key, verify_webhook_signature
+from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 from src.jobs.queue import get_queue
 from src.jobs.tasks import scrape_and_process
+from src.services.telegram_schedule_service import TelegramScheduleService
 
 # API metadata
-API_VERSION = "1.0.0"
+API_VERSION = "1.2.0-rc.1"
 API_START_TIME = datetime.now()
+logger = logging.getLogger(__name__)
 
-# In-memory (process local) metrics - simple lightweight instrumentation.
-# For multi-process deployment, replace with Prometheus client or Redis aggregation.
-METRICS: dict[str, Any] = {
-    "requests_total": 0,
-    "requests_in_progress": 0,
-    "requests_failed_total": 0,
-    "scrapes_total": 0,
-    "scrapes_failed_total": 0,
-    "generation_total": 0,
-    "analysis_total": 0,
-    "request_durations_ms": [],  # store last N durations (trimmed) for p95/p99
-}
 METRICS_MAX_SAMPLES = 500
+METRICS_ACTIVE_REQUEST_TTL_S = 3600
+METRICS_PREFIX = "doctoralia:api:metrics"
+_metrics_store_cache: Optional[RedisAPIMetricsStore] = None
+_metrics_store_cache_url: Optional[str] = None
+_telegram_schedule_service: Optional[TelegramScheduleService] = None
+_telegram_schedule_service_url: Optional[str] = None
 
 # Create FastAPI app
 app = FastAPI(
@@ -81,6 +86,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_notification_scheduler() -> None:
+    if _should_disable_notification_scheduler():
+        return
+    _get_telegram_schedule_service(start_runner=True)
+
+
+@app.on_event("shutdown")
+async def shutdown_notification_scheduler() -> None:
+    if _telegram_schedule_service is not None:
+        _telegram_schedule_service.stop()
 
 
 def start_api(
@@ -118,29 +136,165 @@ def _is_debug_enabled() -> bool:
         return os.getenv("DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
+    """Reuse one Redis-backed metrics store per effective Redis URL."""
+    global _metrics_store_cache, _metrics_store_cache_url
+
+    try:
+        redis_url = _load_config().integrations.redis_url
+    except Exception:
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+    if not redis_url:
+        return None
+
+    if _metrics_store_cache is None or _metrics_store_cache_url != redis_url:
+        _metrics_store_cache = RedisAPIMetricsStore.from_url(
+            redis_url,
+            prefix=METRICS_PREFIX,
+            max_samples=METRICS_MAX_SAMPLES,
+            active_request_ttl_s=METRICS_ACTIVE_REQUEST_TTL_S,
+        )
+        _metrics_store_cache_url = redis_url
+
+    return _metrics_store_cache
+
+
+def _should_disable_notification_scheduler() -> bool:
+    if os.getenv("DISABLE_NOTIFICATION_SCHEDULER", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return True
+    return bool(os.getenv("PYTEST_CURRENT_TEST"))
+
+
+def _get_telegram_schedule_service(
+    start_runner: bool = False,
+) -> TelegramScheduleService:
+    global _telegram_schedule_service, _telegram_schedule_service_url
+
+    config = _load_config()
+    redis_url = config.integrations.redis_url or os.getenv(
+        "REDIS_URL", "redis://localhost:6379/0"
+    )
+
+    if (
+        _telegram_schedule_service is None
+        or _telegram_schedule_service_url != redis_url
+    ):
+        _telegram_schedule_service = TelegramScheduleService(
+            logger=logger,
+            config_loader=_load_config,
+        )
+        _telegram_schedule_service_url = redis_url
+
+    if start_runner and not _should_disable_notification_scheduler():
+        _telegram_schedule_service.start()
+
+    return _telegram_schedule_service
+
+
+def _record_request_start_metric(request_id: str, started_at_s: float) -> None:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is not None:
+            metrics_store.record_request_start(request_id, started_at_s)
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to record request start metric: %s", exc)
+
+
+def _record_request_end_metric(
+    request_id: str, duration_ms: int, failed: bool = False
+) -> None:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is not None:
+            metrics_store.record_request_end(request_id, duration_ms, failed=failed)
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to record request end metric: %s", exc)
+
+
+def _increment_analysis_metric(amount: int = 1) -> None:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is not None:
+            metrics_store.increment_analysis(amount)
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to increment analysis metric: %s", exc)
+
+
+def _increment_generation_metric(amount: int = 1) -> None:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is not None:
+            metrics_store.increment_generation(amount)
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to increment generation metric: %s", exc)
+
+
+def _increment_scrapes_metric(amount: int = 1) -> None:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is not None:
+            metrics_store.increment_scrapes(amount)
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to increment scrapes metric: %s", exc)
+
+
+def _increment_scrapes_failed_metric(amount: int = 1) -> None:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is not None:
+            metrics_store.increment_scrapes_failed(amount)
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to increment failed scrapes metric: %s", exc)
+
+
+def _empty_metrics_snapshot() -> dict[str, Any]:
+    return {
+        "requests_total": 0,
+        "requests_in_progress": 0,
+        "requests_failed_total": 0,
+        "scrapes_total": 0,
+        "scrapes_failed_total": 0,
+        "generation_total": 0,
+        "analysis_total": 0,
+        "request_durations_ms": [],
+    }
+
+
+def _read_metrics_snapshot() -> tuple[dict[str, Any], bool]:
+    try:
+        metrics_store = _get_metrics_store()
+        if metrics_store is None:
+            return _empty_metrics_snapshot(), False
+        return metrics_store.snapshot(), True
+    except Exception as exc:  # pragma: no cover - redis/network dependent
+        logger.debug("Unable to read metrics snapshot: %s", exc)
+        return _empty_metrics_snapshot(), False
+
+
 # Request ID middleware
 @app.middleware("http")
 async def add_request_id(request: Request, call_next):
     """Add request ID, collect basic metrics, and structured timing headers."""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
+    started_at_s = time.time()
     start_time = time.perf_counter()
-    METRICS["requests_total"] += 1
-    METRICS["requests_in_progress"] += 1
+    failed = False
+    _record_request_start_metric(request_id, started_at_s)
     try:
         response = await call_next(request)
     except Exception:
-        METRICS["requests_failed_total"] += 1
+        failed = True
         raise
     finally:
-        METRICS["requests_in_progress"] -= 1
-    duration_ms = int((time.perf_counter() - start_time) * 1000)
-    # Keep rolling sample
-    METRICS["request_durations_ms"].append(duration_ms)
-    if len(METRICS["request_durations_ms"]) > METRICS_MAX_SAMPLES:
-        METRICS["request_durations_ms"] = METRICS["request_durations_ms"][
-            -METRICS_MAX_SAMPLES:
-        ]
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        _record_request_end_metric(request_id, duration_ms, failed=failed)
     response.headers["X-Request-Id"] = request_id
     response.headers["X-Response-Time-ms"] = str(duration_ms)
     return response
@@ -474,11 +628,11 @@ async def scrape_run(request: ScrapeRequest):
             }
 
         # Create unified result and return
-        METRICS["scrapes_total"] += 1
+        _increment_scrapes_metric()
         if request.include_analysis:
-            METRICS["analysis_total"] += 1
+            _increment_analysis_metric()
         if request.include_generation:
-            METRICS["generation_total"] += 1
+            _increment_generation_metric()
         return make_unified_result(
             doctor_data=doctor_data,
             reviews_data=reviews_data,
@@ -490,7 +644,7 @@ async def scrape_run(request: ScrapeRequest):
         )
 
     except Exception:
-        METRICS["scrapes_failed_total"] += 1
+        _increment_scrapes_failed_metric()
         return make_unified_result(
             doctor_data={"name": "Error", "url": str(request.doctor_url)},
             reviews_data=[],
@@ -542,7 +696,7 @@ async def generate_single_response(request: GenerateResponseRequest):
             detail=f"Failed to generate response: {exc}",
         ) from exc
 
-    METRICS["generation_total"] += 1
+    _increment_generation_metric()
     return GeneratedResponsePreview(
         review_id=request.review_id,
         text=result["text"],
@@ -784,29 +938,143 @@ def _percentile(data: list[int], pct: float) -> Optional[float]:  # helper
 
 @app.get("/v1/metrics", tags=["Metrics"])  # lightweight metrics endpoint
 async def metrics_endpoint():
-    """Return basic process-level metrics (NOT Prometheus format)."""
-    durations: list[int] = METRICS["request_durations_ms"]  # type: ignore
+    """Return Redis-backed API metrics suitable for multi-process deployments."""
+    snapshot, redis_available = _read_metrics_snapshot()
+    durations: list[int] = snapshot["request_durations_ms"]  # type: ignore[assignment]
     body = {
         "version": API_VERSION,
         "uptime_s": int((datetime.now() - API_START_TIME).total_seconds()),
+        "backend": {"type": "redis", "available": redis_available},
         "requests": {
-            "total": METRICS["requests_total"],
-            "in_progress": METRICS["requests_in_progress"],
-            "failed": METRICS["requests_failed_total"],
+            "total": snapshot["requests_total"],
+            "in_progress": snapshot["requests_in_progress"],
+            "failed": snapshot["requests_failed_total"],
             "p50_ms": _percentile(durations, 0.50),
             "p95_ms": _percentile(durations, 0.95),
             "p99_ms": _percentile(durations, 0.99),
-            "latest_ms": durations[-1] if durations else None,
+            "latest_ms": durations[0] if durations else None,
             "sample_size": len(durations),
         },
         "scraping": {
-            "scrapes_total": METRICS["scrapes_total"],
-            "scrapes_failed_total": METRICS["scrapes_failed_total"],
-            "analysis_total": METRICS["analysis_total"],
-            "generation_total": METRICS["generation_total"],
+            "scrapes_total": snapshot["scrapes_total"],
+            "scrapes_failed_total": snapshot["scrapes_failed_total"],
+            "analysis_total": snapshot["analysis_total"],
+            "generation_total": snapshot["generation_total"],
         },
     }
     return body
+
+
+@app.get(
+    "/v1/notifications/telegram/schedules",
+    response_model=TelegramNotificationScheduleListResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def list_telegram_notification_schedules():
+    service = _get_telegram_schedule_service(start_runner=True)
+    return {
+        "schedules": service.list_schedules(),
+        "summary": service.get_summary(),
+    }
+
+
+@app.post(
+    "/v1/notifications/telegram/schedules",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def create_telegram_notification_schedule(
+    schedule: TelegramNotificationScheduleModel,
+):
+    try:
+        service = _get_telegram_schedule_service(start_runner=True)
+        saved = service.save_schedule(schedule.model_dump())
+        return {"success": True, "schedule": saved}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.put(
+    "/v1/notifications/telegram/schedules/{schedule_id}",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def update_telegram_notification_schedule(
+    schedule_id: str,
+    schedule: TelegramNotificationScheduleModel,
+):
+    try:
+        service = _get_telegram_schedule_service(start_runner=True)
+        if service.get_schedule(schedule_id) is None:
+            raise HTTPException(status_code=404, detail="Schedule not found")
+        saved = service.save_schedule(schedule.model_dump(), schedule_id=schedule_id)
+        return {"success": True, "schedule": saved}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.delete(
+    "/v1/notifications/telegram/schedules/{schedule_id}",
+    response_model=dict,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def delete_telegram_notification_schedule(schedule_id: str):
+    service = _get_telegram_schedule_service(start_runner=True)
+    deleted = service.delete_schedule(schedule_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    return {"success": True}
+
+
+@app.post(
+    "/v1/notifications/telegram/schedules/{schedule_id}/run",
+    response_model=TelegramNotificationRunResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def run_telegram_notification_schedule(schedule_id: str):
+    try:
+        service = _get_telegram_schedule_service(start_runner=True)
+        result = service.execute_schedule(schedule_id, manual=True)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get(
+    "/v1/notifications/telegram/history",
+    response_model=TelegramNotificationHistoryResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def list_telegram_notification_history(
+    limit: int = Query(default=50, ge=1, le=200)
+):
+    service = _get_telegram_schedule_service(start_runner=True)
+    return {"history": service.list_history(limit=limit)}
+
+
+@app.post(
+    "/v1/notifications/telegram/test",
+    response_model=TelegramNotificationRunResponse,
+    dependencies=[Depends(require_api_key)],
+    tags=["Notifications"],
+)
+async def send_test_telegram_notification(payload: TelegramNotificationTestRequest):
+    service = _get_telegram_schedule_service(start_runner=True)
+    result = service.send_test_notification(
+        message=payload.message,
+        telegram_token=payload.telegram_token,
+        telegram_chat_id=payload.telegram_chat_id,
+        parse_mode=payload.parse_mode or "Markdown",
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -848,7 +1116,7 @@ async def analyze_quality(request: QualityAnalysisRequest):
 
     analyzer = ResponseQualityAnalyzer()
     analysis = analyzer.analyze_response(request.response_text, request.original_review)
-    METRICS["analysis_total"] += 1
+    _increment_analysis_metric()
     return QualityAnalysisResponse(
         score=analysis.score.to_dict(),
         strengths=analysis.strengths,
@@ -885,7 +1153,7 @@ async def analyze_quality_batch(request: BatchQualityAnalysisRequest):
                 readability_score=analysis.readability_score,
             )
         )
-    METRICS["analysis_total"] += len(results)
+    _increment_analysis_metric(len(results))
     return results
 
 

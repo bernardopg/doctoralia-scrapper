@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "doctoralia-scrapper"
-version = "0.1.0"
+version = "1.2.0rc1"
 description = "Sistema profissional de monitoramento e resposta a avaliações médicas. Inclui web scraping resiliente, API REST, análise de sentimento, geração inteligente de respostas e integração com n8n/Telegram."
 authors = ["Bernardo Gomes <bernardopg@users.noreply.github.com>"]
 maintainers = ["Bernardo Gomes <bernardopg@users.noreply.github.com>"]
@@ -8,7 +8,7 @@ license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/bernardopg/doctoralia-scrapper"
 repository = "https://github.com/bernardopg/doctoralia-scrapper"
-documentation = "https://github.com/bernardopg/doctoralia-scrapper/tree/main/docs"
+documentation = "https://github.com/bernardopg/doctoralia-scrapper/blob/main/docs/Home.md"
 keywords = [
     "doctoralia",
     "scraping",
