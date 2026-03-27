@@ -130,7 +130,7 @@ class TestHealthEndpoints:
 
     def test_ready_check_without_redis(self, client):
         """Test readiness when Redis is unavailable."""
-        with patch("redis.from_url") as mock_redis:
+        with patch("src.api.v1.main.redis.Redis.from_url") as mock_redis:
             mock_redis.side_effect = Exception("Redis connection failed")
             response = client.get("/v1/ready")
             assert response.status_code == 503
