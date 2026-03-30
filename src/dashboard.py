@@ -102,6 +102,41 @@ class DashboardApp:
             getattr(getattr(config, "security", None), "api_key", None)
         ) or _clean_optional(os.getenv("API_KEY"))
 
+    def _log_exception(self, message: str, exc: BaseException) -> None:
+        if self.logger:
+            self.logger.error(
+                message,
+                exc_info=(type(exc), exc, exc.__traceback__),
+            )
+
+    def _error_payload(
+        self,
+        public_message: str,
+        status_code: int = 500,
+        *,
+        exc: Optional[BaseException] = None,
+        log_message: Optional[str] = None,
+    ) -> tuple[Dict[str, str], int]:
+        if exc is not None:
+            self._log_exception(log_message or public_message, exc)
+        return {"error": public_message}, status_code
+
+    def _error_response(
+        self,
+        public_message: str,
+        status_code: int = 500,
+        *,
+        exc: Optional[BaseException] = None,
+        log_message: Optional[str] = None,
+    ):
+        payload, resolved_status = self._error_payload(
+            public_message,
+            status_code,
+            exc=exc,
+            log_message=log_message,
+        )
+        return jsonify(payload), resolved_status
+
     def _get_remote_settings(self) -> Optional[Dict[str, Any]]:
         response = self._call_api("/v1/settings")
         if response and response.get("success"):
@@ -228,9 +263,11 @@ class DashboardApp:
                 self.logger.warning("API timeout: %s %s", method, endpoint)
             return {"error": "Timeout ao comunicar com a API"}, 504
         except Exception as e:
-            if self.logger:
-                self.logger.error("Error calling API with status: %s", e)
-            return {"error": str(e)}, 500
+            return self._error_payload(
+                "Erro interno ao comunicar com a API",
+                exc=e,
+                log_message="Dashboard API proxy request failed",
+            )
 
     def _proxy_api_response(self, endpoint: str, method: str = "GET", **kwargs):
         """Proxy a backend response to the dashboard while preserving status codes."""
@@ -362,7 +399,7 @@ class DashboardApp:
                 stats = self._get_scraper_stats()
                 return jsonify({"source": "local", "data": stats})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/performance")
         def get_performance():
@@ -390,7 +427,7 @@ class DashboardApp:
                     }
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/trends")
         def get_trends():
@@ -399,7 +436,7 @@ class DashboardApp:
                 trends: Dict[str, Any] = self._get_trend_data()
                 return jsonify({"source": "local", "data": trends})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/recent-activity")
         def get_recent_activity():
@@ -408,7 +445,7 @@ class DashboardApp:
                 activities = self._get_recent_activities()
                 return jsonify(activities)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/quality-analysis", methods=["POST"])
         def analyze_quality():
@@ -424,7 +461,7 @@ class DashboardApp:
                     return jsonify({"platforms": platforms})
                 return jsonify({"platforms": ["doctoralia"]})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/logs")
         def get_logs():
@@ -434,7 +471,7 @@ class DashboardApp:
                 logs = self._get_recent_logs(lines)
                 return jsonify({"logs": logs})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         # Proxy endpoints to avoid CORS issues
         @self.app.route("/api/scrape", methods=["POST"])
@@ -481,7 +518,7 @@ class DashboardApp:
                     503,
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/tasks/<task_id>")
         def proxy_task_status(task_id):
@@ -495,7 +532,7 @@ class DashboardApp:
                     503,
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/tasks")
         def proxy_list_tasks():
@@ -511,7 +548,7 @@ class DashboardApp:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/settings")
         def proxy_get_settings():
@@ -522,7 +559,7 @@ class DashboardApp:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/settings", methods=["PUT"])
         def proxy_update_settings():
@@ -534,7 +571,7 @@ class DashboardApp:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/settings/validate", methods=["POST"])
         def proxy_validate_settings():
@@ -548,7 +585,7 @@ class DashboardApp:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/generate/response", methods=["POST"])
         def proxy_generate_response():
@@ -562,7 +599,7 @@ class DashboardApp:
                     return jsonify(result)
                 return jsonify({"error": "API não disponível"}), 503
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/notifications/telegram/schedules")
         def get_telegram_notification_schedules():
@@ -570,7 +607,7 @@ class DashboardApp:
             try:
                 return self._proxy_api_response("/v1/notifications/telegram/schedules")
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/notifications/telegram/schedules", methods=["POST"])
         def create_telegram_notification_schedule():
@@ -583,7 +620,7 @@ class DashboardApp:
                     json=data,
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route(
             "/api/notifications/telegram/schedules/<schedule_id>", methods=["PUT"]
@@ -598,7 +635,7 @@ class DashboardApp:
                     json=data,
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route(
             "/api/notifications/telegram/schedules/<schedule_id>", methods=["DELETE"]
@@ -611,7 +648,7 @@ class DashboardApp:
                     method="DELETE",
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route(
             "/api/notifications/telegram/schedules/<schedule_id>/run",
@@ -626,7 +663,7 @@ class DashboardApp:
                     json={},
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/notifications/telegram/history")
         def get_telegram_notification_history():
@@ -636,7 +673,7 @@ class DashboardApp:
                 endpoint = f"/v1/notifications/telegram/history?limit={limit}"
                 return self._proxy_api_response(endpoint)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/notifications/telegram/test", methods=["POST"])
         def send_test_telegram_notification():
@@ -649,7 +686,7 @@ class DashboardApp:
                     json=data,
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/user-profile")
         def get_user_profile():
@@ -657,7 +694,7 @@ class DashboardApp:
             try:
                 return jsonify(self._get_user_profile_settings())
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/user-profile", methods=["PUT"])
         def update_user_profile():
@@ -671,7 +708,7 @@ class DashboardApp:
                     return jsonify({"error": "API não disponível"}), 503
                 return jsonify(updated_settings.get("user_profile", payload))
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/user-profile/favorites/toggle", methods=["POST"])
         def toggle_favorite_profile():
@@ -729,7 +766,7 @@ class DashboardApp:
                     }
                 )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/overview")
         def get_workspace_overview():
@@ -745,7 +782,7 @@ class DashboardApp:
                 overview["user_profile"] = user_profile
                 return jsonify(overview)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/profiles")
         def get_workspace_profiles():
@@ -759,7 +796,7 @@ class DashboardApp:
                 )
                 return jsonify({"profiles": profiles})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/profile")
         def get_workspace_profile_detail():
@@ -779,7 +816,7 @@ class DashboardApp:
                     return jsonify({"error": "Perfil não encontrado"}), 404
                 return jsonify(detail)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/responses")
         def get_workspace_pending_responses():
@@ -796,7 +833,7 @@ class DashboardApp:
                 )
                 return jsonify(payload)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/history")
         def get_workspace_history():
@@ -811,7 +848,7 @@ class DashboardApp:
                 )
                 return jsonify(payload)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/history/delete", methods=["POST"])
         def delete_workspace_history_snapshot():
@@ -826,7 +863,7 @@ class DashboardApp:
                     return jsonify({"error": "Snapshot não encontrado"}), 404
                 return jsonify({"success": True, "deleted": deleted})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/history/prune", methods=["POST"])
         def prune_workspace_history():
@@ -840,7 +877,7 @@ class DashboardApp:
                 )
                 return jsonify({"success": True, "result": result})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/reports")
         def get_workspace_reports():
@@ -855,7 +892,7 @@ class DashboardApp:
                 )
                 return jsonify(payload)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/workspace/responses/save", methods=["POST"])
         def save_workspace_generated_response():
@@ -884,7 +921,7 @@ class DashboardApp:
                     return jsonify({"error": "Não foi possível salvar a sugestão"}), 404
                 return jsonify({"success": True, "saved": saved})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/ready")
         def proxy_ready():
@@ -902,7 +939,11 @@ class DashboardApp:
             except requests.exceptions.ConnectionError:
                 return jsonify({"error": "API não está acessível"}), 503
             except Exception as e:
-                return jsonify({"error": str(e)}), 503
+                return self._error_response(
+                    "Falha ao consultar a API",
+                    status_code=503,
+                    exc=e,
+                )
 
         @self.app.route("/api/reports/files")
         def get_report_files():
@@ -911,7 +952,7 @@ class DashboardApp:
                 files = self._get_data_files()
                 return jsonify({"files": files})
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/reports/export/<format_type>")
         def export_data(format_type):
@@ -944,7 +985,7 @@ class DashboardApp:
                         400,
                     )
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/reports/summary")
         def get_report_summary():
@@ -953,7 +994,7 @@ class DashboardApp:
                 summary = self._get_report_summary()
                 return jsonify(summary)
             except Exception as e:
-                return jsonify({"error": str(e)}), 500
+                return self._error_response("Erro interno do dashboard", exc=e)
 
     def _handle_quality_analysis(self):
         """Handle quality analysis request."""
@@ -986,7 +1027,10 @@ class DashboardApp:
                 return jsonify({"error": "Quality analyzer not available"}), 503
 
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            return self._error_response(
+                "Falha ao analisar a qualidade da resposta",
+                exc=e,
+            )
 
     def _get_trend_data(self) -> Dict[str, Any]:
         """Get trend data (reviews over time)."""
@@ -1105,7 +1149,7 @@ class DashboardApp:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error reading logs: {e}")
-            logs = [f"Error reading logs: {e}"]
+            logs = ["Não foi possível ler os logs"]
 
         return logs
 

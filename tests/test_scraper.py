@@ -3,6 +3,7 @@ Testes básicos para o sistema de scraping
 """
 
 from unittest.mock import Mock
+from urllib.parse import urlparse
 
 from config.settings import AppConfig
 from src.enhanced_scraper import EnhancedDoctoraliaScraper
@@ -26,11 +27,11 @@ class TestDoctoraliaScraper:
         """Testa validação de URLs"""
         # URL válida do Doctoralia
         valid_url = "https://www.doctoralia.com.br/medico/especialidade/cidade"
-        assert "doctoralia.com" in valid_url
+        assert urlparse(valid_url).hostname == "www.doctoralia.com.br"
 
         # URL inválida
         invalid_url = "https://www.google.com"
-        assert "doctoralia.com" not in invalid_url
+        assert urlparse(invalid_url).hostname != "www.doctoralia.com.br"
 
     def test_browser_setup_methods_exist(self) -> None:
         """Verifica se os métodos de configuração do browser existem"""
