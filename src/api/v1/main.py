@@ -9,7 +9,6 @@ import uuid
 from datetime import datetime
 from typing import (  # noqa: F401 (kept for future extensibility)
     Any,
-    Dict,
     NoReturn,
     Optional,
     cast,
@@ -69,6 +68,9 @@ logger = logging.getLogger(__name__)
 METRICS_MAX_SAMPLES = 500
 METRICS_ACTIVE_REQUEST_TTL_S = 3600
 METRICS_PREFIX = "doctoralia:api:metrics"
+SCHEDULE_RUN_FAILURE_MESSAGE = "Schedule execution failed"
+SCHEDULE_RUN_SUCCESS_MESSAGE = "Schedule executed successfully"
+SCHEDULE_RUN_HEALTH_CHECK_ERROR = "Health check failed"
 _metrics_store_cache: Optional[RedisAPIMetricsStore] = None
 _metrics_store_cache_url: Optional[str] = None
 _telegram_schedule_service: Optional[TelegramScheduleService] = None
@@ -165,32 +167,65 @@ def _http_error_code(status_code: int) -> str:
     }.get(status_code, f"HTTP_{status_code}")
 
 
-def _sanitize_schedule_run_response(raw_response: Dict[str, Any]) -> Dict[str, Any]:
+def _sanitize_schedule_run_metrics(raw_metrics: Any) -> dict[str, Any]:
+    if not isinstance(raw_metrics, dict):
+        return {}
+
+    safe_metrics: dict[str, Any] = {}
+    for field in (
+        "total_reviews",
+        "generated_responses",
+        "scraped",
+        "profile_url",
+        "manual",
+    ):
+        if field in raw_metrics:
+            safe_metrics[field] = raw_metrics[field]
+
+    health_checks = raw_metrics.get("health_checks")
+    if isinstance(health_checks, dict):
+        safe_health_checks: dict[str, Any] = {}
+        for component, component_data in health_checks.items():
+            if not isinstance(component_data, dict):
+                safe_health_checks[component] = component_data
+                continue
+
+            safe_component = {
+                key: value for key, value in component_data.items() if key != "error"
+            }
+            if component_data.get("error"):
+                safe_component["error"] = SCHEDULE_RUN_HEALTH_CHECK_ERROR
+            safe_health_checks[component] = safe_component
+
+        safe_metrics["health_checks"] = safe_health_checks
+
+    return safe_metrics
+
+
+def _sanitize_schedule_run_response(raw_response: dict[str, Any]) -> dict[str, Any]:
     raw_result = raw_response.get("result")
-    safe_result: Dict[str, Any] = {}
+    safe_result: dict[str, Any] = {}
 
     if isinstance(raw_result, dict):
-        for field in (
-            "sent",
-            "schedule_id",
-            "schedule_name",
-            "metrics",
-            "doctor_name",
-            "attachment_path",
-        ):
+        if raw_result.get("error"):
+            safe_result["error"] = SCHEDULE_RUN_FAILURE_MESSAGE
+
+        for field in ("sent", "schedule_id", "schedule_name", "doctor_name"):
             if field in raw_result:
                 safe_result[field] = raw_result[field]
 
-        if raw_result.get("error"):
-            safe_result["error"] = "Schedule execution failed"
+        if "metrics" in raw_result:
+            safe_result["metrics"] = _sanitize_schedule_run_metrics(
+                raw_result["metrics"]
+            )
 
     success = bool(raw_response.get("success"))
     return {
         "success": success,
         "message": (
-            str(raw_response.get("message") or "Schedule executed successfully")
+            str(raw_response.get("message") or SCHEDULE_RUN_SUCCESS_MESSAGE)
             if success
-            else "Schedule execution failed"
+            else SCHEDULE_RUN_FAILURE_MESSAGE
         ),
         "result": safe_result,
     }

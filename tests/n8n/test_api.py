@@ -348,6 +348,16 @@ class TestTelegramNotificationEndpoints:
                 "error": "Traceback: Redis timeout at /tmp/internal/path",
                 "schedule_id": "schedule-1",
                 "schedule_name": "Matinal",
+                "attachment_path": "/tmp/internal/path/report.txt",
+                "metrics": {
+                    "manual": True,
+                    "health_checks": {
+                        "redis": {
+                            "status": "failed",
+                            "error": "ConnectionError: redis://internal-host:6379",
+                        }
+                    },
+                },
             },
         }
         mock_get_service.return_value = service
@@ -364,8 +374,138 @@ class TestTelegramNotificationEndpoints:
         assert response_body["result"]["error"] == "Schedule execution failed"
         assert "Traceback: Redis timeout" not in str(response_body)
         assert "/tmp/internal/path" not in str(response_body)
+        assert "internal-host" not in str(response_body)
         assert response_body["result"]["schedule_id"] == "schedule-1"
         assert response_body["result"]["schedule_name"] == "Matinal"
+        assert "attachment_path" not in response_body["result"]
+        assert response_body["result"]["metrics"]["manual"] is True
+        assert (
+            response_body["result"]["metrics"]["health_checks"]["redis"]["error"]
+            == "Health check failed"
+        )
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_run_telegram_notification_schedule_sanitizes_success_result_with_default_message(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.execute_schedule.return_value = {
+            "success": True,
+            "result": {
+                "sent": True,
+                "schedule_id": "schedule-1",
+                "schedule_name": "Matinal",
+                "doctor_name": "Dra. Ana",
+                "attachment_path": "/tmp/should/not/leak.txt",
+                "internal_debug": "should be dropped",
+                "metrics": {
+                    "manual": True,
+                    "health_checks": {
+                        "api": {
+                            "status": "ok",
+                            "latency_ms": 14,
+                        }
+                    },
+                },
+            },
+        }
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        response_body = response.json()
+        assert response_body["success"] is True
+        assert response_body["message"] == "Schedule executed successfully"
+        assert response_body["result"] == {
+            "sent": True,
+            "schedule_id": "schedule-1",
+            "schedule_name": "Matinal",
+            "doctor_name": "Dra. Ana",
+            "metrics": {
+                "manual": True,
+                "health_checks": {
+                    "api": {
+                        "status": "ok",
+                        "latency_ms": 14,
+                    }
+                },
+            },
+        }
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_run_telegram_notification_schedule_sanitizes_success_result_with_custom_message(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.execute_schedule.return_value = {
+            "success": True,
+            "message": "Custom success message",
+            "result": {
+                "sent": True,
+                "schedule_id": "schedule-1",
+                "schedule_name": "Matinal",
+                "extra_field": "should be dropped",
+            },
+        }
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        response_body = response.json()
+        assert response_body["success"] is True
+        assert response_body["message"] == "Custom success message"
+        assert response_body["result"] == {
+            "sent": True,
+            "schedule_id": "schedule-1",
+            "schedule_name": "Matinal",
+        }
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_run_telegram_notification_schedule_handles_unexpected_result_shapes(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.execute_schedule.return_value = {
+            "success": True,
+            "message": "Ok but with missing result",
+        }
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        response_body = response.json()
+        assert response_body["success"] is True
+        assert response_body["message"] == "Ok but with missing result"
+        assert response_body["result"] == {}
+
+        service.execute_schedule.return_value = {
+            "success": True,
+            "message": "Ok but result is a list",
+            "result": ["should", "not", "leak"],
+        }
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        response_body = response.json()
+        assert response_body["success"] is True
+        assert response_body["message"] == "Ok but result is a list"
+        assert response_body["result"] == {}
 
     @patch("src.api.v1.main._get_telegram_schedule_service")
     def test_list_telegram_notification_history(
