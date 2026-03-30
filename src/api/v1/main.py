@@ -136,6 +136,20 @@ def _is_debug_enabled() -> bool:
         return os.getenv("DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _raise_public_http_error(
+    status_code: int,
+    public_message: str,
+    *,
+    exc: Optional[Exception] = None,
+) -> None:
+    if exc is not None:
+        logger.error(
+            public_message,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+    raise HTTPException(status_code=status_code, detail=public_message) from exc
+
+
 def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
     """Reuse one Redis-backed metrics store per effective Redis URL."""
     global _metrics_store_cache, _metrics_store_cache_url
@@ -689,12 +703,17 @@ async def generate_single_response(request: GenerateResponseRequest):
             language=request.language or "pt-BR",
         )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _raise_public_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid response generation request",
+            exc=exc,
+        )
     except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate response: {exc}",
-        ) from exc
+        _raise_public_http_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to generate response",
+            exc=exc,
+        )
 
     _increment_generation_metric()
     return GeneratedResponsePreview(
@@ -993,7 +1012,11 @@ async def create_telegram_notification_schedule(
         saved = service.save_schedule(schedule.model_dump())
         return {"success": True, "schedule": saved}
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _raise_public_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid schedule payload",
+            exc=exc,
+        )
 
 
 @app.put(
@@ -1013,7 +1036,11 @@ async def update_telegram_notification_schedule(
         saved = service.save_schedule(schedule.model_dump(), schedule_id=schedule_id)
         return {"success": True, "schedule": saved}
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        _raise_public_http_error(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid schedule payload",
+            exc=exc,
+        )
 
 
 @app.delete(
@@ -1042,7 +1069,11 @@ async def run_telegram_notification_schedule(schedule_id: str):
         result = service.execute_schedule(schedule_id, manual=True)
         return result
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        _raise_public_http_error(
+            status.HTTP_404_NOT_FOUND,
+            "Schedule not found",
+            exc=exc,
+        )
 
 
 @app.get(
