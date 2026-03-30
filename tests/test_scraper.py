@@ -2,8 +2,8 @@
 Testes básicos para o sistema de scraping
 """
 
-from urllib.parse import urlparse
 from unittest.mock import Mock
+from urllib.parse import urlparse
 
 from config.settings import AppConfig
 from src.enhanced_scraper import EnhancedDoctoraliaScraper
