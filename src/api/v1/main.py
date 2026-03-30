@@ -7,7 +7,12 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Optional, cast  # noqa: F401 (kept for future extensibility)
+from typing import (  # noqa: F401 (kept for future extensibility)
+    Any,
+    NoReturn,
+    Optional,
+    cast,
+)
 from urllib.parse import urlparse
 
 import redis
@@ -141,13 +146,22 @@ def _raise_public_http_error(
     public_message: str,
     *,
     exc: Optional[Exception] = None,
-) -> None:
+) -> NoReturn:
     if exc is not None:
         logger.error(
             public_message,
             exc_info=(type(exc), exc, exc.__traceback__),
         )
     raise HTTPException(status_code=status_code, detail=public_message) from exc
+
+
+def _http_error_code(status_code: int) -> str:
+    return {
+        status.HTTP_400_BAD_REQUEST: "BAD_REQUEST",
+        status.HTTP_401_UNAUTHORIZED: "UNAUTHORIZED",
+        status.HTTP_404_NOT_FOUND: "NOT_FOUND",
+        status.HTTP_500_INTERNAL_SERVER_ERROR: "INTERNAL_ERROR",
+    }.get(status_code, f"HTTP_{status_code}")
 
 
 def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
@@ -315,46 +329,15 @@ async def add_request_id(request: Request, call_next):
 
 
 # Exception handlers
-@app.exception_handler(status.HTTP_400_BAD_REQUEST)
-async def bad_request_handler(request: Request, exc: HTTPException):
-    """Handle 400 errors."""
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP errors with a consistent public response schema."""
+    status_code = exc.status_code or status.HTTP_500_INTERNAL_SERVER_ERROR
     return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
+        status_code=status_code,
         content=ErrorResponse(
             error=ErrorDetail(
-                code="BAD_REQUEST",
-                message=str(exc.detail),
-                details=None,
-                request_id=getattr(request.state, "request_id", None),
-            )
-        ).dict(),
-    )
-
-
-@app.exception_handler(status.HTTP_401_UNAUTHORIZED)
-async def unauthorized_handler(request: Request, exc: HTTPException):
-    """Handle 401 errors."""
-    return JSONResponse(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        content=ErrorResponse(
-            error=ErrorDetail(
-                code="UNAUTHORIZED",
-                message=str(exc.detail),
-                details=None,
-                request_id=getattr(request.state, "request_id", None),
-            )
-        ).dict(),
-    )
-
-
-@app.exception_handler(status.HTTP_404_NOT_FOUND)
-async def not_found_handler(request: Request, exc: HTTPException):
-    """Handle 404 errors."""
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content=ErrorResponse(
-            error=ErrorDetail(
-                code="NOT_FOUND",
+                code=_http_error_code(status_code),
                 message=str(exc.detail),
                 details=None,
                 request_id=getattr(request.state, "request_id", None),

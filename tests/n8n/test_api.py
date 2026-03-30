@@ -311,7 +311,10 @@ class TestTelegramNotificationEndpoints:
         )
 
         assert response.status_code == 400
-        assert response.json()["error"]["message"] == "Invalid schedule payload"
+        response_body = response.json()
+        assert response_body["error"]["message"] == "Invalid schedule payload"
+        assert "Unsupported recurrence_type" not in str(response_body)
+        assert "detail" not in response_body["error"]
 
     @patch("src.api.v1.main._get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_not_found(
@@ -327,7 +330,10 @@ class TestTelegramNotificationEndpoints:
         )
 
         assert response.status_code == 404
-        assert response.json()["error"]["message"] == "Schedule not found"
+        response_body = response.json()
+        assert response_body["error"]["message"] == "Schedule not found"
+        assert "Schedule abc not found" not in str(response_body)
+        assert "detail" not in response_body["error"]
 
     @patch("src.api.v1.main._get_telegram_schedule_service")
     def test_list_telegram_notification_history(
