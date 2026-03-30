@@ -1,6 +1,7 @@
-import pytest
 from pathlib import Path
 from typing import Any, Dict
+
+import pytest
 
 from src.secure_config import ENCRYPTED_PREFIX, ConfigValidator, SecureConfig
 
