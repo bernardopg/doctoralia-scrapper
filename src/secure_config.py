@@ -26,22 +26,19 @@ class SecureConfig:
         self.fernet = self._create_fernet()
 
     def _get_or_create_password(self) -> str:
-        """Get existing password or create a new one."""
-        password_file = self.config_file.parent / ".config_password"
+        """
+        Obtain the encryption password from a secure external source.
 
-        if password_file.exists():
-            with open(password_file, "r", encoding="utf-8") as f:
-                return f.read().strip()
-
-        # Generate a new password
-        password = base64.urlsafe_b64encode(os.urandom(32)).decode()
-        with open(password_file, "w", encoding="utf-8") as f:
-            f.write(password)
-
-        # Make password file readable only by owner
-        os.chmod(password_file, 0o600)
-
-        return password
+        For security reasons, this implementation no longer generates and
+        persists a password in clear text on disk. Callers should construct
+        SecureConfig with an explicit password argument, for example obtained
+        from an environment variable, a secrets manager, or an OS keyring.
+        """
+        raise RuntimeError(
+            "No encryption password provided. "
+            "Pass a password to SecureConfig(...) from a secure source "
+            "instead of relying on a stored clear-text password."
+        )
 
     def _get_or_create_salt(self) -> bytes:
         """Get existing salt or create and persist a new random one."""
