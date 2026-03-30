@@ -21,27 +21,15 @@ class SecureConfig:
     """
 
     def __init__(self, config_file: Path, password: Optional[str] = None) -> None:
+        if not password or not password.strip():
+            raise ValueError(
+                "An encryption password must be provided. "
+                "Pass a non-empty password to SecureConfig(...) obtained from a "
+                "secure source such as an environment variable or secrets manager."
+            )
         self.config_file = config_file
-        self.password = password or self._get_or_create_password()
+        self.password = password
         self.fernet = self._create_fernet()
-
-    def _get_or_create_password(self) -> str:
-        """Get existing password or create a new one."""
-        password_file = self.config_file.parent / ".config_password"
-
-        if password_file.exists():
-            with open(password_file, "r", encoding="utf-8") as f:
-                return f.read().strip()
-
-        # Generate a new password
-        password = base64.urlsafe_b64encode(os.urandom(32)).decode()
-        with open(password_file, "w", encoding="utf-8") as f:
-            f.write(password)
-
-        # Make password file readable only by owner
-        os.chmod(password_file, 0o600)
-
-        return password
 
     def _get_or_create_salt(self) -> bytes:
         """Get existing salt or create and persist a new random one."""

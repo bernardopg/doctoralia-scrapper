@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Any, Dict
 
+import pytest
+
 from src.secure_config import ENCRYPTED_PREFIX, ConfigValidator, SecureConfig
 
 
@@ -50,3 +52,21 @@ def test_sanitize_input_limits_length():
     dirty = "<script>alert('x')</script>"
     clean = ConfigValidator.sanitize_input(dirty)
     assert "<" not in clean and ">" not in clean
+
+
+def test_missing_password_raises_value_error(tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    with pytest.raises(ValueError, match="encryption password must be provided"):
+        SecureConfig(cfg_file)
+
+
+def test_empty_password_raises_value_error(tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    with pytest.raises(ValueError, match="encryption password must be provided"):
+        SecureConfig(cfg_file, password="")
+
+
+def test_whitespace_password_raises_value_error(tmp_path: Path):
+    cfg_file = tmp_path / "config.json"
+    with pytest.raises(ValueError, match="encryption password must be provided"):
+        SecureConfig(cfg_file, password="   ")
