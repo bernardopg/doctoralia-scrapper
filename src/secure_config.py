@@ -21,24 +21,15 @@ class SecureConfig:
     """
 
     def __init__(self, config_file: Path, password: Optional[str] = None) -> None:
+        if not password or not password.strip():
+            raise ValueError(
+                "An encryption password must be provided. "
+                "Pass a non-empty password to SecureConfig(...) obtained from a "
+                "secure source such as an environment variable or secrets manager."
+            )
         self.config_file = config_file
-        self.password = password or self._get_or_create_password()
+        self.password = password
         self.fernet = self._create_fernet()
-
-    def _get_or_create_password(self) -> str:
-        """
-        Obtain the encryption password from a secure external source.
-
-        For security reasons, this implementation no longer generates and
-        persists a password in clear text on disk. Callers should construct
-        SecureConfig with an explicit password argument, for example obtained
-        from an environment variable, a secrets manager, or an OS keyring.
-        """
-        raise ValueError(
-            "No encryption password provided. "
-            "Pass a password to SecureConfig(...) from a secure source "
-            "instead of relying on a stored clear-text password."
-        )
 
     def _get_or_create_salt(self) -> bytes:
         """Get existing salt or create and persist a new random one."""
