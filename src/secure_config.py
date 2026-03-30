@@ -34,7 +34,7 @@ class SecureConfig:
         SecureConfig with an explicit password argument, for example obtained
         from an environment variable, a secrets manager, or an OS keyring.
         """
-        raise RuntimeError(
+        raise ValueError(
             "No encryption password provided. "
             "Pass a password to SecureConfig(...) from a secure source "
             "instead of relying on a stored clear-text password."
