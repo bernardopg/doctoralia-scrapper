@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime
 from typing import (  # noqa: F401 (kept for future extensibility)
     Any,
+    Dict,
     NoReturn,
     Optional,
     cast,
@@ -162,6 +163,37 @@ def _http_error_code(status_code: int) -> str:
         status.HTTP_404_NOT_FOUND: "NOT_FOUND",
         status.HTTP_500_INTERNAL_SERVER_ERROR: "INTERNAL_ERROR",
     }.get(status_code, f"HTTP_{status_code}")
+
+
+def _sanitize_schedule_run_response(raw_response: Dict[str, Any]) -> Dict[str, Any]:
+    raw_result = raw_response.get("result")
+    safe_result: Dict[str, Any] = {}
+
+    if isinstance(raw_result, dict):
+        for field in (
+            "sent",
+            "schedule_id",
+            "schedule_name",
+            "metrics",
+            "doctor_name",
+            "attachment_path",
+        ):
+            if field in raw_result:
+                safe_result[field] = raw_result[field]
+
+        if raw_result.get("error"):
+            safe_result["error"] = "Schedule execution failed"
+
+    success = bool(raw_response.get("success"))
+    return {
+        "success": success,
+        "message": (
+            str(raw_response.get("message") or "Schedule executed successfully")
+            if success
+            else "Schedule execution failed"
+        ),
+        "result": safe_result,
+    }
 
 
 def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
@@ -1050,7 +1082,7 @@ async def run_telegram_notification_schedule(schedule_id: str):
     try:
         service = _get_telegram_schedule_service(start_runner=True)
         result = service.execute_schedule(schedule_id, manual=True)
-        return result
+        return _sanitize_schedule_run_response(result)
     except ValueError as exc:
         _raise_public_http_error(
             status.HTTP_404_NOT_FOUND,

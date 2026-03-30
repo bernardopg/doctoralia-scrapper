@@ -336,6 +336,38 @@ class TestTelegramNotificationEndpoints:
         assert "detail" not in response_body["error"]
 
     @patch("src.api.v1.main._get_telegram_schedule_service")
+    def test_run_telegram_notification_schedule_sanitizes_failed_result(
+        self, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.execute_schedule.return_value = {
+            "success": False,
+            "message": "Falha interna no schedule Matinal",
+            "result": {
+                "sent": False,
+                "error": "Traceback: Redis timeout at /tmp/internal/path",
+                "schedule_id": "schedule-1",
+                "schedule_name": "Matinal",
+            },
+        }
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 200
+        response_body = response.json()
+        assert response_body["success"] is False
+        assert response_body["message"] == "Schedule execution failed"
+        assert response_body["result"]["error"] == "Schedule execution failed"
+        assert "Traceback: Redis timeout" not in str(response_body)
+        assert "/tmp/internal/path" not in str(response_body)
+        assert response_body["result"]["schedule_id"] == "schedule-1"
+        assert response_body["result"]["schedule_name"] == "Matinal"
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
     def test_list_telegram_notification_history(
         self, mock_get_service, client, mock_env, api_key
     ):
