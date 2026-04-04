@@ -266,7 +266,7 @@ class TelegramScheduleService:
             result = self._execute_schedule(schedule, manual=manual)
             status = "sent" if result.get("sent") else "failed"
             error = None if result.get("sent") else result.get("error")
-        except Exception as exc:
+        except Exception:
             # Log full exception details server-side, but avoid storing or exposing them.
             self.logger.exception("Failed to execute schedule %s", schedule_id)
             status = "failed"
