@@ -34,7 +34,11 @@
   "security": {
     "api_key": "YOUR_INTERNAL_API_KEY_HERE",
     "webhook_signing_secret": "YOUR_WEBHOOK_SIGNING_SECRET_HERE",
-    "openai_api_key": "YOUR_OPENAI_API_KEY_HERE"
+    "openai_api_key": "YOUR_OPENAI_API_KEY_HERE",
+    "dashboard_auth_enabled": true,
+    "dashboard_password_hash": null,
+    "dashboard_session_secret": "YOUR_DASHBOARD_SESSION_SECRET_HERE",
+    "dashboard_session_ttl_minutes": 480
   },
   "generation": {
     "mode": "local",

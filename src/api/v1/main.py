@@ -21,6 +21,13 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from src.api.schemas.auth import (
+    AuthChangePasswordRequest,
+    AuthLoginRequest,
+    AuthLoginResponse,
+    AuthStatusResponse,
+    AuthUserModel,
+)
 from src.api.schemas.common import (
     ErrorDetail,
     ErrorResponse,
@@ -54,10 +61,17 @@ from src.api.schemas.settings import (
     StatisticsResponse,
 )
 from src.api.v1.deps import require_api_key, verify_webhook_signature
+from src.auth import (
+    get_dashboard_auth_state,
+    hash_dashboard_password,
+    validate_new_password,
+    verify_dashboard_login,
+    verify_dashboard_password,
+)
 from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 from src.jobs.queue import get_queue
-from src.jobs.tasks import scrape_and_process
+from src.jobs.tasks import run_telegram_schedule_job, scrape_and_process
 from src.services.telegram_schedule_service import TelegramScheduleService
 
 # API metadata
@@ -70,6 +84,10 @@ METRICS_ACTIVE_REQUEST_TTL_S = 3600
 METRICS_PREFIX = "doctoralia:api:metrics"
 SCHEDULE_RUN_FAILURE_MESSAGE = "Schedule execution failed"
 SCHEDULE_RUN_SUCCESS_MESSAGE = "Schedule executed successfully"
+SCHEDULE_RUN_ACCEPTED_MESSAGE = (
+    "Schedule execution started in background. Refresh the history in a few minutes."
+)
+SCHEDULE_RUN_ALREADY_RUNNING_MESSAGE = "Schedule execution is already in progress"
 SCHEDULE_RUN_HEALTH_CHECK_ERROR = "Health check failed"
 _metrics_store_cache: Optional[RedisAPIMetricsStore] = None
 _metrics_store_cache_url: Optional[str] = None
@@ -94,6 +112,79 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get(
+    "/v1/auth/status",
+    response_model=AuthStatusResponse,
+    tags=["Authentication"],
+)
+async def get_auth_status() -> AuthStatusResponse:
+    """Expose dashboard authentication status without revealing secrets."""
+    return _build_auth_status_response()
+
+
+@app.post(
+    "/v1/auth/login",
+    response_model=AuthLoginResponse,
+    tags=["Authentication"],
+)
+async def login_dashboard_user(payload: AuthLoginRequest) -> AuthLoginResponse:
+    """Validate dashboard login credentials against the shared configuration."""
+    config = _load_config()
+    auth_state = get_dashboard_auth_state(config)
+
+    if not auth_state.enabled:
+        return AuthLoginResponse(
+            success=False,
+            message="Dashboard authentication is disabled.",
+            user=None,
+        )
+
+    if not verify_dashboard_login(config, payload.username, payload.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid dashboard credentials",
+        )
+
+    return AuthLoginResponse(
+        success=True,
+        message="Dashboard login successful",
+        user=AuthUserModel(username=auth_state.username),
+    )
+
+
+@app.post(
+    "/v1/auth/change-password",
+    response_model=AuthStatusResponse,
+    tags=["Authentication"],
+    dependencies=[Depends(require_api_key)],
+)
+async def change_dashboard_password(
+    payload: AuthChangePasswordRequest,
+) -> AuthStatusResponse:
+    """Rotate the dashboard password stored in the shared settings."""
+    config = _load_config()
+    validation_error = validate_new_password(payload.new_password)
+    if validation_error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=validation_error,
+        )
+
+    if not verify_dashboard_password(config, payload.current_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is invalid",
+        )
+
+    config.security.dashboard_password_hash = hash_dashboard_password(
+        payload.new_password
+    )
+    config.save()
+    return _build_auth_status_response(
+        message="Dashboard password updated successfully",
+    )
 
 
 @app.on_event("startup")
@@ -230,7 +321,18 @@ def _sanitize_schedule_run_response(raw_response: dict[str, Any]) -> dict[str, A
         "result": safe_result,
     }
 
-
+def _build_auth_status_response(message: Optional[str] = None) -> AuthStatusResponse:
+    config = _load_config()
+    auth_state = get_dashboard_auth_state(config)
+    return AuthStatusResponse(
+        success=True,
+        auth_enabled=auth_state.enabled,
+        password_configured=auth_state.password_configured,
+        bootstrap_password_enabled=auth_state.bootstrap_password_enabled,
+        session_ttl_minutes=auth_state.session_ttl_minutes,
+        user=AuthUserModel(username=auth_state.username),
+        message=message,
+    )
 def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
     """Reuse one Redis-backed metrics store per effective Redis URL."""
     global _metrics_store_cache, _metrics_store_cache_url
@@ -1113,15 +1215,79 @@ async def delete_telegram_notification_schedule(schedule_id: str):
     dependencies=[Depends(require_api_key)],
     tags=["Notifications"],
 )
-async def run_telegram_notification_schedule(schedule_id: str):
+async def run_telegram_notification_schedule(
+    schedule_id: str,
+    wait: bool = Query(
+        default=True,
+        description="When false, enqueue the execution in RQ and return immediately.",
+    ),
+):
     try:
         service = _get_telegram_schedule_service(start_runner=True)
+        if not wait:
+            schedule = service.get_schedule(schedule_id)
+            if schedule is None:
+                raise ValueError(f"Schedule {schedule_id} not found")
+
+            manual_lock_key = service.claim_manual_execution(schedule_id)
+            if manual_lock_key is None:
+                raise ValueError(f"Schedule {schedule_id} not found")
+            if manual_lock_key == "":
+                return JSONResponse(
+                    status_code=status.HTTP_202_ACCEPTED,
+                    content={
+                        "success": True,
+                        "message": SCHEDULE_RUN_ALREADY_RUNNING_MESSAGE,
+                        "result": {
+                            "queued": False,
+                            "already_running": True,
+                            "schedule_id": schedule_id,
+                            "schedule_name": schedule.get("name"),
+                        },
+                    },
+                )
+
+            job_id = f"telegram-schedule-{uuid.uuid4()}"
+            try:
+                q = get_queue()
+                q.enqueue(
+                    run_telegram_schedule_job,
+                    schedule_id,
+                    manual_lock_key,
+                    job_id=job_id,
+                    job_timeout=1800,
+                    result_ttl=86400,
+                )
+            except Exception:
+                service.release_manual_execution(schedule_id)
+                raise
+
+            return JSONResponse(
+                status_code=status.HTTP_202_ACCEPTED,
+                content={
+                    "success": True,
+                    "message": SCHEDULE_RUN_ACCEPTED_MESSAGE,
+                    "result": {
+                        "queued": True,
+                        "job_id": job_id,
+                        "schedule_id": schedule_id,
+                        "schedule_name": schedule.get("name"),
+                    },
+                },
+            )
+
         result = service.execute_schedule(schedule_id, manual=True)
         return _sanitize_schedule_run_response(result)
     except ValueError as exc:
         _raise_public_http_error(
             status.HTTP_404_NOT_FOUND,
             "Schedule not found",
+            exc=exc,
+        )
+    except Exception as exc:
+        _raise_public_http_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to start schedule execution",
             exc=exc,
         )
 

@@ -4,50 +4,238 @@
 
 {% block page_title %}Perfis Monitorados{% endblock %}
 
+{% block head %}
+<style>
+  .profiles-filter-card {
+    border: 1px solid rgba(0, 122, 255, 0.10);
+    background:
+      radial-gradient(circle at top right, rgba(0, 122, 255, 0.08), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 250, 251, 0.98));
+    box-shadow: var(--shadow-sm);
+  }
+
+  .profiles-filter-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .profiles-filter-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .profiles-filter-title .card-title {
+    margin: 0;
+  }
+
+  .profiles-filter-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .profiles-filter-toolbar {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .profiles-filter-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(210px, 1fr));
+    gap: 12px;
+    flex: 1 1 460px;
+  }
+
+  .profiles-filter-field {
+    min-width: 0;
+  }
+
+  .profiles-filter-field .form-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    margin-bottom: 2px;
+  }
+
+  .profiles-filter-field .form-control {
+    height: 48px;
+    border-radius: var(--radius-full);
+    padding-inline: 16px;
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .profiles-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .profiles-filter-actions .btn {
+    height: 48px;
+    padding-inline: 18px;
+    border-radius: var(--radius-full);
+    min-width: 124px;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .profiles-filter-actions .btn i {
+    margin-right: 8px;
+  }
+
+  .profiles-grid {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .profiles-panel-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .profiles-panel-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--gray-300);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .profiles-panel-toggle i {
+    transition: transform var(--transition-fast);
+  }
+
+  .profiles-panel.collapsed .profiles-panel-toggle i {
+    transform: rotate(-90deg);
+  }
+
+  .profiles-panel-body {
+    transition: grid-template-rows var(--transition-base), opacity var(--transition-base), margin-top var(--transition-base);
+    display: grid;
+    grid-template-rows: 1fr;
+  }
+
+  .profiles-panel-body-inner {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .profiles-panel.collapsed .profiles-panel-body {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    margin-top: 0;
+    pointer-events: none;
+  }
+
+  .profiles-list-scroll {
+    max-height: min(58vh, 620px);
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  @media (max-width: 920px) {
+    .profiles-filter-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .profiles-filter-fields {
+      grid-template-columns: 1fr;
+      flex-basis: auto;
+    }
+
+    .profiles-filter-actions {
+      margin-left: 0;
+      justify-content: stretch;
+    }
+
+    .profiles-filter-actions .btn {
+      flex: 1 1 160px;
+    }
+
+    .profiles-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div id="profiles-alert"></div>
 
-<div class="card mb-3">
-  <div class="card-header">
-    <h3 class="card-title">
-      <i class="fas fa-user-doctor"></i>
-      Explorar Perfis
-    </h3>
+<div class="card mb-3 profiles-filter-card">
+  <div class="card-header profiles-filter-header">
+    <div class="profiles-filter-title">
+      <h3 class="card-title">
+        <i class="fas fa-user-doctor"></i>
+        Explorar Perfis
+      </h3>
+      <div class="profiles-filter-subtitle">Filtre o período e atualize os dados sem sair da linha de leitura.</div>
+    </div>
   </div>
   <div class="card-body">
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Data Inicial</label>
-        <input type="date" id="profiles-date-from" class="form-control">
+    <div class="profiles-filter-toolbar">
+      <div class="profiles-filter-fields">
+        <div class="form-group profiles-filter-field">
+          <label class="form-label">Data Inicial</label>
+          <input type="date" id="profiles-date-from" class="form-control">
+        </div>
+        <div class="form-group profiles-filter-field">
+          <label class="form-label">Data Final</label>
+          <input type="date" id="profiles-date-to" class="form-control">
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Data Final</label>
-        <input type="date" id="profiles-date-to" class="form-control">
+      <div class="profiles-filter-actions">
+        <button type="button" class="btn btn-primary" onclick="loadProfilesWorkspace()">
+          <i class="fas fa-sync-alt"></i>
+          Atualizar
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="resetProfilesFilters()">
+          <i class="fas fa-undo"></i>
+          Limpar
+        </button>
       </div>
-    </div>
-    <div class="flex gap-2">
-      <button class="btn btn-primary" onclick="loadProfilesWorkspace()">
-        <i class="fas fa-sync-alt"></i>
-        Atualizar
-      </button>
-      <button class="btn btn-secondary" onclick="resetProfilesFilters()">
-        <i class="fas fa-undo"></i>
-        Limpar
-      </button>
     </div>
   </div>
 </div>
 
-<div class="dashboard-grid" style="display:grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px;">
-  <div class="card">
-    <div class="card-header">
+<div class="profiles-grid">
+  <div class="card profiles-panel" id="profiles-list-panel">
+    <div class="card-header" style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
       <h3 class="card-title">
         <i class="fas fa-list"></i>
         Lista de Perfis
       </h3>
+      <button type="button" class="profiles-panel-toggle" id="profiles-list-toggle" onclick="toggleProfilesListPanel()"
+        aria-expanded="true" aria-controls="profiles-list-panel-body">
+        <i class="fas fa-chevron-up"></i>
+        <span>Recolher</span>
+      </button>
     </div>
-    <div class="card-body" id="profiles-list" style="max-height: 72vh; overflow-y: auto;">
-      <div class="text-secondary">Carregando perfis...</div>
+    <div class="profiles-panel-body" id="profiles-list-panel-body">
+      <div class="profiles-panel-body-inner">
+        <div class="card-body">
+          <div class="profiles-list-scroll" id="profiles-list">
+            <div class="text-secondary">Carregando perfis...</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -59,23 +247,32 @@
       </h3>
     </div>
     <div class="card-body">
-      <div id="profiles-detail-header" class="mb-3 text-secondary">Selecione um perfil para visualizar os detalhes.</div>
+      <div id="profiles-detail-header" class="mb-3 text-secondary">Selecione um perfil para visualizar os detalhes.
+      </div>
 
       <div class="stats-grid" style="margin-bottom: 20px;">
         <div class="stat-card">
-          <div class="stat-header"><span class="stat-label">Rastreios</span><div class="stat-icon blue"><i class="fas fa-wave-square"></i></div></div>
+          <div class="stat-header"><span class="stat-label">Rastreios</span>
+            <div class="stat-icon blue"><i class="fas fa-wave-square"></i></div>
+          </div>
           <div class="stat-value" id="profile-detail-scrapes">-</div>
         </div>
         <div class="stat-card">
-          <div class="stat-header"><span class="stat-label">Avaliação Média</span><div class="stat-icon orange"><i class="fas fa-star"></i></div></div>
+          <div class="stat-header"><span class="stat-label">Avaliação Média</span>
+            <div class="stat-icon orange"><i class="fas fa-star"></i></div>
+          </div>
           <div class="stat-value" id="profile-detail-rating">-</div>
         </div>
         <div class="stat-card">
-          <div class="stat-header"><span class="stat-label">Pendentes</span><div class="stat-icon red"><i class="fas fa-reply-all"></i></div></div>
+          <div class="stat-header"><span class="stat-label">Pendentes</span>
+            <div class="stat-icon red"><i class="fas fa-reply-all"></i></div>
+          </div>
           <div class="stat-value" id="profile-detail-unanswered">-</div>
         </div>
         <div class="stat-card">
-          <div class="stat-header"><span class="stat-label">Sugestões</span><div class="stat-icon green"><i class="fas fa-magic"></i></div></div>
+          <div class="stat-header"><span class="stat-label">Sugestões</span>
+            <div class="stat-icon green"><i class="fas fa-magic"></i></div>
+          </div>
           <div class="stat-value" id="profile-detail-generated">-</div>
         </div>
       </div>
@@ -109,6 +306,7 @@
   const profilesState = {
     profiles: [],
     selectedProfileId: '',
+    listCollapsed: false,
   };
 
   let profileTimelineChart = null;
@@ -132,6 +330,22 @@
       </div>
     `;
     setTimeout(() => { container.innerHTML = ''; }, 3500);
+  }
+
+  function toggleProfilesListPanel() {
+    profilesState.listCollapsed = !profilesState.listCollapsed;
+
+    const panel = document.getElementById('profiles-list-panel');
+    const toggle = document.getElementById('profiles-list-toggle');
+    if (!panel || !toggle) {
+      return;
+    }
+
+    panel.classList.toggle('collapsed', profilesState.listCollapsed);
+    toggle.setAttribute('aria-expanded', String(!profilesState.listCollapsed));
+    toggle.innerHTML = profilesState.listCollapsed
+      ? '<i class="fas fa-chevron-down"></i><span>Expandir</span>'
+      : '<i class="fas fa-chevron-up"></i><span>Recolher</span>';
   }
 
   async function toggleFavoriteById(profileId) {

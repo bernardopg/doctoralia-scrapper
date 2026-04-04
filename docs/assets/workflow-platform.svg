@@ -1,109 +1,637 @@
-<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="platformTitle platformDesc">
-  <title id="platformTitle">Doctoralia Scrapper platform workflow</title>
-  <desc id="platformDesc">Architecture diagram showing how dashboard, API, n8n, Redis, worker, Selenium, snapshots and Telegram fit together.</desc>
-  <defs>
-    <linearGradient id="platformBg" x1="98" y1="82" x2="1490" y2="922" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FAF6EF"/>
-      <stop offset="1" stop-color="#F0EBE1"/>
-    </linearGradient>
-    <filter id="platformShadow" x="0" y="0" width="1600" height="980" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#102033" flood-opacity="0.12"/>
-    </filter>
-    <marker id="platformArrow" viewBox="0 0 14 14" refX="11.5" refY="7" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
-      <path d="M2 2L12 7L2 12V2Z" fill="#6F7C86"/>
-    </marker>
-  </defs>
-
-  <rect width="1600" height="980" rx="32" fill="url(#platformBg)"/>
-  <rect x="32" y="32" width="1536" height="916" rx="24" stroke="#D6CEC0" stroke-width="2"/>
-
-  <text x="82" y="104" fill="#102033" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-style="italic" font-weight="700">Platform workflow</text>
-  <text x="82" y="144" fill="#607080" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="500">The repository has three entry surfaces, one Redis backbone, and two operational outputs: persistent files and Telegram delivery.</text>
-
-  <g filter="url(#platformShadow)">
-    <rect x="86" y="208" width="252" height="132" rx="28" fill="#EAF3F1"/>
-    <rect x="86.8" y="208.8" width="250.4" height="130.4" rx="27.2" stroke="#C1DDD7" stroke-width="1.6"/>
-    <text x="122" y="258" fill="#0F766E" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" font-weight="700">Dashboard</text>
-    <text x="122" y="294" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="500">Operator workspace, profile queue,</text>
-    <text x="122" y="320" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="500">reports and Telegram scheduling UI.</text>
-
-    <rect x="86" y="396" width="252" height="132" rx="28" fill="#EDF2F8"/>
-    <rect x="86.8" y="396.8" width="250.4" height="130.4" rx="27.2" stroke="#CCDAE6" stroke-width="1.6"/>
-    <text x="122" y="446" fill="#155E75" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" font-weight="700">API clients</text>
-    <text x="122" y="482" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="500">Synchronous runs, async jobs,</text>
-    <text x="122" y="508" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="500">settings, metrics and webhooks.</text>
-
-    <rect x="86" y="584" width="252" height="132" rx="28" fill="#F6ECE6"/>
-    <rect x="86.8" y="584.8" width="250.4" height="130.4" rx="27.2" stroke="#E7D4C8" stroke-width="1.6"/>
-    <text x="122" y="634" fill="#D96D3C" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" font-weight="700">n8n workflows</text>
-    <text x="122" y="670" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="500">Branching automations, callbacks,</text>
-    <text x="122" y="696" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="500">batch runs and external systems.</text>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="1600"
+   height="980"
+   viewBox="0 0 1600 980"
+   role="img"
+   aria-label="Doctoralia Scrapper platform workflow"
+   version="1.1"
+   id="svg45"
+   sodipodi:docname="workflow-platform.svg"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs45" />
+  <sodipodi:namedview
+     id="namedview45"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.36592776"
+     inkscape:cx="884.05428"
+     inkscape:cy="483.70203"
+     inkscape:window-width="1354"
+     inkscape:window-height="719"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg45" />
+  <g
+     id="g54"
+     inkscape:label="base">
+    <rect
+       width="1600"
+       height="980"
+       fill="#F5EFE5"
+       id="rect1"
+       style="fill:#ffccaa" />
+    <rect
+       x="32"
+       y="32"
+       width="1536"
+       height="916"
+       rx="24"
+       fill="#FBF7F0"
+       id="rect2"
+       style="fill:#f4eed7" />
+    <text
+       x="82"
+       y="104"
+       fill="#102033"
+       font-family="Georgia, Times New Roman, serif"
+       font-size="56"
+       id="text2">Platform workflow</text>
+    <text
+       x="82"
+       y="144"
+       fill="#607080"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="24"
+       id="text3">The repository has three entry surfaces, one Redis backbone, and two outputs: files and Telegram delivery.</text>
   </g>
-
-  <g filter="url(#platformShadow)">
-    <rect x="478" y="310" width="292" height="298" rx="34" fill="#FFF8EF"/>
-    <rect x="478.8" y="310.8" width="290.4" height="296.4" rx="33.2" stroke="#DCCFBF" stroke-width="1.6"/>
-    <text x="520" y="366" fill="#102033" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">FastAPI core</text>
-    <text x="520" y="406" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Validates requests, exposes</text>
-    <text x="520" y="434" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">sync and async execution paths,</text>
-    <text x="520" y="462" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">persists metrics in Redis and</text>
-    <text x="520" y="490" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">runs the Telegram scheduler loop.</text>
-    <rect x="520" y="532" width="202" height="38" rx="19" fill="#E9F1EE"/>
-    <text x="550" y="557" fill="#0F766E" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="700">/v1/scrape:run</text>
-    <rect x="520" y="580" width="184" height="38" rx="19" fill="#E8EEF6"/>
-    <text x="550" y="605" fill="#155E75" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="18" font-weight="700">/v1/jobs</text>
+  <g
+     id="g55"
+     inkscape:label="paths">
+    <line
+       x1="429.45502"
+       y1="272.45007"
+       x2="762.39203"
+       y2="272.45007"
+       stroke="#6f7c86"
+       id="line35"
+       style="stroke-width:1.54212" />
+    <line
+       x1="394.02197"
+       y1="462"
+       x2="478"
+       y2="462"
+       stroke="#6f7c86"
+       id="line36"
+       style="stroke-width:0.774495" />
+    <line
+       x1="338"
+       y1="650"
+       x2="478"
+       y2="650"
+       stroke="#6F7C86"
+       id="line37" />
+    <line
+       x1="836.95312"
+       y1="473.66391"
+       x2="1004.5012"
+       y2="473.66391"
+       stroke="#6f7c86"
+       id="line38"
+       style="stroke-width:1.48478" />
+    <line
+       x1="1004"
+       y1="383.26721"
+       x2="1004"
+       y2="548"
+       stroke="#6f7c86"
+       id="line39"
+       style="stroke-width:1.7466" />
+    <line
+       x1="1173.5647"
+       y1="275.84024"
+       x2="1251.5647"
+       y2="275.84024"
+       stroke="#6f7c86"
+       id="line40" />
+    <line
+       x1="1210.3768"
+       y1="588"
+       x2="1242"
+       y2="588"
+       stroke="#6f7c86"
+       id="line41"
+       style="stroke-width:0.63673" />
+    <line
+       x1="1171.5913"
+       y1="604.25653"
+       x2="1172.4087"
+       y2="791.74347"
+       stroke="#6f7c86"
+       id="line42" />
+    <line
+       x1="1143.8429"
+       y1="504.06918"
+       x2="1244.1282"
+       y2="371.89218"
+       stroke="#6f7c86"
+       id="line43"
+       style="stroke-width:0.668019" />
+    <path
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 429.04643,317.00246 530.15929,485.06842"
+       id="path58"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="7" />
   </g>
-
-  <g filter="url(#platformShadow)">
-    <rect x="846" y="246" width="318" height="194" rx="34" fill="#102033"/>
-    <text x="890" y="304" fill="#FFF5E8" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">Redis backbone</text>
-    <text x="890" y="342" fill="#D6DFE2" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">RQ queues, API metrics, rate limiting,</text>
-    <text x="890" y="370" fill="#D6DFE2" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Telegram schedules, history and locks.</text>
-    <rect x="890" y="392" width="116" height="34" rx="17" fill="#213345"/>
-    <text x="918" y="414" fill="#F6D184" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="700">doctoralia</text>
+  <g
+     id="g53"
+     inkscape:label="Dashboard">
+    <rect
+       x="86"
+       y="208"
+       width="366.05334"
+       height="132"
+       rx="40.672592"
+       fill="#eaf3f1"
+       id="rect3"
+       style="stroke-width:1.20524" />
+    <rect
+       x="89.202896"
+       y="211"
+       width="359.60092"
+       height="126"
+       rx="36.544807"
+       fill="#f7fbfa"
+       id="rect4"
+       style="stroke-width:1.20904" />
+    <text
+       x="122"
+       y="258"
+       fill="#0F766E"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="28"
+       id="text4">Dashboard</text>
+    <text
+       x="122"
+       y="294"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="19"
+       id="text5">Operator workspace, profile queue,</text>
+    <text
+       x="122"
+       y="320"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="19"
+       id="text6">reports and Telegram scheduling UI.</text>
   </g>
-
-  <g filter="url(#platformShadow)">
-    <rect x="846" y="494" width="318" height="186" rx="34" fill="#EEF3EE"/>
-    <rect x="846.8" y="494.8" width="316.4" height="184.4" rx="33.2" stroke="#D7E4DA" stroke-width="1.6"/>
-    <text x="890" y="552" fill="#0F766E" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="700">Worker + Selenium</text>
-    <text x="890" y="590" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">Remote browser scrape, parsing,</text>
-    <text x="890" y="618" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">sentiment analysis and optional</text>
-    <text x="890" y="646" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="21" font-weight="500">response generation.</text>
+  <g
+     id="g52"
+     inkscape:label="API clients">
+    <rect
+       x="86"
+       y="396"
+       width="252"
+       height="132"
+       rx="28"
+       fill="#EDF2F8"
+       id="rect6" />
+    <rect
+       x="89"
+       y="399"
+       width="304.75476"
+       height="126"
+       rx="30.971012"
+       fill="#f8fbff"
+       id="rect7"
+       style="stroke-width:1.11303" />
+    <text
+       x="122"
+       y="446"
+       fill="#155E75"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="28"
+       id="text7">API clients</text>
+    <text
+       x="122"
+       y="482"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="19"
+       id="text8">Synchronous runs, async jobs,</text>
+    <text
+       x="122"
+       y="508"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="19"
+       id="text9">settings, metrics and webhooks.</text>
   </g>
-
-  <g filter="url(#platformShadow)">
-    <rect x="1242" y="204" width="262" height="184" rx="34" fill="#F0ECE2"/>
-    <rect x="1242.8" y="204.8" width="260.4" height="182.4" rx="33.2" stroke="#E0D8C9" stroke-width="1.6"/>
-    <text x="1280" y="260" fill="#7D6516" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="32" font-weight="700">Snapshots</text>
-    <text x="1280" y="296" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="500">Persisted JSON under</text>
-    <text x="1280" y="322" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="500">data/ for workspace pages,</text>
-    <text x="1280" y="348" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="500">history and exports.</text>
+  <g
+     id="g51"
+     inkscape:label="n8n">
+    <rect
+       x="86"
+       y="584"
+       width="333.9834"
+       height="132"
+       rx="37.109264"
+       fill="#f6ece6"
+       id="rect9"
+       style="stroke-width:1.15123" />
+    <rect
+       x="89.97599"
+       y="587"
+       width="326.0314"
+       height="126"
+       rx="33.133274"
+       fill="#fffbf8"
+       id="rect10"
+       style="stroke-width:1.15123" />
+    <text
+       x="122"
+       y="634"
+       fill="#D96D3C"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="28"
+       id="text10">n8n workflows</text>
+    <text
+       x="122"
+       y="670"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="19"
+       id="text11">Branching automations, callbacks,</text>
+    <text
+       x="122"
+       y="696"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="19"
+       id="text12">batch runs and external systems.</text>
   </g>
-
-  <g filter="url(#platformShadow)">
-    <rect x="1242" y="456" width="262" height="224" rx="34" fill="#F7ECE7"/>
-    <rect x="1242.8" y="456.8" width="260.4" height="222.4" rx="33.2" stroke="#E9D6CD" stroke-width="1.6"/>
-    <text x="1278" y="514" fill="#D96D3C" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="32" font-weight="700">Telegram delivery</text>
-    <text x="1278" y="550" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="500">Manual tests, scheduled runs,</text>
-    <text x="1278" y="576" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="500">health reports and attachments</text>
-    <text x="1278" y="602" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="500">written to data/notifications.</text>
+  <g
+     id="g50"
+     transform="translate(-1.9323676,125.60386)"
+     inkscape:label="FastAPI core">
+    <rect
+       x="478"
+       y="310"
+       width="292"
+       height="298"
+       rx="34"
+       fill="#fff8ef"
+       id="rect12" />
+    <rect
+       x="481"
+       y="313"
+       width="355.68588"
+       height="316.59503"
+       rx="38.553364"
+       fill="#fffdf8"
+       id="rect13"
+       style="stroke-width:1.16121" />
+    <text
+       x="520"
+       y="366"
+       fill="#102033"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="34px"
+       id="text13">FastAPI core</text>
+    <text
+       x="520"
+       y="406"
+       fill="#4c5a68"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="21px"
+       id="text14">Validates requests, exposes</text>
+    <text
+       x="520"
+       y="434"
+       fill="#4c5a68"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="21px"
+       id="text15">sync and async execution paths,</text>
+    <text
+       x="520"
+       y="462"
+       fill="#4c5a68"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="21px"
+       id="text16">persists metrics in Redis and</text>
+    <text
+       x="520"
+       y="490"
+       fill="#4c5a68"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="21px"
+       id="text17">runs the Telegram scheduler loop.</text>
+    <rect
+       x="520"
+       y="532"
+       width="202"
+       height="38"
+       rx="19"
+       fill="#e9f1ee"
+       id="rect17" />
+    <text
+       x="550"
+       y="557"
+       fill="#0f766e"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="18px"
+       id="text18">/v1/scrape:run</text>
+    <rect
+       x="520"
+       y="580"
+       width="184"
+       height="38"
+       rx="19"
+       fill="#e8eef6"
+       id="rect18" />
+    <text
+       x="550"
+       y="605"
+       fill="#155e75"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="18px"
+       id="text19">/v1/jobs</text>
   </g>
-
-  <path d="M338 274H478" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M338 462H478" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M338 650H478" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M770 460H846" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M1004 440V494" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M1164 310H1242" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M1164 588H1242" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M1080 680L1264 716" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-  <path d="M1086 560L1244 372" stroke="#6F7C86" stroke-width="5" stroke-linecap="round" marker-end="url(#platformArrow)"/>
-
-  <g>
-    <rect x="86" y="786" width="1418" height="118" rx="28" fill="#FFF9F2"/>
-    <rect x="86.8" y="786.8" width="1416.4" height="116.4" rx="27.2" stroke="#DACFC0" stroke-width="1.6"/>
-    <text x="128" y="846" fill="#102033" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="28" font-weight="700">Operational read</text>
-    <text x="362" y="846" fill="#4C5A68" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="500">Redis is not just a queue here. It stores API request metrics, notification definitions, execution history and deduplication locks.</text>
+  <g
+     id="g49"
+     transform="translate(-92.753623,-28.985507)"
+     inkscape:label="Redis">
+    <rect
+       x="846"
+       y="246"
+       width="433.45996"
+       height="205.61432"
+       rx="46.344772"
+       fill="#102033"
+       id="rect19"
+       style="stroke-width:1.20195" />
+    <rect
+       x="850.08929"
+       y="249.1796"
+       width="425.28146"
+       height="199.25511"
+       rx="42.255531"
+       fill="#16273a"
+       id="rect20"
+       style="stroke-width:1.20195" />
+    <text
+       x="890"
+       y="304"
+       fill="#fff5e8"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="34px"
+       id="text20">Redis backbone</text>
+    <text
+       x="890"
+       y="342"
+       fill="#d6dfe2"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="21px"
+       id="text21">RQ queues, API metrics, rate limiting,</text>
+    <text
+       x="890"
+       y="370"
+       fill="#d6dfe2"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="21px"
+       id="text22">Telegram schedules, history and locks.</text>
+    <rect
+       x="892.73279"
+       y="393.36639"
+       width="116"
+       height="34"
+       rx="17"
+       fill="#213345"
+       id="rect22" />
+    <text
+       x="920.73279"
+       y="415.36639"
+       fill="#f6d184"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="16px"
+       id="text23">doctoralia</text>
+  </g>
+  <g
+     id="g48"
+     inkscape:label="Worker">
+    <rect
+       x="846"
+       y="494"
+       width="362.44446"
+       height="186"
+       rx="38.751923"
+       fill="#eef3ee"
+       id="rect23"
+       style="stroke-width:1.0676" />
+    <rect
+       x="849.41931"
+       y="497"
+       width="355.60587"
+       height="180"
+       rx="35.332634"
+       fill="#f9fcf9"
+       id="rect24"
+       style="stroke-width:1.0676" />
+    <text
+       x="890"
+       y="552"
+       fill="#0F766E"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="34"
+       id="text24">Worker + Selenium</text>
+    <text
+       x="890"
+       y="590"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="21"
+       id="text25">Remote browser scrape, parsing,</text>
+    <text
+       x="890"
+       y="618"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="21"
+       id="text26">sentiment analysis and optional</text>
+    <text
+       x="890"
+       y="646"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="21"
+       id="text27">response generation.</text>
+  </g>
+  <g
+     id="g47"
+     inkscape:label="Snapshots">
+    <rect
+       x="1242"
+       y="204"
+       width="300.64734"
+       height="184"
+       rx="39.015305"
+       fill="#f0ece2"
+       id="rect27"
+       style="stroke-width:1.07122" />
+    <rect
+       x="1245.4425"
+       y="207"
+       width="293.7623"
+       height="178"
+       rx="35.572777"
+       fill="#faf6ee"
+       id="rect28"
+       style="stroke-width:1.07122" />
+    <text
+       x="1280"
+       y="260"
+       fill="#7D6516"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="32"
+       id="text28">Snapshots</text>
+    <text
+       x="1280"
+       y="296"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="20"
+       id="text29">Persisted JSON under</text>
+    <text
+       x="1280"
+       y="322"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="20"
+       id="text30">data/ for workspace pages,</text>
+    <text
+       x="1280"
+       y="348"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="20"
+       id="text31">history and exports.</text>
+  </g>
+  <g
+     id="g46"
+     inkscape:label="Telegram">
+    <rect
+       x="1242"
+       y="456"
+       width="324.85394"
+       height="177.54274"
+       rx="42.156616"
+       fill="#f7ece7"
+       id="rect31"
+       style="stroke-width:0.991338" />
+    <rect
+       x="1245.7197"
+       y="458.37781"
+       width="317.41452"
+       height="172.78714"
+       rx="38.436916"
+       fill="#fef8f4"
+       id="rect32"
+       style="stroke-width:0.991338" />
+    <text
+       x="1278"
+       y="514"
+       fill="#D96D3C"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="32"
+       id="text32">Telegram delivery</text>
+    <text
+       x="1278"
+       y="550"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="20"
+       id="text33">Manual tests, scheduled runs,</text>
+    <text
+       x="1278"
+       y="576"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="20"
+       id="text34">health reports and attachments</text>
+    <text
+       x="1278"
+       y="602"
+       fill="#4C5A68"
+       font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+       font-size="20"
+       id="text35">written to data/notifications.</text>
+  </g>
+  <g
+     id="g45"
+     inkscape:label="Observation"
+     transform="translate(-42.358088,91.548124)">
+    <rect
+       x="920.86438"
+       y="695.8183"
+       width="655.5545"
+       height="126.19833"
+       rx="12.944658"
+       fill="#fff9f2"
+       id="rect43"
+       style="fill:#e3e2db;stroke-width:0.703156" />
+    <rect
+       x="932.91052"
+       y="699.02673"
+       width="632.82825"
+       height="119.78147"
+       rx="11.204466"
+       fill="#fffcf8"
+       id="rect44"
+       style="stroke-width:0.692327" />
+    <text
+       x="961.64282"
+       y="751.71912"
+       fill="#102033"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="28px"
+       id="text44"
+       style="font-size:28px;font-family:system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;fill:#102033"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:28px;font-family:system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;-inkscape-font-specification:'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif, @opsz=32';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'opsz' 32"
+         id="tspan65">Operational read</tspan></text>
+    <text
+       x="961.28345"
+       y="776.82062"
+       fill="#4c5a68"
+       font-family="system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif"
+       font-size="22px"
+       id="text45"
+       style="font-size:22px;font-family:system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;fill:#4c5a68"><tspan
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:22px;font-family:system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;-inkscape-font-specification:'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif, @opsz=32';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;font-variation-settings:'opsz' 32"
+         id="tspan64">Redis is not just a queue here. It stores API request metrics</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:21.3333px;font-family:'Adwaita Mono';-inkscape-font-specification:'Adwaita Mono';writing-mode:lr-tb;direction:ltr;fill:#ffccaa"
+       x="1331.4583"
+       y="799.33807"
+       id="text60"><tspan
+         sodipodi:role="line"
+         id="tspan60"
+         x="1331.4583"
+         y="799.33807"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.3333px;font-family:system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;-inkscape-font-specification:'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000">and deduplication locks.</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:21.3333px;font-family:'Adwaita Mono';-inkscape-font-specification:'Adwaita Mono';writing-mode:lr-tb;direction:ltr;fill:#000000"
+       x="960.99597"
+       y="800.32861"
+       id="text61"><tspan
+         sodipodi:role="line"
+         id="tspan61"
+         x="960.99597"
+         y="800.32861"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:21.3333px;font-family:system-ui, '-apple-system', BlinkMacSystemFont, 'Segoe UI', sans-serif;-inkscape-font-specification:'system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal">notification definitions execution history</tspan></text>
   </g>
 </svg>

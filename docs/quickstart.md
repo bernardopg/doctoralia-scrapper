@@ -28,6 +28,14 @@ docker compose ps
 - n8n: `http://localhost:5678` com Basic Auth do `.env`
 - Selenium: `http://localhost:4444/status`
 
+### 3.1. Fazer o primeiro login no dashboard
+
+- abra `http://localhost:5000`
+- se a autenticação estiver ativa, você cairá em `/login`
+- use o `username` definido em `config/config.json > user_profile.username` (por padrão, `admin`)
+- se ainda não existir `dashboard_password_hash`, a senha inicial é a mesma `API_KEY`
+- depois do login, abra `/me` e troque a senha do dashboard
+
 ### 4. Validar Redis
 
 ```bash
@@ -102,6 +110,7 @@ make run-full URL="https://www.doctoralia.com.br/medico/exemplo"
 | Selenium | `http://localhost:4444/status` |
 | Dashboard | abertura do overview e da página de notificações |
 | Telegram | teste manual em `/notifications/telegram/schedule` |
+| Auth do dashboard | login em `/login` e rotação de senha em `/me` |
 
 ## Problemas comuns
 
@@ -111,6 +120,7 @@ make run-full URL="https://www.doctoralia.com.br/medico/exemplo"
 | Job assíncrono não sai da fila | Verifique `worker` e Redis. |
 | Scheduler Telegram não dispara | Confirme se a API está rodando e se o agendamento está ativo. |
 | Dashboard sem dados | Confira se existem snapshots em `data/`. |
+| Login do dashboard falha | Valide `user_profile.username`, `API_KEY` e, se já existir, a senha dedicada do dashboard. |
 | Scraping não abre browser remoto | Revise `SELENIUM_REMOTE_URL`. |
 
 ## Próximos passos

@@ -18,7 +18,7 @@
 
 ## Por que este projeto existe
 
-Este repositório organiza uma rotina operacional completa para reviews do Doctoralia. Em vez de tratar scraping como um script solto, ele une coleta, análise, geração de respostas, snapshots persistidos, histórico, observabilidade e distribuição por Telegram em uma mesma stack local.
+Este repositório organiza uma rotina operacional completa para reviews do Doctoralia. Em vez de tratar scraping como um script solto, ele une coleta, análise, geração de respostas, snapshots persistidos, histórico, observabilidade, autenticação do dashboard e distribuição por Telegram em uma mesma stack local.
 
 ## O que você encontra aqui
 
@@ -26,7 +26,7 @@ Este repositório organiza uma rotina operacional completa para reviews do Docto
 |---|---|
 | `api` | Expõe endpoints sync e async, settings, health, metrics e notificações Telegram |
 | `worker` | Processa scraping, análise, geração e snapshots em background |
-| `dashboard` | Workspace visual para operação diária, histórico, relatórios e scheduler |
+| `dashboard` | Workspace visual para operação diária, histórico, relatórios, perfil do operador e scheduler |
 | `redis` | Fila RQ, métricas Redis-backed, agendamentos, locks e histórico |
 | `selenium` | Navegador remoto para scraping resiliente |
 | `n8n` | Orquestrações externas, callbacks e automações multi-sistema |
@@ -71,10 +71,16 @@ docker compose ps
 URLs locais esperadas:
 
 - API: `http://localhost:8000/docs`
-- Dashboard: `http://localhost:5000`
+- Dashboard: `http://localhost:5000` (redireciona para `/login` quando a auth estiver ativa)
 - Telegram scheduling: `http://localhost:5000/notifications/telegram/schedule`
 - n8n: `http://localhost:5678` com Basic Auth configurada no `.env`
 - Selenium status: `http://localhost:4444/status`
+
+Primeiro acesso ao dashboard:
+
+- usuário padrão: o campo `user_profile.username` em `config/config.json` (por padrão, `admin`)
+- senha inicial: a `API_KEY` enquanto o bootstrap estiver ativo e ainda não existir `dashboard_password_hash`
+- troca de senha: faça depois do login em `http://localhost:5000/me`
 
 ### Desenvolvimento local
 
@@ -105,6 +111,9 @@ make lint
 | `GET` | `/v1/jobs/{job_id}` | Consulta job |
 | `GET` | `/v1/ready` | Readiness com Redis, Selenium e NLTK |
 | `GET` | `/v1/metrics` | Métricas da API persistidas em Redis |
+| `GET` | `/v1/auth/status` | Estado da autenticação do dashboard |
+| `POST` | `/v1/auth/login` | Validação de credenciais do dashboard |
+| `POST` | `/v1/auth/change-password` | Rotação da senha dedicada do dashboard |
 | `GET/POST/PUT/DELETE` | `/v1/notifications/telegram/schedules` | CRUD do scheduler Telegram |
 | `POST` | `/v1/notifications/telegram/schedules/{schedule_id}/run` | Disparo manual |
 | `GET` | `/v1/notifications/telegram/history` | Histórico persistido |
@@ -116,12 +125,12 @@ make lint
 | Tema | Situação |
 |---|---|
 | Stack Docker | `api`, `worker`, `dashboard`, `redis`, `selenium`, `n8n` |
-| Workspace web | Operacional e com scheduler Telegram integrado |
+| Workspace web | Operacional, autenticado e com scheduler Telegram integrado |
 | Persistência | Snapshots em `data/` e histórico/schedules em Redis |
 | Métricas da API | Redis-backed, multi-processo |
 | n8n local | preso em `127.0.0.1:5678`, com auth e encryption key obrigatórias |
-| Testes | `250 passed` |
-| Coverage | `74%` |
+| Testes | suíte cobrindo áreas críticas de API, dashboard, jobs, Redis e Telegram |
+| Auth do dashboard | login web, sessão assinada, bootstrap via `API_KEY` e rotação em `/me` |
 
 ## Redis em `localhost:6379`
 
@@ -181,6 +190,7 @@ O `README` agora é só a entrada. A documentação foi reorganizada em formato 
 
 - Rate limiting global da API REST ainda não existe como middleware completo.
 - O scheduler recorrente depende da API estar de pé.
+- A troca de senha do dashboard hoje valida apenas o mínimo de caracteres no backend; complexidade adicional ainda é recomendação de UX, não requisito de servidor.
 - Ainda há espaço para subir coverage em `src/scraper.py`, `src/response_generator.py`, `src/telegram_notifier.py` e `src/dashboard.py`.
 
 ## Licença

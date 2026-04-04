@@ -46,6 +46,10 @@ def test_responses_route(client):
 def test_user_profile_route(client):
     response = client.get("/me")
     assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "Favoritos Estratégicos" in body
+    assert "Favoritos Salvos" in body
+    assert "Perfis Monitorados" in body
 
 
 def test_history_route(client):
@@ -61,6 +65,10 @@ def test_reports_route(client):
 def test_telegram_schedule_route(client):
     response = client.get("/notifications/telegram/schedule")
     assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "Criar novo agendamento" in body
+    assert "Agendamentos Cadastrados" in body
+    assert "Histórico das Notificações" in body
 
 
 def test_health_check_page_route(client):
@@ -407,6 +415,29 @@ def test_notification_schedule_list_proxy_returns_upstream_payload(
     data = json.loads(response.data)
     assert data["summary"]["total"] == 1
     assert data["schedules"][0]["name"] == "Relatório"
+
+
+@patch("src.dashboard.DashboardApp._request_api_with_status")
+def test_notification_schedule_run_proxy_uses_async_backend_mode(
+    mock_request_api_with_status, client
+):
+    mock_request_api_with_status.return_value = (
+        {
+            "success": True,
+            "message": "Schedule execution started in background",
+            "result": {"queued": True},
+        },
+        202,
+    )
+
+    response = client.post("/api/notifications/telegram/schedules/schedule-1/run")
+
+    assert response.status_code == 202
+    mock_request_api_with_status.assert_called_once_with(
+        "/v1/notifications/telegram/schedules/schedule-1/run?wait=false",
+        method="POST",
+        json={},
+    )
 
 
 @patch("src.dashboard.DashboardApp._get_user_profile_settings")

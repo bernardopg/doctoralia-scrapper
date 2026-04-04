@@ -2,7 +2,7 @@
 
 # 🔌 API REST v1
 
-A API expõe scraping, jobs assíncronos, settings, métricas Redis-backed, health checks, geração de respostas e o scheduler Telegram através de endpoints RESTful.
+A API expõe scraping, jobs assíncronos, settings, métricas Redis-backed, health checks, geração de respostas, autenticação compartilhada do dashboard e o scheduler Telegram através de endpoints RESTful.
 
 **Base URL**: `http://localhost:8000` (desenvolvimento) ou seu domínio em produção
 **Versão Atual**: `1.2.0-rc.1`
@@ -20,7 +20,7 @@ Configure a chave no arquivo `.env`:
 API_KEY=sua_chave_secreta_aqui
 ```
 
-**Nota**: endpoints de saúde (`/v1/health`, `/v1/ready`) não requerem autenticação.
+**Nota**: endpoints de saúde (`/v1/health`, `/v1/ready`) não requerem autenticação. Os endpoints públicos de auth do dashboard (`/v1/auth/status` e `/v1/auth/login`) também não usam `X-API-Key`, porque servem ao fluxo de login web.
 
 ## Convenções de Resposta
 
@@ -306,11 +306,78 @@ Configure o secret no `.env`:
 WEBHOOK_SIGNING_SECRET=seu_secret_compartilhado
 ```
 
-### 4. Monitoramento e Saúde
+### 4. Autenticação do Dashboard
+
+Esses endpoints expõem o estado de autenticação usado pela superfície web em `http://localhost:5000`.
+
+#### 4.1. Estado da autenticação
+
+**Endpoint**: `GET /v1/auth/status`
+
+##### Response
+
+```json
+{
+  "auth_enabled": true,
+  "password_configured": true,
+  "bootstrap_password_enabled": false,
+  "session_ttl_minutes": 480,
+  "user": {
+    "username": "admin"
+  },
+  "message": null
+}
+```
+
+#### 4.2. Validar login do dashboard
+
+**Endpoint**: `POST /v1/auth/login`
+
+##### Request Body
+
+```json
+{
+  "username": "admin",
+  "password": "sua_senha"
+}
+```
+
+##### Response
+
+```json
+{
+  "success": true,
+  "message": "Dashboard login successful",
+  "user": {
+    "username": "admin"
+  }
+}
+```
+
+#### 4.3. Trocar senha do dashboard
+
+**Endpoint**: `POST /v1/auth/change-password`
+**Autenticação**: Requerida (`X-API-Key`)
+
+##### Request Body
+
+```json
+{
+  "current_password": "senha_atual",
+  "new_password": "senha_nova_com_8_ou_mais_caracteres"
+}
+```
+
+##### Regras atuais
+
+- a nova senha precisa ter pelo menos `8` caracteres
+- a senha atual precisa coincidir com a senha dedicada já configurada ou, no bootstrap inicial, com a `API_KEY`
+
+### 5. Monitoramento e Saúde
 
 Endpoints para monitoramento da aplicação (não requerem autenticação).
 
-#### 4.1. Health Check
+#### 5.1. Health Check
 
 **Endpoint**: `GET /v1/health`
 
@@ -326,7 +393,7 @@ Verifica saúde básica da API.
 }
 ```
 
-#### 4.2. Readiness Check
+#### 5.2. Readiness Check
 
 **Endpoint**: `GET /v1/ready`
 
@@ -366,7 +433,7 @@ Verifica disponibilidade de todas as dependências.
 
 **Status HTTP**: `200 OK` se pronto, `503 Service Unavailable` se algum componente falhou.
 
-#### 4.3. Versão da API
+#### 5.3. Versão da API
 
 **Endpoint**: `GET /v1/version`
 
@@ -379,7 +446,7 @@ Verifica disponibilidade de todas as dependências.
 }
 ```
 
-#### 4.4. Métricas
+#### 5.4. Métricas
 
 **Endpoint**: `GET /v1/metrics`
 
@@ -410,7 +477,7 @@ Métricas de performance e uso da API persistidas em Redis para leitura consiste
 }
 ```
 
-#### 4.5. Notificações Telegram
+#### 5.5. Notificações Telegram
 
 **Base**: `/v1/notifications/telegram`
 
@@ -428,7 +495,7 @@ Principais rotas:
 
 Use [Telegram Notifications](telegram-notifications.md) para o fluxo operacional completo e os detalhes de payload.
 
-### 5. Endpoint Raiz
+### 6. Endpoint Raiz
 
 **Endpoint**: `GET /`
 

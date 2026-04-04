@@ -59,6 +59,11 @@ class FakeRedis:
         self.values[key] = value
         return True
 
+    def delete(self, key):
+        existed = key in self.values
+        self.values.pop(key, None)
+        return 1 if existed else 0
+
 
 def build_config(tmp_path: Path):
     data_dir = tmp_path / "data"
@@ -364,6 +369,32 @@ def test_execute_schedule_failure_and_locking(tmp_path):
     assert updated["last_status"] == "failed"
     assert history[0]["status"] == "failed"
     assert locked["message"] == "Schedule already claimed by another worker"
+
+
+def test_manual_execution_lock_claim_and_release(tmp_path):
+    redis_client = FakeRedis()
+    service = TelegramScheduleService(
+        redis_client=redis_client,
+        logger=MagicMock(),
+        config_loader=lambda: build_config(tmp_path),
+    )
+
+    saved = service.save_schedule(
+        {
+            "name": "Manual",
+            "recurrence_type": "daily",
+            "time_of_day": "07:00",
+        }
+    )
+
+    first_claim = service.claim_manual_execution(saved["id"])
+    second_claim = service.claim_manual_execution(saved["id"])
+
+    assert first_claim
+    assert second_claim == ""
+
+    service.release_manual_execution(saved["id"])
+    assert service.claim_manual_execution(saved["id"])
 
 
 def test_send_test_notification_overrides_and_failed_send(tmp_path, monkeypatch):

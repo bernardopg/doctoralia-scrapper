@@ -339,3 +339,25 @@ def scrape_and_process(
             post_callback(callback_url, error_result.dict(), job_id)
 
         return error_result.dict()
+
+
+def run_telegram_schedule_job(
+    schedule_id: str,
+    manual_lock_key: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Execute a persisted Telegram schedule inside the RQ worker."""
+    from src.services.telegram_schedule_service import TelegramScheduleService
+
+    service = TelegramScheduleService()
+    try:
+        return service.execute_schedule(schedule_id, manual=True)
+    finally:
+        if manual_lock_key:
+            try:
+                service.redis.delete(manual_lock_key)
+            except Exception as exc:  # pragma: no cover - best effort cleanup
+                logger.warning(
+                    "Failed to release manual schedule lock %s: %s",
+                    manual_lock_key,
+                    exc,
+                )
