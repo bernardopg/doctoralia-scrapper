@@ -4,105 +4,1088 @@
 
 {% block page_title %}Minha Área{% endblock %}
 
+{% block top_bar_actions %}
+<button class="btn btn-secondary" onclick="loadUserProfilePage()">
+  <i class="fas fa-arrows-rotate"></i>
+  Atualizar
+</button>
+<button class="btn btn-primary" onclick="focusFavoriteComposer()">
+  <i class="fas fa-star"></i>
+  Novo favorito
+</button>
+{% endblock %}
+
 {% block content %}
 <div id="user-profile-alert"></div>
+<div id="user-profile-toast-root" aria-live="polite" aria-atomic="true"></div>
 
-<div class="card mb-3">
-  <div class="card-header">
-    <h3 class="card-title">
-      <i class="fas fa-id-card"></i>
-      Perfil do Operador
-    </h3>
-  </div>
-  <div class="card-body">
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Nome exibido</label>
-        <input type="text" id="user-display-name" class="form-control" placeholder="Seu nome">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Username</label>
-        <input type="text" id="user-username" class="form-control" placeholder="seu_usuario">
-      </div>
-    </div>
-    <div class="alert alert-info mt-2">
-      <i class="fas fa-circle-info"></i>
-      <div>Esses dados alimentam a sidebar e a organização operacional do workspace.</div>
-    </div>
-  </div>
-</div>
-
-<div class="dashboard-grid" style="display:grid; grid-template-columns: 420px minmax(0, 1fr); gap: 20px;">
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-plus-circle"></i>
-        Adicionar Favorito
-      </h3>
-    </div>
-    <div class="card-body">
-      <div class="form-group">
-        <label class="form-label">Adicionar a partir dos perfis monitorados</label>
-        <select id="favorite-profile-select" class="form-control" onchange="prefillFavoriteFromExisting()">
-          <option value="">Escolha um perfil existente</option>
-        </select>
+<section class="profile-hero">
+  <div class="profile-hero-shell">
+    <div class="profile-identity-cluster">
+      <div class="profile-avatar-frame">
+        <div class="profile-avatar" id="profile-avatar">A</div>
+        <div class="profile-avatar-note">Foto de perfil via login ou upload futuro</div>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Nome manual</label>
-          <input type="text" id="favorite-name" class="form-control" placeholder="Nome do médico">
+      <div class="profile-identity-copy">
+        <div class="profile-kicker">Conta do operador</div>
+        <h2 class="profile-identity-name" id="profile-identity-name">Administrador</h2>
+        <div class="profile-identity-subtitle" id="profile-identity-subtitle">@admin</div>
+        <div class="profile-chip-row" id="profile-chip-row">
+          <span class="profile-chip">Carregando contexto...</span>
         </div>
-        <div class="form-group">
-          <label class="form-label">Especialidade</label>
-          <input type="text" id="favorite-specialty" class="form-control" placeholder="Especialidade">
+        <p class="profile-identity-description">
+          Esta área centraliza identidade do operador, favoritos estratégicos e o contexto da instância onde o scraper está rodando.
+        </p>
+      </div>
+    </div>
+
+    <div class="profile-metrics-grid">
+      <div class="profile-metric-card">
+        <span class="profile-metric-label">Favoritos ativos</span>
+        <strong class="profile-metric-value" id="profile-metric-favorites">0</strong>
+      </div>
+      <div class="profile-metric-card">
+        <span class="profile-metric-label">Perfis monitorados</span>
+        <strong class="profile-metric-value" id="profile-metric-profiles">0</strong>
+      </div>
+      <div class="profile-metric-card">
+        <span class="profile-metric-label">Reviews pendentes</span>
+        <strong class="profile-metric-value" id="profile-metric-pending">0</strong>
+      </div>
+      <div class="profile-metric-card">
+        <span class="profile-metric-label">Membros da equipe</span>
+        <strong class="profile-metric-value" id="profile-metric-members">1</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="profile-layout">
+  <section class="profile-main-column">
+    <div class="card profile-card">
+      <div class="card-header profile-card-header">
+        <div>
+          <div class="profile-kicker">Identidade persistida</div>
+          <h3 class="card-title">
+            <i class="fas fa-id-card"></i>
+            Perfil do Operador
+          </h3>
+        </div>
+        <span class="profile-inline-hint">Sidebar, atalhos e ownership do workspace usam estes dados</span>
+      </div>
+      <div class="card-body">
+        <form class="form-grid" id="identity-form" onsubmit="event.preventDefault(); saveIdentityProfile();">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="user-display-name">Nome exibido</label>
+              <input type="text" id="user-display-name" class="form-control" placeholder="Seu nome no dashboard">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="user-username">Username</label>
+              <input type="text" id="user-username" class="form-control" placeholder="seu_usuario">
+            </div>
+          </div>
+
+          <div class="identity-meta-grid">
+            <div class="identity-meta-card">
+              <span class="identity-meta-label">Email principal</span>
+              <strong class="identity-meta-value" id="profile-email-value">Não configurado</strong>
+              <span class="identity-meta-note">Será controlado quando o login do sistema estiver ativo.</span>
+            </div>
+            <div class="identity-meta-card">
+              <span class="identity-meta-label">Avatar</span>
+              <strong class="identity-meta-value">Inicial gerada automaticamente</strong>
+              <span class="identity-meta-note">O upload de foto pode ser conectado depois sem quebrar o layout desta página.</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">
+              <i class="fas fa-save"></i>
+              Salvar identidade
+            </button>
+            <button class="btn btn-secondary" type="button" onclick="loadUserProfilePage()">
+              <i class="fas fa-rotate-left"></i>
+              Recarregar dados
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="profile-secondary-grid">
+      <div class="card profile-card">
+        <div class="card-header profile-card-header">
+          <div>
+            <div class="profile-kicker">Autenticação ativa</div>
+            <h3 class="card-title">
+              <i class="fas fa-shield-halved"></i>
+              Segurança & Login
+            </h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="status-stack" id="auth-status-stack">
+            <div class="status-row">
+              <div>
+                <div class="status-row-title">Proteção do dashboard</div>
+                <div class="status-row-copy" id="auth-state-copy">Carregando política de autenticação...</div>
+              </div>
+              <span class="status-badge blue" id="auth-state-badge">Verificando</span>
+            </div>
+            <div class="status-row">
+              <div>
+                <div class="status-row-title">Sessão atual</div>
+                <div class="status-row-copy" id="auth-session-copy">Aguardando resposta do servidor.</div>
+              </div>
+              <span class="status-badge muted" id="auth-session-badge">Sessão</span>
+            </div>
+            <div class="status-row">
+              <div>
+                <div class="status-row-title">Senha do dashboard</div>
+                <div class="status-row-copy" id="auth-password-copy">Detectando se há senha dedicada ou bootstrap temporário.</div>
+              </div>
+              <span class="status-badge muted" id="auth-password-badge">Senha</span>
+            </div>
+          </div>
+
+          <form class="form-grid" id="auth-password-form" style="margin-top: 18px;" onsubmit="event.preventDefault(); changeDashboardPassword();">
+            <div class="sr-only-field" aria-hidden="true">
+              <label class="form-label" for="auth-username-shadow">Username</label>
+              <input type="text" id="auth-username-shadow" class="form-control" autocomplete="username" tabindex="-1">
+            </div>
+            <div class="form-row">
+              <div class="form-group" id="auth-current-password-group">
+                <label class="form-label" for="auth-current-password">Senha atual</label>
+                <input type="password" id="auth-current-password" class="form-control" autocomplete="current-password">
+                <small class="form-help">Use a senha ativa hoje. Se ela estiver errada, a troca é recusada.</small>
+                <small class="form-error" id="auth-current-password-error"></small>
+              </div>
+              <div class="form-group" id="auth-new-password-group">
+                <label class="form-label" for="auth-new-password">Nova senha</label>
+                <input type="password" id="auth-new-password" class="form-control" autocomplete="new-password">
+                <small class="form-help">O backend aceita a nova senha quando ela atinge o mínimo configurado.</small>
+                <small class="form-error" id="auth-new-password-error"></small>
+              </div>
+            </div>
+
+            <section class="password-feedback-panel" id="auth-password-feedback-panel" aria-labelledby="auth-password-feedback-title">
+              <div class="password-strength-header">
+                <div>
+                  <div class="password-rule-heading" id="auth-password-feedback-title">Força da nova senha</div>
+                  <div class="password-strength-copy" id="auth-password-strength-copy">
+                    O servidor aceita a senha a partir de {{ dashboard_min_password_length }} caracteres. Quanto mais variedade, melhor.
+                  </div>
+                </div>
+                <strong class="password-strength-label" id="auth-password-strength-label">Aguardando senha</strong>
+              </div>
+              <div
+                class="password-strength-track"
+                id="auth-password-strength-track"
+                role="progressbar"
+                aria-label="Nível de segurança da nova senha"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+              >
+                <span class="password-strength-fill" id="auth-password-strength-fill" data-tone="neutral"></span>
+              </div>
+              <div class="password-rule-grid">
+                <div class="password-rule-section">
+                  <div class="password-rule-heading">Regras para aceitar a troca</div>
+                  <ul class="password-rule-list">
+                    <li class="password-rule-item" id="auth-password-rule-length" data-state="neutral">
+                      <span class="password-rule-icon"><i class="fas fa-circle"></i></span>
+                      <span>Pelo menos {{ dashboard_min_password_length }} caracteres.</span>
+                    </li>
+                    <li class="password-rule-item" id="auth-password-rule-confirm" data-state="neutral">
+                      <span class="password-rule-icon"><i class="fas fa-circle"></i></span>
+                      <span>A confirmação precisa ser idêntica à nova senha.</span>
+                    </li>
+                  </ul>
+                </div>
+                <div class="password-rule-section">
+                  <div class="password-rule-heading">Sinais de boa segurança</div>
+                  <ul class="password-rule-list">
+                    <li class="password-rule-item" id="auth-password-signal-variety" data-state="neutral">
+                      <span class="password-rule-icon"><i class="fas fa-circle"></i></span>
+                      <span>Misture maiúsculas, minúsculas, números e símbolos.</span>
+                    </li>
+                    <li class="password-rule-item" id="auth-password-signal-unique" data-state="neutral">
+                      <span class="password-rule-icon"><i class="fas fa-circle"></i></span>
+                      <span>Evite repetir a senha atual.</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <div class="form-group" id="auth-confirm-password-group">
+              <label class="form-label" for="auth-confirm-password">Confirmar nova senha</label>
+              <input type="password" id="auth-confirm-password" class="form-control" autocomplete="new-password">
+              <small class="form-help" id="auth-password-help">Se a instalação ainda estiver em bootstrap, a senha atual é a `API Key Interna` até você rotacionar.</small>
+              <small class="form-error" id="auth-confirm-password-error"></small>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit" id="auth-password-submit-button">
+                <i class="fas fa-key"></i>
+                Atualizar senha do dashboard
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">URL do perfil</label>
-        <input type="url" id="favorite-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
+      <div class="card profile-card">
+        <div class="card-header profile-card-header">
+          <div>
+            <div class="profile-kicker">Ambiente operacional</div>
+            <h3 class="card-title">
+              <i class="fas fa-server"></i>
+              Deploy, Plano & Equipe
+            </h3>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="identity-meta-grid compact-grid">
+            <div class="identity-meta-card">
+              <span class="identity-meta-label">Plano em uso</span>
+              <strong class="identity-meta-value" id="profile-plan-value">Workspace local</strong>
+              <span class="identity-meta-note">Ideal para operação self-hosted com controle direto do ambiente.</span>
+            </div>
+            <div class="identity-meta-card">
+              <span class="identity-meta-label">Modo de execução</span>
+              <strong class="identity-meta-value" id="profile-runtime-value">Local</strong>
+              <span class="identity-meta-note" id="profile-runtime-note">Detectando topologia da stack...</span>
+            </div>
+            <div class="identity-meta-card">
+              <span class="identity-meta-label">Equipe</span>
+              <strong class="identity-meta-value" id="profile-team-value">Operação solo</strong>
+              <span class="identity-meta-note">A estrutura já acomoda membros, convites e níveis de acesso quando isso existir.</span>
+            </div>
+            <div class="identity-meta-card">
+              <span class="identity-meta-label">Membros visíveis</span>
+              <div class="team-member-list" id="team-member-list">
+                <span class="team-member-pill">Administrador</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
+  </section>
 
-      <div class="form-group">
-        <label class="form-label">Notas</label>
-        <textarea id="favorite-notes" class="form-control" rows="3" placeholder="Contexto rápido: prioridade, rotina, observações..."></textarea>
+  <aside class="profile-side-column">
+    <div class="card profile-card" id="favorite-composer-card">
+      <div class="card-header profile-card-header">
+        <div>
+          <div class="profile-kicker">Persistência imediata</div>
+          <h3 class="card-title">
+            <i class="fas fa-star"></i>
+            Favoritos Estratégicos
+          </h3>
+        </div>
+        <span class="profile-inline-hint">Adicionar, editar e excluir agora salva sem depender do botão de perfil</span>
       </div>
+      <div class="card-body">
+        <form class="form-grid" id="favorite-composer-form" onsubmit="event.preventDefault(); submitFavoriteComposer();">
+          <div class="form-group">
+            <label class="form-label" for="favorite-profile-select">Usar um perfil já monitorado</label>
+            <select id="favorite-profile-select" class="form-control" onchange="prefillFavoriteFromExisting()">
+              <option value="">Escolha um perfil existente</option>
+            </select>
+            <small class="form-help">Quando selecionar um perfil monitorado, o formulário abaixo é preenchido automaticamente.</small>
+          </div>
 
-      <button class="btn btn-primary" onclick="addFavoriteProfile()">
-        <i class="fas fa-star"></i>
-        Adicionar aos Favoritos
-      </button>
-    </div>
-  </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="favorite-name">Nome do médico</label>
+              <input type="text" id="favorite-name" class="form-control" placeholder="Nome exibido no favorito">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="favorite-specialty">Especialidade</label>
+              <input type="text" id="favorite-specialty" class="form-control" placeholder="Ex.: Ginecologia">
+            </div>
+          </div>
 
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-star"></i>
-        Favoritos Salvos
-      </h3>
+          <div class="form-group">
+            <label class="form-label" for="favorite-url">URL do perfil</label>
+            <input type="url" id="favorite-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="favorite-notes">Notas operacionais</label>
+            <textarea id="favorite-notes" class="form-control" rows="3" placeholder="Prioridade, ritmo de acompanhamento, observações rápidas..."></textarea>
+          </div>
+
+          <div class="favorite-composer-footer">
+            <div class="favorite-composer-copy">
+              <div class="favorite-composer-title" id="favorite-composer-title">Adicionar novo favorito</div>
+              <div class="favorite-composer-subtitle" id="favorite-composer-subtitle">O favorito entra na lista e já persiste no backend assim que você salvar.</div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit" id="favorite-submit-button">
+                <i class="fas fa-star"></i>
+                Adicionar aos favoritos
+              </button>
+              <button class="btn btn-secondary" type="button" id="favorite-cancel-button" onclick="resetFavoriteComposer()" hidden>
+                <i class="fas fa-xmark"></i>
+                Cancelar edição
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
-    <div class="card-body" id="favorite-profiles-list">
-      <div class="text-secondary">Carregando favoritos...</div>
+
+    <div class="card profile-card">
+      <div class="card-header profile-card-header">
+        <div>
+          <div class="profile-kicker">Atalhos operacionais</div>
+          <h3 class="card-title">
+            <i class="fas fa-flask-vial"></i>
+            Perfis Monitorados
+          </h3>
+        </div>
+      </div>
+      <div class="card-body" id="profile-suggestions-list">
+        <div class="empty-state-compact">Carregando perfis disponíveis...</div>
+      </div>
     </div>
-  </div>
+
+    <div class="card profile-card">
+      <div class="card-header profile-card-header">
+        <div>
+          <div class="profile-kicker">Lista consolidada</div>
+          <h3 class="card-title">
+            <i class="fas fa-bookmark"></i>
+            Favoritos Salvos
+          </h3>
+        </div>
+      </div>
+      <div class="card-body" id="favorite-profiles-list">
+        <div class="empty-state-compact">Carregando favoritos...</div>
+      </div>
+    </div>
+  </aside>
 </div>
 
-<div class="flex gap-2 mt-3">
-  <button class="btn btn-primary btn-lg" onclick="saveUserProfile()">
-    <i class="fas fa-save"></i>
-    Salvar Perfil
-  </button>
-  <button class="btn btn-secondary btn-lg" onclick="loadUserProfilePage()">
-    <i class="fas fa-rotate"></i>
-    Recarregar
-  </button>
-</div>
+<style>
+  .profile-hero {
+    margin-bottom: 24px;
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at top left, rgba(0, 122, 255, 0.18), transparent 34%),
+      radial-gradient(circle at top right, rgba(52, 199, 89, 0.16), transparent 28%),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 248, 252, 0.96));
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    box-shadow: 0 28px 60px rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+
+  #user-profile-toast-root {
+    position: fixed;
+    top: 88px;
+    right: 24px;
+    z-index: 1200;
+    width: min(420px, calc(100vw - 32px));
+    pointer-events: none;
+  }
+
+  .profile-toast {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--text-primary);
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    pointer-events: auto;
+    backdrop-filter: blur(18px);
+  }
+
+  .profile-toast.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .profile-toast-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+  }
+
+  .profile-toast-copy {
+    min-width: 0;
+  }
+
+  .profile-toast-title {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .profile-toast-message {
+    margin-top: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    word-break: break-word;
+  }
+
+  .profile-toast-success .profile-toast-icon {
+    background: rgba(52, 199, 89, 0.14);
+    color: var(--apple-green);
+  }
+
+  .profile-toast-error .profile-toast-icon {
+    background: rgba(255, 59, 48, 0.14);
+    color: var(--apple-red);
+  }
+
+  .profile-toast-info .profile-toast-icon {
+    background: rgba(0, 122, 255, 0.14);
+    color: var(--apple-blue);
+  }
+
+  @media (max-width: 720px) {
+    #user-profile-toast-root {
+      top: auto;
+      right: 16px;
+      bottom: 16px;
+      width: calc(100vw - 32px);
+    }
+  }
+
+  .profile-hero-shell {
+    display: grid;
+    gap: 24px;
+    padding: 28px;
+  }
+
+  .sr-only-field {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .form-group.success .form-control {
+    border-color: rgba(52, 199, 89, 0.55);
+    box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.08);
+  }
+
+  .password-feedback-panel {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(246, 248, 252, 0.98), rgba(241, 245, 249, 0.96));
+    border: 1px solid rgba(15, 23, 42, 0.06);
+  }
+
+  .password-strength-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .password-strength-label {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-primary);
+    white-space: nowrap;
+  }
+
+  .password-strength-copy {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .password-strength-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+  }
+
+  .password-strength-fill {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    transition: width 0.22s ease, background 0.22s ease;
+    background: rgba(15, 23, 42, 0.18);
+  }
+
+  .password-strength-fill[data-tone="weak"] {
+    background: linear-gradient(90deg, rgba(255, 59, 48, 0.85), rgba(255, 149, 0, 0.9));
+  }
+
+  .password-strength-fill[data-tone="medium"] {
+    background: linear-gradient(90deg, rgba(255, 149, 0, 0.9), rgba(255, 204, 0, 0.9));
+  }
+
+  .password-strength-fill[data-tone="good"] {
+    background: linear-gradient(90deg, rgba(52, 199, 89, 0.85), rgba(0, 122, 255, 0.82));
+  }
+
+  .password-strength-fill[data-tone="strong"] {
+    background: linear-gradient(90deg, rgba(52, 199, 89, 0.88), rgba(88, 86, 214, 0.86));
+  }
+
+  .password-rule-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .password-rule-section {
+    display: grid;
+    gap: 10px;
+  }
+
+  .password-rule-heading {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: var(--text-tertiary);
+  }
+
+  .password-rule-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+
+  .password-rule-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .password-rule-icon {
+    width: 16px;
+    display: inline-flex;
+    justify-content: center;
+    margin-top: 1px;
+    color: rgba(15, 23, 42, 0.35);
+    flex-shrink: 0;
+  }
+
+  .password-rule-item[data-state="met"] {
+    color: var(--text-primary);
+  }
+
+  .password-rule-item[data-state="met"] .password-rule-icon {
+    color: var(--apple-green);
+  }
+
+  .password-rule-item[data-state="problem"] {
+    color: #9a3412;
+  }
+
+  .password-rule-item[data-state="problem"] .password-rule-icon {
+    color: var(--apple-red);
+  }
+
+  @media (max-width: 720px) {
+    .password-strength-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .password-strength-label {
+      white-space: normal;
+    }
+  }
+
+  @media (min-width: 1180px) {
+    .profile-hero-shell {
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+      align-items: center;
+    }
+  }
+
+  .profile-identity-cluster {
+    display: grid;
+    gap: 20px;
+  }
+
+  @media (min-width: 860px) {
+    .profile-identity-cluster {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+    }
+  }
+
+  .profile-avatar-frame {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+  }
+
+  .profile-avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(0, 122, 255, 0.92), rgba(52, 199, 89, 0.82));
+    color: white;
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    box-shadow: 0 20px 40px rgba(0, 122, 255, 0.24);
+  }
+
+  .profile-avatar-note {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    max-width: 150px;
+    line-height: 1.45;
+  }
+
+  .profile-kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.65px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .profile-identity-name {
+    margin: 0;
+    font-size: clamp(28px, 3vw, 40px);
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+    color: var(--text-primary);
+  }
+
+  .profile-identity-subtitle {
+    margin-top: 8px;
+    font-size: 15px;
+    color: var(--text-secondary);
+  }
+
+  .profile-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.05);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .profile-chip.blue {
+    background: rgba(0, 122, 255, 0.12);
+    color: var(--apple-blue);
+  }
+
+  .profile-chip.green {
+    background: rgba(52, 199, 89, 0.14);
+    color: var(--apple-green);
+  }
+
+  .profile-chip.orange {
+    background: rgba(255, 149, 0, 0.14);
+    color: var(--apple-orange);
+  }
+
+  .profile-chip.red {
+    background: rgba(255, 59, 48, 0.14);
+    color: var(--apple-red);
+  }
+
+  .profile-identity-description {
+    max-width: 720px;
+    margin: 18px 0 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .profile-metrics-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-metric-card {
+    padding: 18px 18px 16px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(15, 23, 42, 0.05);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  .profile-metric-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+  }
+
+  .profile-metric-value {
+    display: block;
+    font-size: clamp(24px, 2.8vw, 32px);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--text-primary);
+  }
+
+  .profile-layout {
+    display: grid;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (min-width: 1180px) {
+    .profile-layout {
+      grid-template-columns: minmax(340px, 0.95fr) minmax(0, 1.25fr);
+    }
+  }
+
+  .profile-main-column,
+  .profile-side-column {
+    display: grid;
+    gap: 24px;
+  }
+
+  .profile-card {
+    overflow: hidden;
+  }
+
+  .profile-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .profile-inline-hint {
+    max-width: 240px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-tertiary);
+    text-align: right;
+  }
+
+  .identity-meta-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
+  .compact-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .identity-meta-card {
+    padding: 16px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(250, 251, 252, 0.98), rgba(243, 246, 249, 0.94));
+    border: 1px solid rgba(15, 23, 42, 0.05);
+  }
+
+  .identity-meta-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .identity-meta-value {
+    display: block;
+    font-size: 15px;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .identity-meta-note {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .profile-secondary-grid {
+    display: grid;
+    gap: 24px;
+  }
+
+  @media (min-width: 900px) {
+    .profile-secondary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .status-stack {
+    display: grid;
+    gap: 12px;
+  }
+
+  .status-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: var(--bg-secondary);
+  }
+
+  .status-row-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .status-row-copy {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 82px;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .status-badge.muted {
+    background: rgba(15, 23, 42, 0.08);
+    color: var(--text-secondary);
+  }
+
+  .status-badge.blue {
+    background: rgba(0, 122, 255, 0.12);
+    color: var(--apple-blue);
+  }
+
+  .team-member-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .team-member-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: rgba(52, 199, 89, 0.14);
+    color: var(--apple-green);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .favorite-composer-footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .favorite-composer-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .favorite-composer-subtitle {
+    margin-top: 6px;
+    max-width: 420px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+  }
+
+  .profile-suggestion-list,
+  .favorite-card-list {
+    display: grid;
+    gap: 14px;
+  }
+
+  .profile-suggestion-card,
+  .favorite-entry-card {
+    padding: 18px;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(245, 247, 250, 0.96));
+    border: 1px solid rgba(15, 23, 42, 0.05);
+  }
+
+  .favorite-entry-card.favorite-entry-empty {
+    border-style: dashed;
+    background: var(--bg-secondary);
+  }
+
+  .favorite-entry-header,
+  .profile-suggestion-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  @media (max-width: 720px) {
+    .favorite-entry-header,
+    .profile-suggestion-header,
+    .profile-card-header {
+      flex-direction: column;
+    }
+
+    .profile-inline-hint {
+      max-width: none;
+      text-align: left;
+    }
+  }
+
+  .favorite-entry-name,
+  .profile-suggestion-name {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.2;
+    color: var(--text-primary);
+  }
+
+  .favorite-entry-specialty,
+  .profile-suggestion-specialty {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .favorite-entry-actions,
+  .profile-suggestion-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .favorite-entry-meta {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    margin-top: 16px;
+  }
+
+  .favorite-entry-stat {
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: var(--bg-secondary);
+  }
+
+  .favorite-entry-stat-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+  }
+
+  .favorite-entry-stat-value {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .favorite-entry-notes {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: rgba(0, 122, 255, 0.06);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .favorite-entry-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    color: var(--apple-blue);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .favorite-entry-link:hover {
+    opacity: 0.82;
+  }
+
+  .empty-state-compact {
+    padding: 18px;
+    border-radius: 18px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center;
+  }
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
+  const dashboardMinPasswordLength = Number({{ dashboard_min_password_length | tojson }}) || 8;
   const userProfileState = {
     profile: {
       display_name: '',
@@ -110,163 +1093,1157 @@
       favorite_profiles: [],
     },
     availableProfiles: [],
+    overview: null,
+    health: null,
+    auth: null,
+    favoriteEditor: {
+      mode: 'create',
+      originalUrl: null,
+    },
   };
+  let userProfileToastTimeoutId = null;
+  const passwordUiState = {
+    submitAttempted: false,
+    serverFieldErrors: {
+      current: '',
+      new: '',
+      confirm: '',
+    },
+  };
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function toInlineJsString(value) {
+    return JSON.stringify(String(value ?? ''));
+  }
+
+  function normalizeUserProfile(profileData = {}) {
+    return {
+      display_name: profileData.display_name || 'Administrador',
+      username: profileData.username || 'admin',
+      favorite_profiles: Array.isArray(profileData.favorite_profiles) ? profileData.favorite_profiles : [],
+    };
+  }
+
+  function normalizedUrl(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function cloneFavorites(value) {
+    return JSON.parse(JSON.stringify(value || []));
+  }
+
+  function getFavoriteByUrl(profileUrl) {
+    return (userProfileState.profile.favorite_profiles || []).find(
+      (favorite) => normalizedUrl(favorite.profile_url) === normalizedUrl(profileUrl)
+    ) || null;
+  }
+
+  function getAvailableProfileById(profileId) {
+    return (userProfileState.availableProfiles || []).find((profile) => profile.profile_id === profileId) || null;
+  }
+
+  function getAvailableProfileByUrl(profileUrl) {
+    return (userProfileState.availableProfiles || []).find(
+      (profile) => normalizedUrl(profile.profile_url) === normalizedUrl(profileUrl)
+    ) || null;
+  }
+
+  function computeWorkspaceContext() {
+    const apiUrl = userProfileState.health?.api?.api_url || '';
+    const host = window.location.hostname || '';
+    const isLocal = ['localhost', '127.0.0.1'].includes(host)
+      || apiUrl.includes('localhost')
+      || apiUrl.includes('127.0.0.1')
+      || apiUrl.includes('api:8000');
+
+    return {
+      isLocal,
+      deploymentLabel: isLocal ? 'Self-hosted local' : 'Workspace remoto',
+      runtimeLabel: isLocal ? 'Rodando localmente' : 'Rodando remotamente',
+      runtimeNote: apiUrl ? `API conectada em ${apiUrl}` : 'Sem URL pública definida para a API',
+      planLabel: isLocal ? 'Workspace local' : 'Workspace conectado',
+      authLabel: userProfileState.auth?.auth_enabled
+        ? `Sessão autenticada (${userProfileState.auth?.session_ttl_minutes || 0} min)`
+        : 'Autenticação desativada',
+      apiConnected: userProfileState.health?.api?.status === 'connected',
+    };
+  }
 
   function showUserProfileAlert(message, type = 'info') {
     const container = document.getElementById('user-profile-alert');
     container.innerHTML = `
       <div class="alert alert-${type}">
-        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
-        <div>${message}</div>
+        <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'circle-info'}"></i>
+        <div>${escapeHtml(message)}</div>
       </div>
     `;
-    setTimeout(() => { container.innerHTML = ''; }, 3500);
+    setTimeout(() => {
+      if (container.innerHTML.includes(message)) {
+        container.innerHTML = '';
+      }
+    }, 4000);
   }
 
-  function renderFavoriteProfiles() {
-    const container = document.getElementById('favorite-profiles-list');
-    const favorites = userProfileState.profile.favorite_profiles || [];
-    if (!favorites.length) {
-      container.innerHTML = '<div class="text-secondary">Nenhum perfil favorito salvo. Monte uma shortlist para acelerar seus scrapes e respostas.</div>';
+  function showUserProfileToast(message, type = 'info') {
+    const root = document.getElementById('user-profile-toast-root');
+    if (!root) {
       return;
     }
 
-    container.innerHTML = favorites.map((favorite, index) => `
-      <div class="card mb-2" style="box-shadow:none;">
-        <div class="card-body" style="padding:16px;">
-          <div class="flex justify-between items-center">
-            <div>
-              <div style="font-weight:700;">${favorite.name}</div>
-              <div class="text-secondary" style="font-size:13px;">${favorite.specialty || 'Especialidade não informada'}</div>
-            </div>
-            <button class="btn btn-sm btn-danger" onclick="removeFavoriteProfile(${index})">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-          <div style="font-size:13px; margin-top: 10px;">
-            <a href="${favorite.profile_url}" target="_blank" rel="noopener noreferrer">${favorite.profile_url}</a>
-          </div>
-          <textarea class="form-control mt-2" rows="2" onchange="updateFavoriteNotes(${index}, this.value)">${favorite.notes || ''}</textarea>
+    const tone = ['success', 'error', 'info'].includes(type) ? type : 'info';
+    const icon = tone === 'error'
+      ? 'triangle-exclamation'
+      : tone === 'success'
+        ? 'check'
+        : 'circle-info';
+    const title = tone === 'error'
+      ? 'Falha ao atualizar senha'
+      : tone === 'success'
+        ? 'Senha atualizada'
+        : 'Aviso';
+
+    root.innerHTML = `
+      <div class="profile-toast profile-toast-${tone}" role="${tone === 'error' ? 'alert' : 'status'}" aria-live="${tone === 'error' ? 'assertive' : 'polite'}">
+        <span class="profile-toast-icon">
+          <i class="fas fa-${icon}"></i>
+        </span>
+        <div class="profile-toast-copy">
+          <div class="profile-toast-title">${title}</div>
+          <div class="profile-toast-message">${escapeHtml(message)}</div>
         </div>
       </div>
-    `).join('');
+    `;
+
+    const toast = root.querySelector('.profile-toast');
+    requestAnimationFrame(() => {
+      if (toast) {
+        toast.classList.add('is-visible');
+      }
+    });
+
+    if (userProfileToastTimeoutId) {
+      clearTimeout(userProfileToastTimeoutId);
+    }
+
+    userProfileToastTimeoutId = window.setTimeout(() => {
+      const activeToast = root.querySelector('.profile-toast');
+      if (!activeToast) {
+        root.innerHTML = '';
+        return;
+      }
+
+      activeToast.classList.remove('is-visible');
+      window.setTimeout(() => {
+        if (!root.querySelector('.profile-toast.is-visible')) {
+          root.innerHTML = '';
+        }
+      }, 180);
+    }, 4800);
+  }
+
+  function logPasswordChangeFailure(stage, details = {}, level = 'error') {
+    const logger = level === 'warn' ? console.warn : console.error;
+    logger('[Minha Área] Não foi possível atualizar a senha do dashboard.', {
+      stage,
+      ...details,
+    });
+  }
+
+  function notifyPasswordChange(message, type = 'info') {
+    showUserProfileAlert(message, type);
+    showUserProfileToast(message, type);
+  }
+
+  function createPasswordChangeError(message, metadata = {}) {
+    const error = new Error(message);
+    Object.assign(error, metadata);
+    return error;
+  }
+
+  function normalizedMessageIncludesPasswordRule(message) {
+    const normalized = String(message || '').toLowerCase();
+    return normalized.includes('pelo menos') && normalized.includes('caracter');
+  }
+
+  function clearPasswordServerFieldErrors(fieldName = null) {
+    if (fieldName) {
+      passwordUiState.serverFieldErrors[fieldName] = '';
+      return;
+    }
+
+    passwordUiState.serverFieldErrors = {
+      current: '',
+      new: '',
+      confirm: '',
+    };
+  }
+
+  function setPasswordRuleState(elementId, state = 'neutral') {
+    const item = document.getElementById(elementId);
+    if (!item) {
+      return;
+    }
+
+    const icon = item.querySelector('i');
+    item.dataset.state = state;
+
+    if (!icon) {
+      return;
+    }
+
+    if (state === 'met') {
+      icon.className = 'fas fa-circle-check';
+      return;
+    }
+
+    if (state === 'problem') {
+      icon.className = 'fas fa-circle-xmark';
+      return;
+    }
+
+    icon.className = 'fas fa-circle';
+  }
+
+  function setPasswordFieldFeedback(groupId, errorId, errorMessage = '', isValid = false) {
+    const group = document.getElementById(groupId);
+    const errorNode = document.getElementById(errorId);
+    if (!group || !errorNode) {
+      return;
+    }
+
+    group.classList.toggle('error', Boolean(errorMessage));
+    group.classList.toggle('success', !errorMessage && isValid);
+    errorNode.textContent = errorMessage || '';
+  }
+
+  function evaluatePasswordStrength(password, currentPassword = '') {
+    const trimmedPassword = String(password || '').trim();
+    const trimmedCurrentPassword = String(currentPassword || '').trim();
+
+    if (!trimmedPassword) {
+      return {
+        label: 'Aguardando senha',
+        copy: `O servidor aceita a senha a partir de ${dashboardMinPasswordLength} caracteres. Quanto mais variedade, melhor.`,
+        percent: 0,
+        tone: 'neutral',
+        hasMinLength: false,
+        varietyCount: 0,
+        sameAsCurrent: false,
+      };
+    }
+
+    const hasLower = /[a-zà-ÿ]/.test(trimmedPassword);
+    const hasUpper = /[A-ZÀ-Ý]/.test(trimmedPassword);
+    const hasDigit = /\d/.test(trimmedPassword);
+    const hasSymbol = /[^A-Za-zÀ-ÿ0-9]/.test(trimmedPassword);
+    const hasMinLength = trimmedPassword.length >= dashboardMinPasswordLength;
+    const hasLongLength = trimmedPassword.length >= Math.max(12, dashboardMinPasswordLength + 4);
+    const varietyCount = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
+    const sameAsCurrent = Boolean(trimmedCurrentPassword) && trimmedPassword === trimmedCurrentPassword;
+
+    let score = 0;
+    if (hasMinLength) score += 1;
+    if (varietyCount >= 2) score += 1;
+    if (varietyCount >= 3) score += 1;
+    if (varietyCount === 4) score += 1;
+    if (hasLongLength) score += 1;
+    if (sameAsCurrent && score > 0) score -= 1;
+
+    if (!hasMinLength) {
+      return {
+        label: 'Curta demais',
+        copy: `Ainda não atende à regra mínima de ${dashboardMinPasswordLength} caracteres.`,
+        percent: Math.max(12, Math.round((trimmedPassword.length / dashboardMinPasswordLength) * 34)),
+        tone: 'weak',
+        hasMinLength,
+        varietyCount,
+        sameAsCurrent,
+      };
+    }
+
+    if (score <= 2) {
+      return {
+        label: 'Fraca',
+        copy: 'Aceita pelo servidor, mas ainda fácil de adivinhar. Use mais variedade de caracteres.',
+        percent: 38,
+        tone: 'weak',
+        hasMinLength,
+        varietyCount,
+        sameAsCurrent,
+      };
+    }
+
+    if (score === 3) {
+      return {
+        label: 'Razoável',
+        copy: 'Já atende à regra do servidor. Adicionar mais variedade ou comprimento melhora a segurança.',
+        percent: 58,
+        tone: 'medium',
+        hasMinLength,
+        varietyCount,
+        sameAsCurrent,
+      };
+    }
+
+    if (score === 4) {
+      return {
+        label: 'Boa',
+        copy: sameAsCurrent
+          ? 'Está forte, mas repetir a senha atual reduz o ganho de segurança.'
+          : 'Boa combinação de tamanho e variedade de caracteres.',
+        percent: 78,
+        tone: 'good',
+        hasMinLength,
+        varietyCount,
+        sameAsCurrent,
+      };
+    }
+
+    return {
+      label: 'Forte',
+      copy: sameAsCurrent
+        ? 'Apesar de forte, repetir a senha atual não é recomendado.'
+        : 'Boa distribuição de caracteres e comprimento confortável.',
+      percent: 100,
+      tone: 'strong',
+      hasMinLength,
+      varietyCount,
+      sameAsCurrent,
+    };
+  }
+
+  function getPasswordValidationState() {
+    const currentPassword = document.getElementById('auth-current-password')?.value || '';
+    const newPassword = document.getElementById('auth-new-password')?.value || '';
+    const confirmPassword = document.getElementById('auth-confirm-password')?.value || '';
+    const trimmedNewPassword = newPassword.trim();
+    const currentProvided = currentPassword.trim().length > 0;
+    const newPasswordProvided = trimmedNewPassword.length > 0;
+    const confirmProvided = confirmPassword.length > 0;
+    const strength = evaluatePasswordStrength(newPassword, currentPassword);
+    const confirmMatches = confirmProvided && newPassword === confirmPassword;
+
+    return {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+      trimmedNewPassword,
+      currentProvided,
+      newPasswordProvided,
+      confirmProvided,
+      hasMinLength: strength.hasMinLength,
+      confirmMatches,
+      strength,
+    };
+  }
+
+  function getPasswordValidationMessage(validation) {
+    if (!validation.currentProvided) {
+      return 'Informe a senha atual antes de tentar salvar.';
+    }
+    if (!validation.newPasswordProvided) {
+      return 'Digite a nova senha.';
+    }
+    if (!validation.hasMinLength) {
+      return `A nova senha precisa ter pelo menos ${dashboardMinPasswordLength} caracteres.`;
+    }
+    if (!validation.confirmProvided) {
+      return 'Confirme a nova senha.';
+    }
+    if (!validation.confirmMatches) {
+      return 'A confirmação precisa ser idêntica à nova senha.';
+    }
+    return '';
+  }
+
+  function renderPasswordFormFeedback() {
+    const validation = getPasswordValidationState();
+    const strengthLabel = document.getElementById('auth-password-strength-label');
+    const strengthCopy = document.getElementById('auth-password-strength-copy');
+    const strengthTrack = document.getElementById('auth-password-strength-track');
+    const strengthFill = document.getElementById('auth-password-strength-fill');
+
+    if (strengthLabel) {
+      strengthLabel.textContent = validation.strength.label;
+    }
+    if (strengthCopy) {
+      strengthCopy.textContent = validation.strength.copy;
+    }
+    if (strengthFill) {
+      strengthFill.style.width = `${validation.strength.percent}%`;
+      strengthFill.dataset.tone = validation.strength.tone;
+    }
+    if (strengthTrack) {
+      strengthTrack.setAttribute('aria-valuenow', String(validation.strength.percent));
+    }
+
+    setPasswordRuleState(
+      'auth-password-rule-length',
+      !validation.newPasswordProvided ? 'neutral' : validation.hasMinLength ? 'met' : 'problem'
+    );
+    setPasswordRuleState(
+      'auth-password-rule-confirm',
+      !validation.confirmProvided
+        ? (passwordUiState.submitAttempted ? 'problem' : 'neutral')
+        : validation.confirmMatches ? 'met' : 'problem'
+    );
+    setPasswordRuleState(
+      'auth-password-signal-variety',
+      !validation.newPasswordProvided ? 'neutral' : validation.strength.varietyCount >= 3 ? 'met' : 'neutral'
+    );
+    setPasswordRuleState(
+      'auth-password-signal-unique',
+      !validation.newPasswordProvided || !validation.currentProvided
+        ? 'neutral'
+        : validation.strength.sameAsCurrent ? 'problem' : 'met'
+    );
+
+    const currentError = passwordUiState.serverFieldErrors.current
+      || (passwordUiState.submitAttempted && !validation.currentProvided
+        ? 'Informe a senha atual antes de tentar salvar.'
+        : '');
+
+    const newError = passwordUiState.serverFieldErrors.new
+      || (passwordUiState.submitAttempted && !validation.newPasswordProvided
+        ? 'Digite a nova senha.'
+        : '')
+      || (validation.newPasswordProvided && !validation.hasMinLength
+        ? `A nova senha precisa ter pelo menos ${dashboardMinPasswordLength} caracteres.`
+        : '');
+
+    const confirmError = passwordUiState.serverFieldErrors.confirm
+      || (passwordUiState.submitAttempted && !validation.confirmProvided
+        ? 'Confirme a nova senha.'
+        : '')
+      || (validation.confirmProvided && !validation.confirmMatches
+        ? 'A confirmação precisa ser idêntica à nova senha.'
+        : '');
+
+    setPasswordFieldFeedback(
+      'auth-current-password-group',
+      'auth-current-password-error',
+      currentError,
+      validation.currentProvided && !currentError
+    );
+    setPasswordFieldFeedback(
+      'auth-new-password-group',
+      'auth-new-password-error',
+      newError,
+      validation.newPasswordProvided && validation.hasMinLength && !newError
+    );
+    setPasswordFieldFeedback(
+      'auth-confirm-password-group',
+      'auth-confirm-password-error',
+      confirmError,
+      validation.confirmProvided && validation.confirmMatches && !confirmError
+    );
+
+    return validation;
+  }
+
+  function initializePasswordForm() {
+    const form = document.getElementById('auth-password-form');
+    if (!form) {
+      return;
+    }
+
+    const fieldBindings = {
+      'auth-current-password': ['current'],
+      'auth-new-password': ['new', 'confirm'],
+      'auth-confirm-password': ['confirm'],
+    };
+
+    Object.entries(fieldBindings).forEach(([fieldId, errorFields]) => {
+      const input = document.getElementById(fieldId);
+      if (!input) {
+        return;
+      }
+
+      input.addEventListener('input', () => {
+        errorFields.forEach((fieldName) => clearPasswordServerFieldErrors(fieldName));
+        renderPasswordFormFeedback();
+      });
+    });
+
+    renderPasswordFormFeedback();
+  }
+
+  function extractApiErrorMessage(payload, fallback) {
+    if (!payload) {
+      return fallback;
+    }
+    if (typeof payload === 'string') {
+      return payload;
+    }
+    if (typeof payload.error === 'string' && payload.error.trim()) {
+      return payload.error.trim();
+    }
+    if (payload.error && typeof payload.error === 'object' && typeof payload.error.message === 'string' && payload.error.message.trim()) {
+      return payload.error.message.trim();
+    }
+    if (typeof payload.detail === 'string' && payload.detail.trim()) {
+      return payload.detail.trim();
+    }
+    return fallback;
+  }
+
+  function redirectToLoginWithReturn() {
+    const nextTarget = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/login?next=${nextTarget}`;
+  }
+
+  function fillIdentityForm() {
+    document.getElementById('user-display-name').value = userProfileState.profile.display_name;
+    document.getElementById('user-username').value = userProfileState.profile.username;
+    document.getElementById('auth-username-shadow').value = userProfileState.profile.username;
+  }
+
+  function updateProfileHero() {
+    const context = computeWorkspaceContext();
+    const displayName = userProfileState.profile.display_name || 'Administrador';
+    const username = userProfileState.profile.username || 'admin';
+    const favoritesCount = (userProfileState.profile.favorite_profiles || []).length;
+    const overviewSummary = userProfileState.overview?.summary || {};
+    const pendingCount = overviewSummary.unanswered_reviews_current ?? 0;
+    const trackedCount = overviewSummary.profiles_tracked ?? (userProfileState.availableProfiles || []).length;
+    const initials = (displayName.trim().charAt(0) || 'A').toUpperCase();
+
+    document.getElementById('profile-avatar').textContent = initials;
+    document.getElementById('profile-identity-name').textContent = displayName;
+    document.getElementById('profile-identity-subtitle').textContent = `@${username}`;
+    document.getElementById('profile-metric-favorites').textContent = favoritesCount;
+    document.getElementById('profile-metric-profiles').textContent = trackedCount;
+    document.getElementById('profile-metric-pending').textContent = pendingCount;
+    document.getElementById('profile-metric-members').textContent = '1';
+    document.getElementById('profile-email-value').textContent = 'Não configurado';
+    document.getElementById('profile-plan-value').textContent = context.planLabel;
+    document.getElementById('profile-runtime-value').textContent = context.runtimeLabel;
+    document.getElementById('profile-runtime-note').textContent = context.runtimeNote;
+    document.getElementById('profile-team-value').textContent = context.isLocal ? 'Operação solo' : 'Equipe conectada';
+    document.getElementById('team-member-list').innerHTML = `
+      <span class="team-member-pill">${escapeHtml(displayName)}</span>
+    `;
+
+    const chips = [
+      `<span class="profile-chip ${context.apiConnected ? 'green' : 'red'}"><i class="fas fa-circle"></i>${escapeHtml(context.apiConnected ? 'API conectada' : 'API indisponível')}</span>`,
+      `<span class="profile-chip blue"><i class="fas fa-server"></i>${escapeHtml(context.deploymentLabel)}</span>`,
+      `<span class="profile-chip orange"><i class="fas fa-layer-group"></i>${escapeHtml(context.planLabel)}</span>`,
+    ];
+
+    document.getElementById('profile-chip-row').innerHTML = chips.join('');
+  }
+
+  function updateAuthSecurityCard() {
+    const auth = userProfileState.auth || {};
+    const authEnabled = auth.auth_enabled === true;
+    const authenticated = auth.authenticated === true;
+    const bootstrap = auth.bootstrap_password_enabled === true;
+    const passwordConfigured = auth.password_configured === true;
+    const ttl = auth.session_ttl_minutes || 0;
+
+    document.getElementById('auth-state-copy').textContent = authEnabled
+      ? 'O dashboard exige login, mantém sessão assinada e protege as rotas web.'
+      : 'A proteção por login está desativada nesta instância.';
+    document.getElementById('auth-state-badge').textContent = authEnabled ? 'Ativo' : 'Desligado';
+    document.getElementById('auth-state-badge').className = `status-badge ${authEnabled ? 'blue' : 'muted'}`;
+
+    document.getElementById('auth-session-copy').textContent = authenticated
+      ? `Sessão atual autenticada para @${auth.username || userProfileState.profile.username}. TTL configurado: ${ttl} minutos.`
+      : 'Nenhuma sessão autenticada detectada.';
+    document.getElementById('auth-session-badge').textContent = authenticated ? 'Autenticado' : 'Anônimo';
+    document.getElementById('auth-session-badge').className = `status-badge ${authenticated ? 'blue' : 'muted'}`;
+
+    let passwordCopy = 'Nenhuma senha configurada.';
+    if (passwordConfigured && bootstrap) {
+      passwordCopy = 'Bootstrap ativo: a API key interna ainda funciona como senha até a primeira rotação.';
+    } else if (passwordConfigured) {
+      passwordCopy = 'Senha dedicada configurada e pronta para rotação.';
+    }
+    document.getElementById('auth-password-copy').textContent = passwordCopy;
+    document.getElementById('auth-password-badge').textContent = bootstrap ? 'Bootstrap' : (passwordConfigured ? 'Configurada' : 'Ausente');
+    document.getElementById('auth-password-badge').className = `status-badge ${passwordConfigured ? 'blue' : 'muted'}`;
+    document.getElementById('auth-password-help').textContent = bootstrap
+      ? 'Enquanto o bootstrap estiver ativo, use a API Key Interna como senha atual. Depois da primeira rotação, passe a usar a senha dedicada.'
+      : 'Use a senha atual do dashboard para rotacionar a credencial. A API Key Interna continua separada para os endpoints da API.';
+  }
+
+  function updateFavoriteComposerUi() {
+    const isEditing = userProfileState.favoriteEditor.mode === 'edit';
+    document.getElementById('favorite-composer-title').textContent = isEditing
+      ? 'Editar favorito'
+      : 'Adicionar novo favorito';
+    document.getElementById('favorite-composer-subtitle').textContent = isEditing
+      ? 'As alterações abaixo substituem o favorito existente e são persistidas imediatamente.'
+      : 'O favorito entra na lista e já persiste no backend assim que você salvar.';
+    document.getElementById('favorite-submit-button').innerHTML = isEditing
+      ? '<i class="fas fa-save"></i>Atualizar favorito'
+      : '<i class="fas fa-star"></i>Adicionar aos favoritos';
+    document.getElementById('favorite-cancel-button').hidden = !isEditing;
+  }
+
+  function resetFavoriteComposer() {
+    userProfileState.favoriteEditor = {
+      mode: 'create',
+      originalUrl: null,
+    };
+    document.getElementById('favorite-profile-select').value = '';
+    document.getElementById('favorite-name').value = '';
+    document.getElementById('favorite-specialty').value = '';
+    document.getElementById('favorite-url').value = '';
+    document.getElementById('favorite-notes').value = '';
+    updateFavoriteComposerUi();
+  }
+
+  function focusFavoriteComposer() {
+    document.getElementById('favorite-composer-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('favorite-name').focus();
   }
 
   function populateProfileSelector() {
     const select = document.getElementById('favorite-profile-select');
-    select.innerHTML = '<option value="">Escolha um perfil existente</option>' + userProfileState.availableProfiles.map((profile) => `
-      <option value="${profile.profile_id}">${profile.doctor_name}</option>
+    const candidates = userProfileState.availableProfiles || [];
+    select.innerHTML = '<option value="">Escolha um perfil existente</option>' + candidates.map((profile) => `
+      <option value="${escapeHtml(profile.profile_id)}">${escapeHtml(profile.doctor_name)}${profile.current_unanswered ? ` • ${profile.current_unanswered} pendentes` : ''}</option>
     `).join('');
   }
 
   function prefillFavoriteFromExisting() {
     const selectedId = document.getElementById('favorite-profile-select').value;
-    const selectedProfile = userProfileState.availableProfiles.find((item) => item.profile_id === selectedId);
-    if (!selectedProfile) return;
-    document.getElementById('favorite-name').value = selectedProfile.doctor_name || '';
-    document.getElementById('favorite-url').value = selectedProfile.profile_url || '';
-    document.getElementById('favorite-specialty').value = selectedProfile.specialty || '';
-  }
-
-  function removeFavoriteProfile(index) {
-    userProfileState.profile.favorite_profiles.splice(index, 1);
-    renderFavoriteProfiles();
-  }
-
-  function updateFavoriteNotes(index, value) {
-    userProfileState.profile.favorite_profiles[index].notes = value;
-  }
-
-  function addFavoriteProfile() {
-    const selectedId = document.getElementById('favorite-profile-select').value;
-    const selectedProfile = userProfileState.availableProfiles.find((item) => item.profile_id === selectedId);
-    const name = document.getElementById('favorite-name').value.trim() || selectedProfile?.doctor_name || '';
-    const profileUrl = document.getElementById('favorite-url').value.trim() || selectedProfile?.profile_url || '';
-    const specialty = document.getElementById('favorite-specialty').value.trim() || selectedProfile?.specialty || '';
-    const notes = document.getElementById('favorite-notes').value.trim();
-
-    if (!name || !profileUrl) {
-      showUserProfileAlert('Nome e URL do perfil são obrigatórios para salvar um favorito.', 'error');
+    const selectedProfile = getAvailableProfileById(selectedId);
+    if (!selectedProfile) {
       return;
     }
 
-    const alreadyExists = (userProfileState.profile.favorite_profiles || []).some(
-      (favorite) => favorite.profile_url.toLowerCase() === profileUrl.toLowerCase()
-    );
-    if (alreadyExists) {
-      showUserProfileAlert('Esse perfil já está na lista de favoritos.', 'error');
+    const existingFavorite = getFavoriteByUrl(selectedProfile.profile_url);
+    userProfileState.favoriteEditor = {
+      mode: existingFavorite ? 'edit' : 'create',
+      originalUrl: existingFavorite ? existingFavorite.profile_url : null,
+    };
+    document.getElementById('favorite-name').value = existingFavorite?.name || selectedProfile.doctor_name || '';
+    document.getElementById('favorite-url').value = existingFavorite?.profile_url || selectedProfile.profile_url || '';
+    document.getElementById('favorite-specialty').value = existingFavorite?.specialty || selectedProfile.specialty || '';
+    document.getElementById('favorite-notes').value = existingFavorite?.notes || '';
+    updateFavoriteComposerUi();
+  }
+
+  function loadFavoriteIntoComposer(profileUrl) {
+    const favorite = getFavoriteByUrl(profileUrl);
+    if (!favorite) {
       return;
     }
 
-    userProfileState.profile.favorite_profiles.push({
-      name,
-      profile_url: profileUrl,
-      specialty: specialty || null,
-      notes: notes || null,
-    });
-
+    userProfileState.favoriteEditor = {
+      mode: 'edit',
+      originalUrl: favorite.profile_url,
+    };
     document.getElementById('favorite-profile-select').value = '';
-    document.getElementById('favorite-name').value = '';
-    document.getElementById('favorite-url').value = '';
-    document.getElementById('favorite-specialty').value = '';
-    document.getElementById('favorite-notes').value = '';
-    renderFavoriteProfiles();
+    document.getElementById('favorite-name').value = favorite.name || '';
+    document.getElementById('favorite-url').value = favorite.profile_url || '';
+    document.getElementById('favorite-specialty').value = favorite.specialty || '';
+    document.getElementById('favorite-notes').value = favorite.notes || '';
+    updateFavoriteComposerUi();
+    focusFavoriteComposer();
   }
 
-  async function saveUserProfile() {
-    try {
-      userProfileState.profile.display_name = document.getElementById('user-display-name').value.trim();
-      userProfileState.profile.username = document.getElementById('user-username').value.trim();
+  function serializeFavoriteComposer() {
+    return {
+      name: document.getElementById('favorite-name').value.trim(),
+      profile_url: document.getElementById('favorite-url').value.trim(),
+      specialty: document.getElementById('favorite-specialty').value.trim() || null,
+      notes: document.getElementById('favorite-notes').value.trim() || null,
+    };
+  }
 
+  async function persistCurrentUserProfile(successMessage, previousFavorites = null) {
+    try {
       const response = await fetch('/api/user-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userProfileState.profile),
       });
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-      userProfileState.profile = data;
+      userProfileState.profile = normalizeUserProfile(data);
+      fillIdentityForm();
+      updateProfileHero();
+      updateFavoriteComposerUi();
       renderFavoriteProfiles();
-      showUserProfileAlert('Perfil do operador salvo com sucesso.', 'success');
+      renderProfileSuggestions();
       if (typeof hydrateSidebarWorkspace === 'function') {
         hydrateSidebarWorkspace();
       }
+      if (successMessage) {
+        showUserProfileAlert(successMessage, 'success');
+      }
+      return true;
     } catch (error) {
-      showUserProfileAlert(`Erro ao salvar perfil: ${error.message}`, 'error');
+      if (previousFavorites) {
+        userProfileState.profile.favorite_profiles = previousFavorites;
+        renderFavoriteProfiles();
+        renderProfileSuggestions();
+      }
+      showUserProfileAlert(`Erro ao persistir perfil: ${error.message}`, 'error');
+      return false;
     }
+  }
+
+  async function saveIdentityProfile() {
+    const displayName = document.getElementById('user-display-name').value.trim();
+    const username = document.getElementById('user-username').value.trim();
+
+    if (!displayName || !username) {
+      showUserProfileAlert('Nome exibido e username são obrigatórios.', 'error');
+      return;
+    }
+
+    userProfileState.profile.display_name = displayName;
+    userProfileState.profile.username = username;
+    await persistCurrentUserProfile('Identidade do operador salva com sucesso.');
+  }
+
+  async function changeDashboardPassword() {
+    passwordUiState.submitAttempted = true;
+    clearPasswordServerFieldErrors();
+    const validation = renderPasswordFormFeedback();
+    const validationMessage = getPasswordValidationMessage(validation);
+
+    if (validationMessage) {
+      logPasswordChangeFailure('validation', {
+        message: validationMessage,
+        hasCurrentPassword: validation.currentProvided,
+        hasNewPassword: validation.newPasswordProvided,
+        hasMinLength: validation.hasMinLength,
+        confirmMatches: validation.confirmMatches,
+      }, 'warn');
+      notifyPasswordChange(validationMessage, 'error');
+      return;
+    }
+
+    const submitButton = document.getElementById('auth-password-submit-button');
+    const originalButtonHtml = submitButton.innerHTML;
+
+    try {
+      submitButton.disabled = true;
+      submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>Atualizando...';
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          current_password: validation.currentPassword,
+          new_password: validation.newPassword,
+        }),
+      });
+      const rawResponseText = await response.text();
+      let data = {};
+
+      if (rawResponseText) {
+        try {
+          data = JSON.parse(rawResponseText);
+        } catch (parseError) {
+          throw createPasswordChangeError(
+            response.ok
+              ? 'O servidor respondeu em um formato inválido ao atualizar a senha.'
+              : 'O servidor retornou um erro em formato inválido. Verifique o console para mais detalhes.',
+            {
+              responseStatus: response.status,
+              responseStatusText: response.statusText,
+              responseTextPreview: rawResponseText.slice(0, 500),
+              parseError: parseError instanceof Error ? parseError.message : String(parseError),
+            }
+          );
+        }
+      }
+
+      const errorMessage = extractApiErrorMessage(data, 'Falha ao atualizar a senha');
+
+      if (!response.ok || data.error || data.detail) {
+        if (response.status === 401) {
+          const normalizedMessage = errorMessage.toLowerCase();
+          const isSessionError = normalizedMessage.includes('authentication required')
+            || normalizedMessage.includes('sessão expirou')
+            || normalizedMessage.includes('unauthorized');
+
+          if (isSessionError) {
+            throw createPasswordChangeError(
+              'Sua sessão expirou. Entre novamente para atualizar a senha.',
+              {
+                code: 'session-expired',
+                responseStatus: response.status,
+                responseStatusText: response.statusText,
+                responsePayload: data,
+              }
+            );
+          }
+        }
+
+        if (errorMessage === 'Current password is invalid') {
+          throw createPasswordChangeError(
+            'A senha atual do dashboard está incorreta.',
+            {
+              code: 'current-password-invalid',
+              responseStatus: response.status,
+              responseStatusText: response.statusText,
+              responsePayload: data,
+            }
+          );
+        }
+
+        throw createPasswordChangeError(errorMessage, {
+          code: normalizedMessageIncludesPasswordRule(errorMessage) ? 'new-password-invalid' : 'request-failed',
+          responseStatus: response.status,
+          responseStatusText: response.statusText,
+          responsePayload: data,
+        });
+      }
+
+      document.getElementById('auth-current-password').value = '';
+      document.getElementById('auth-new-password').value = '';
+      document.getElementById('auth-confirm-password').value = '';
+      passwordUiState.submitAttempted = false;
+      clearPasswordServerFieldErrors();
+      userProfileState.auth = {
+        ...(userProfileState.auth || {}),
+        password_configured: true,
+        bootstrap_password_enabled: false,
+      };
+      updateAuthSecurityCard();
+      updateProfileHero();
+      renderPasswordFormFeedback();
+      const successMessage = data.message === 'Dashboard password updated successfully'
+        ? 'Senha do dashboard atualizada com sucesso.'
+        : (data.message || 'Senha do dashboard atualizada com sucesso.');
+      console.info('[Minha Área] Senha do dashboard atualizada com sucesso.', {
+        bootstrapPasswordEnabled: false,
+      });
+      notifyPasswordChange(successMessage, 'success');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (error?.code === 'current-password-invalid') {
+        passwordUiState.serverFieldErrors.current = 'A senha atual digitada não confere com a senha ativa do dashboard.';
+      } else if (error?.code === 'new-password-invalid') {
+        passwordUiState.serverFieldErrors.new = errorMessage;
+      }
+      renderPasswordFormFeedback();
+      logPasswordChangeFailure('request', {
+        message: errorMessage,
+        code: error?.code,
+        responseStatus: error?.responseStatus,
+        responseStatusText: error?.responseStatusText,
+        responsePayload: error?.responsePayload,
+        responseTextPreview: error?.responseTextPreview,
+        parseError: error?.parseError,
+      });
+      notifyPasswordChange(`Erro ao atualizar senha: ${errorMessage}`, 'error');
+      if (errorMessage.includes('sessão expirou')) {
+        setTimeout(() => {
+          redirectToLoginWithReturn();
+        }, 1000);
+      }
+    } finally {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonHtml;
+    }
+  }
+
+  async function submitFavoriteComposer() {
+    const payload = serializeFavoriteComposer();
+
+    if (!payload.name || !payload.profile_url) {
+      showUserProfileAlert('Nome e URL do perfil são obrigatórios para salvar um favorito.', 'error');
+      return;
+    }
+
+    const existingByNewUrl = (userProfileState.profile.favorite_profiles || []).find((favorite) => {
+      if (userProfileState.favoriteEditor.mode === 'edit'
+        && normalizedUrl(favorite.profile_url) === normalizedUrl(userProfileState.favoriteEditor.originalUrl)) {
+        return false;
+      }
+      return normalizedUrl(favorite.profile_url) === normalizedUrl(payload.profile_url);
+    });
+
+    if (existingByNewUrl) {
+      showUserProfileAlert('Esse perfil já está na lista de favoritos.', 'error');
+      return;
+    }
+
+    const previousFavorites = cloneFavorites(userProfileState.profile.favorite_profiles);
+    const nextFavorites = cloneFavorites(userProfileState.profile.favorite_profiles);
+
+    if (userProfileState.favoriteEditor.mode === 'edit' && userProfileState.favoriteEditor.originalUrl) {
+      const targetIndex = nextFavorites.findIndex(
+        (favorite) => normalizedUrl(favorite.profile_url) === normalizedUrl(userProfileState.favoriteEditor.originalUrl)
+      );
+      if (targetIndex === -1) {
+        showUserProfileAlert('Não foi possível localizar o favorito que você tentou editar.', 'error');
+        return;
+      }
+      nextFavorites[targetIndex] = payload;
+    } else {
+      nextFavorites.push(payload);
+    }
+
+    userProfileState.profile.favorite_profiles = nextFavorites;
+    renderFavoriteProfiles();
+    renderProfileSuggestions();
+
+    const success = await persistCurrentUserProfile(
+      userProfileState.favoriteEditor.mode === 'edit'
+        ? 'Favorito atualizado com persistência imediata.'
+        : 'Favorito salvo com persistência imediata.',
+      previousFavorites
+    );
+
+    if (success) {
+      resetFavoriteComposer();
+    }
+  }
+
+  async function removeFavoriteProfile(profileUrl) {
+    const favorite = getFavoriteByUrl(profileUrl);
+    if (!favorite) {
+      return;
+    }
+
+    const previousFavorites = cloneFavorites(userProfileState.profile.favorite_profiles);
+    userProfileState.profile.favorite_profiles = previousFavorites.filter(
+      (item) => normalizedUrl(item.profile_url) !== normalizedUrl(profileUrl)
+    );
+    renderFavoriteProfiles();
+    renderProfileSuggestions();
+
+    const success = await persistCurrentUserProfile('Favorito removido com persistência imediata.', previousFavorites);
+    if (success && userProfileState.favoriteEditor.originalUrl && normalizedUrl(userProfileState.favoriteEditor.originalUrl) === normalizedUrl(profileUrl)) {
+      resetFavoriteComposer();
+    }
+  }
+
+  async function quickAddFavorite(profileId) {
+    const selectedProfile = getAvailableProfileById(profileId);
+    if (!selectedProfile) {
+      return;
+    }
+
+    if (getFavoriteByUrl(selectedProfile.profile_url)) {
+      showUserProfileAlert('Esse perfil já está salvo como favorito.', 'error');
+      return;
+    }
+
+    const previousFavorites = cloneFavorites(userProfileState.profile.favorite_profiles);
+    userProfileState.profile.favorite_profiles = [
+      ...previousFavorites,
+      {
+        name: selectedProfile.doctor_name || 'Perfil favorito',
+        profile_url: selectedProfile.profile_url,
+        specialty: selectedProfile.specialty || null,
+        notes: null,
+      },
+    ];
+    renderFavoriteProfiles();
+    renderProfileSuggestions();
+    await persistCurrentUserProfile('Favorito salvo com persistência imediata.', previousFavorites);
+  }
+
+  function openScrapeForProfile(profileUrl) {
+    if (typeof showScrapeModal === 'function') {
+      showScrapeModal(profileUrl);
+      return;
+    }
+    window.location.href = '/profiles';
+  }
+
+  function renderProfileSuggestions() {
+    const container = document.getElementById('profile-suggestions-list');
+    const profiles = (userProfileState.availableProfiles || [])
+      .filter((profile) => !getFavoriteByUrl(profile.profile_url))
+      .slice(0, 5);
+
+    if (!profiles.length) {
+      container.innerHTML = `
+        <div class="empty-state-compact">
+          Todos os perfis monitorados já estão marcados como favoritos ou ainda não existe nenhum snapshot disponível.
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="profile-suggestion-list">
+        ${profiles.map((profile) => `
+          <article class="profile-suggestion-card">
+            <div class="profile-suggestion-header">
+              <div>
+                <h4 class="profile-suggestion-name">${escapeHtml(profile.doctor_name)}</h4>
+                <div class="profile-suggestion-specialty">${escapeHtml(profile.specialty || 'Especialidade não informada')}</div>
+              </div>
+                <div class="profile-suggestion-actions">
+                <button class="btn btn-secondary btn-sm" type="button" onclick='prefillSuggestionForEdit(${toInlineJsString(profile.profile_id)})'>
+                  <i class="fas fa-pen"></i>
+                  Usar no editor
+                </button>
+                <button class="btn btn-primary btn-sm" type="button" onclick='quickAddFavorite(${toInlineJsString(profile.profile_id)})'>
+                  <i class="fas fa-star"></i>
+                  Favoritar
+                </button>
+              </div>
+            </div>
+            <div class="favorite-entry-meta">
+              <div class="favorite-entry-stat">
+                <span class="favorite-entry-stat-label">Pendentes</span>
+                <span class="favorite-entry-stat-value">${escapeHtml(String(profile.current_unanswered ?? 0))}</span>
+              </div>
+              <div class="favorite-entry-stat">
+                <span class="favorite-entry-stat-label">Último scraping</span>
+                <span class="favorite-entry-stat-value">${escapeHtml(formatDateTime(profile.last_scraped_at))}</span>
+              </div>
+            </div>
+          </article>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function prefillSuggestionForEdit(profileId) {
+    document.getElementById('favorite-profile-select').value = profileId;
+    prefillFavoriteFromExisting();
+    focusFavoriteComposer();
+  }
+
+  function formatDateTime(value) {
+    if (!value) return 'Ainda sem execução';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString('pt-BR');
+  }
+
+  function renderFavoriteProfiles() {
+    const container = document.getElementById('favorite-profiles-list');
+    const favorites = userProfileState.profile.favorite_profiles || [];
+
+    document.getElementById('profile-metric-favorites').textContent = favorites.length;
+
+    if (!favorites.length) {
+      container.innerHTML = `
+        <article class="favorite-entry-card favorite-entry-empty">
+          <div class="empty-state-compact">
+            Nenhum favorito salvo ainda. Use o editor acima para criar uma shortlist operacional e disparar scrapes diretamente daqui.
+          </div>
+        </article>
+      `;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="favorite-card-list">
+        ${favorites.map((favorite) => {
+          const metrics = getAvailableProfileByUrl(favorite.profile_url);
+          return `
+            <article class="favorite-entry-card">
+              <div class="favorite-entry-header">
+                <div>
+                  <h4 class="favorite-entry-name">${escapeHtml(favorite.name || 'Perfil favorito')}</h4>
+                  <div class="favorite-entry-specialty">${escapeHtml(favorite.specialty || metrics?.specialty || 'Especialidade não informada')}</div>
+                </div>
+                <div class="favorite-entry-actions">
+                  <button class="btn btn-secondary btn-sm" type="button" onclick='loadFavoriteIntoComposer(${toInlineJsString(favorite.profile_url)})'>
+                    <i class="fas fa-pen"></i>
+                    Editar
+                  </button>
+                  <button class="btn btn-primary btn-sm" type="button" onclick='openScrapeForProfile(${toInlineJsString(favorite.profile_url)})'>
+                    <i class="fas fa-play"></i>
+                    Rodar scraping
+                  </button>
+                  <button class="btn btn-danger btn-sm" type="button" onclick='removeFavoriteProfile(${toInlineJsString(favorite.profile_url)})'>
+                    <i class="fas fa-trash"></i>
+                    Excluir
+                  </button>
+                </div>
+              </div>
+
+              <div class="favorite-entry-meta">
+                <div class="favorite-entry-stat">
+                  <span class="favorite-entry-stat-label">URL do perfil</span>
+                  <span class="favorite-entry-stat-value">${escapeHtml(favorite.profile_url)}</span>
+                </div>
+                <div class="favorite-entry-stat">
+                  <span class="favorite-entry-stat-label">Reviews pendentes</span>
+                  <span class="favorite-entry-stat-value">${escapeHtml(String(metrics?.current_unanswered ?? 0))}</span>
+                </div>
+                <div class="favorite-entry-stat">
+                  <span class="favorite-entry-stat-label">Total de scrapes</span>
+                  <span class="favorite-entry-stat-value">${escapeHtml(String(metrics?.total_scrapes ?? 0))}</span>
+                </div>
+                <div class="favorite-entry-stat">
+                  <span class="favorite-entry-stat-label">Último scraping</span>
+                  <span class="favorite-entry-stat-value">${escapeHtml(formatDateTime(metrics?.last_scraped_at))}</span>
+                </div>
+              </div>
+
+              ${favorite.notes ? `<div class="favorite-entry-notes">${escapeHtml(favorite.notes)}</div>` : ''}
+
+              <a class="favorite-entry-link" href="${escapeHtml(favorite.profile_url)}" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-arrow-up-right-from-square"></i>
+                Abrir perfil original
+              </a>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    `;
   }
 
   async function loadUserProfilePage() {
     try {
-      const [profileResponse, profilesResponse] = await Promise.all([
+      const [profileResponse, profilesResponse, overviewResponse, healthResponse, authResponse] = await Promise.all([
         fetch('/api/user-profile'),
         fetch('/api/workspace/profiles'),
+        fetch('/api/workspace/overview'),
+        fetch('/api/health'),
+        fetch('/api/auth/session'),
       ]);
 
       const profileData = await profileResponse.json();
       const profilesData = await profilesResponse.json();
+      const overviewData = await overviewResponse.json();
+      const healthData = await healthResponse.json();
+      const authData = await authResponse.json();
 
       if (profileData.error) throw new Error(profileData.error);
       if (profilesData.error) throw new Error(profilesData.error);
+      if (overviewData.error) throw new Error(overviewData.error);
+      if (healthData.error) throw new Error(healthData.error);
+      if (authData.error) throw new Error(authData.error);
 
-      userProfileState.profile = {
-        display_name: profileData.display_name || 'Administrador',
-        username: profileData.username || 'admin',
-        favorite_profiles: profileData.favorite_profiles || [],
-      };
+      userProfileState.profile = normalizeUserProfile(profileData);
       userProfileState.availableProfiles = profilesData.profiles || [];
+      userProfileState.overview = overviewData;
+      userProfileState.health = healthData;
+      userProfileState.auth = authData;
 
-      document.getElementById('user-display-name').value = userProfileState.profile.display_name;
-      document.getElementById('user-username').value = userProfileState.profile.username;
+      fillIdentityForm();
       populateProfileSelector();
+      updateProfileHero();
+      updateAuthSecurityCard();
+      renderProfileSuggestions();
       renderFavoriteProfiles();
+      resetFavoriteComposer();
     } catch (error) {
       showUserProfileAlert(`Erro ao carregar perfil: ${error.message}`, 'error');
     }
   }
 
   document.addEventListener('DOMContentLoaded', () => {
+    initializePasswordForm();
     loadUserProfilePage();
   });
 </script>

@@ -91,7 +91,7 @@ $(if [ -f "$CONFIG_FILE" ]; then echo "- Configuration file"; fi)
 
 To restore, run:
     tar -xzf $BACKUP_FILE -C /
-    # Then run setup.py to reconfigure
+    # Then run bootstrap_setup.py to reconfigure
 EOF
 
     # Create compressed archive
@@ -205,7 +205,7 @@ restore_backup() {
     rm -rf "$TEMP_DIR"
 
     print_success "Backup restored successfully!"
-    print_info "You may want to run setup.py to verify configuration"
+    print_info "You may want to run bootstrap_setup.py to verify configuration"
 }
 
 cleanup_old_backups() {

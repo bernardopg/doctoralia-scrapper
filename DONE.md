@@ -21,9 +21,16 @@ Inventário das entregas principais que já estão maduras para o escopo atual d
 
 - Overview operacional com saúde da stack, backlog, timeline e atalhos.
 - Páginas dedicadas para perfis, respostas, histórico, relatórios, settings e área do operador.
+- Autenticação real do dashboard/API para a superfície web, com login, logout, sessão Flask assinada e proteção das rotas internas.
+- Bootstrap de autenticação usando a `API Key Interna` como senha inicial quando ainda não existe senha dedicada configurada.
+- Endpoints de autenticação para status, validação de login e troca de senha compartilhados entre API e dashboard.
 - Histórico de snapshots com prune e exclusão individual.
 - Relatórios com inventário de arquivos, resumo e exportação.
 - Favoritos do operador persistidos em configuração.
+- Área `/me` redesenhada como perfil operacional responsivo, com favoritos persistidos imediatamente, edição inline, atalho para rodar scraping por favorito e card funcional de segurança/login com troca de senha.
+- Fluxo de troca de senha com regras explícitas na UI, validação inline por campo, toast de erro e medidor visual de força da nova senha.
+- Rodapé da sidebar com contexto do operador hidratado em tempo real e navegação direta para a área do usuário.
+- Tela dedicada de login, redirecionamento automático para `/login` em rotas protegidas e retorno ao destino original após autenticação.
 
 ## Telegram e notificações
 
@@ -32,6 +39,9 @@ Inventário das entregas principais que já estão maduras para o escopo atual d
 - CRUD completo de schedules pela API e pelo dashboard.
 - Execução manual de agendamento, histórico persistido e anexos em disco.
 - Relatórios `simple`, `complete` e `health`, com scraping novo opcional e geração opcional de respostas.
+- Disparo manual de agendamento no dashboard desacoplado em background, sem bloquear a UI com timeout síncrono.
+- UX do scheduler refinada com teste rápido dobrável, criação separada da edição inline e histórico com filtros/paginação client-side.
+- Formatação das mensagens Telegram alinhada ao `parse_mode`, sem escapes espúrios em textos e nomes de arquivo.
 
 ## Documentação e branding
 
@@ -44,7 +54,8 @@ Inventário das entregas principais que já estão maduras para o escopo atual d
 
 - Imports internos padronizados em formato absoluto.
 - Cobertura ampliada nas áreas críticas de API, Redis, dashboard, jobs e Telegram.
-- Estado validado desta linha: `250 passed` e `74%` de coverage.
+- Testes automatizados cobrindo sessão, login web, endpoints de autenticação e rotação de senha do dashboard.
+- Estado validado continuamente por suíte automatizada e smoke checks locais do stack Docker.
 
 ## O que este arquivo não lista
 

@@ -109,6 +109,10 @@ class SecurityConfig:
     api_key: Optional[str] = None
     webhook_signing_secret: Optional[str] = None
     openai_api_key: Optional[str] = None
+    dashboard_auth_enabled: bool = True
+    dashboard_password_hash: Optional[str] = None
+    dashboard_session_secret: Optional[str] = None
+    dashboard_session_ttl_minutes: int = 480
 
 
 @dataclass
@@ -201,6 +205,16 @@ class AppConfig:
             api_key=_clean_optional(os.getenv("API_KEY")),
             webhook_signing_secret=_clean_optional(os.getenv("WEBHOOK_SIGNING_SECRET")),
             openai_api_key=_clean_optional(os.getenv("OPENAI_API_KEY")),
+            dashboard_auth_enabled=_env_bool("DASHBOARD_AUTH_ENABLED", True),
+            dashboard_password_hash=_clean_optional(
+                os.getenv("DASHBOARD_PASSWORD_HASH")
+            ),
+            dashboard_session_secret=_clean_optional(
+                os.getenv("DASHBOARD_SESSION_SECRET")
+            ),
+            dashboard_session_ttl_minutes=int(
+                os.getenv("DASHBOARD_SESSION_TTL_MINUTES", "480")
+            ),
         )
         generation = GenerationConfig(
             mode=_clean_optional(os.getenv("GENERATION_MODE")) or "local",
@@ -317,6 +331,25 @@ class AppConfig:
                     openai_api_key=_clean_optional(
                         security_data.get("openai_api_key")
                         or os.getenv("OPENAI_API_KEY")
+                    ),
+                    dashboard_auth_enabled=bool(
+                        security_data.get(
+                            "dashboard_auth_enabled",
+                            _env_bool("DASHBOARD_AUTH_ENABLED", True),
+                        )
+                    ),
+                    dashboard_password_hash=_clean_optional(
+                        security_data.get("dashboard_password_hash")
+                    ),
+                    dashboard_session_secret=_clean_optional(
+                        security_data.get("dashboard_session_secret")
+                        or os.getenv("DASHBOARD_SESSION_SECRET")
+                    ),
+                    dashboard_session_ttl_minutes=int(
+                        security_data.get(
+                            "dashboard_session_ttl_minutes",
+                            os.getenv("DASHBOARD_SESSION_TTL_MINUTES", "480"),
+                        )
                     ),
                 )
 
@@ -524,6 +557,10 @@ class AppConfig:
                 "api_key": self.security.api_key,
                 "webhook_signing_secret": self.security.webhook_signing_secret,
                 "openai_api_key": self.security.openai_api_key,
+                "dashboard_auth_enabled": self.security.dashboard_auth_enabled,
+                "dashboard_password_hash": self.security.dashboard_password_hash,
+                "dashboard_session_secret": self.security.dashboard_session_secret,
+                "dashboard_session_ttl_minutes": self.security.dashboard_session_ttl_minutes,
             },
             "generation": {
                 "mode": self.generation.mode,

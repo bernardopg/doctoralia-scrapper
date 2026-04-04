@@ -114,6 +114,30 @@ def test_send_document_parse_mode_fallback_rewinds_file_before_retry(
     assert payloads == [b"conteudo original", b"conteudo original"]
 
 
+def test_send_document_markdown_caption_keeps_plain_periods_and_code_spans(
+    monkeypatch, tmp_path
+):
+    notifier, _ = build_notifier(tmp_path)
+    file_path = tmp_path / "payload.txt"
+    file_path.write_text("conteudo original", encoding="utf-8")
+    captured = {}
+
+    def fake_post(url, files=None, data=None, timeout=0):
+        captured["caption"] = data["caption"]
+        return DummyResponse(200)
+
+    monkeypatch.setattr("requests.post", fake_post)
+
+    caption = (
+        "📁 Snapshot: `20260403_224727_bruna_pinto_gomes.json`\n"
+        "• I.N: Uma excelente médica."
+    )
+    assert notifier.send_document(file_path, caption=caption) is True
+    assert "`20260403_224727_bruna_pinto_gomes.json`" in captured["caption"]
+    assert "I.N: Uma excelente médica." in captured["caption"]
+    assert "\\." not in captured["caption"]
+
+
 def test_send_document_request_exception_final_failure(monkeypatch, tmp_path):
     notifier, logger = build_notifier(tmp_path)
     file_path = tmp_path / "payload.txt"

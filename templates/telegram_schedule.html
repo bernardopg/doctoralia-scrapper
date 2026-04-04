@@ -9,11 +9,174 @@
   <i class="fas fa-sync-alt"></i>
   Atualizar
 </button>
-<button class="btn btn-primary" onclick="document.getElementById('schedule-name').focus()">
+<button class="btn btn-primary" onclick="openNewScheduleForm()">
   <i class="fas fa-plus"></i>
-  Novo Agendamento
+  Criar novo agendamento
 </button>
 {% endblock %}
+
+{% macro schedule_form_fields(prefix) %}
+<div class="form-grid">
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-name">Nome Operacional</label>
+      <input type="text" id="{{ prefix }}-schedule-name" class="form-control" placeholder="Ex.: Relatório matinal do perfil principal">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-timezone">Timezone</label>
+      <input type="text" id="{{ prefix }}-schedule-timezone" class="form-control" value="America/Sao_Paulo" placeholder="America/Sao_Paulo">
+    </div>
+  </div>
+
+  <label class="checkbox-wrapper" for="{{ prefix }}-schedule-enabled">
+    <input type="checkbox" id="{{ prefix }}-schedule-enabled" checked>
+    <span class="checkbox-label">Ativar recorrência automaticamente</span>
+  </label>
+
+  <div class="section-divider"></div>
+  <div class="form-section-title">Recorrência</div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-recurrence-type">Tipo</label>
+      <select id="{{ prefix }}-schedule-recurrence-type" class="form-control" onchange="toggleScheduleConditionalFields('{{ prefix }}')">
+        <option value="daily">Diário</option>
+        <option value="weekdays">Dias úteis</option>
+        <option value="weekly">Semanal</option>
+        <option value="interval">Intervalo fixo</option>
+        <option value="custom_cron">Cron customizado</option>
+      </select>
+    </div>
+    <div class="form-group conditional-field" data-schedule-prefix="{{ prefix }}" data-field="time-of-day">
+      <label class="form-label" for="{{ prefix }}-schedule-time-of-day">Hora</label>
+      <input type="time" id="{{ prefix }}-schedule-time-of-day" class="form-control" value="09:00">
+    </div>
+    <div class="form-group conditional-field" data-schedule-prefix="{{ prefix }}" data-field="day-of-week" style="display:none;">
+      <label class="form-label" for="{{ prefix }}-schedule-day-of-week">Dia da Semana</label>
+      <select id="{{ prefix }}-schedule-day-of-week" class="form-control">
+        <option value="0">Domingo</option>
+        <option value="1">Segunda</option>
+        <option value="2">Terça</option>
+        <option value="3">Quarta</option>
+        <option value="4">Quinta</option>
+        <option value="5">Sexta</option>
+        <option value="6">Sábado</option>
+      </select>
+    </div>
+    <div class="form-group conditional-field" data-schedule-prefix="{{ prefix }}" data-field="interval" style="display:none;">
+      <label class="form-label" for="{{ prefix }}-schedule-interval-minutes">Intervalo (min)</label>
+      <input type="number" id="{{ prefix }}-schedule-interval-minutes" class="form-control" min="5" step="5" value="60">
+    </div>
+  </div>
+
+  <div class="form-group conditional-field" data-schedule-prefix="{{ prefix }}" data-field="cron" style="display:none;">
+    <label class="form-label" for="{{ prefix }}-schedule-cron-expression">Expressão Cron</label>
+    <input type="text" id="{{ prefix }}-schedule-cron-expression" class="form-control" placeholder="0 8 * * 1-5">
+    <small class="form-help">Use a sintaxe tradicional de 5 campos: minuto hora dia mês dia-da-semana.</small>
+  </div>
+
+  <div class="section-divider"></div>
+  <div class="form-section-title">Escopo da Notificação</div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-profile-label">Perfil / Rótulo</label>
+      <input type="text" id="{{ prefix }}-schedule-profile-label" class="form-control" placeholder="Ex.: Dra. Ana - perfil principal">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-profile-url">URL do Perfil</label>
+      <input type="url" id="{{ prefix }}-schedule-profile-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
+      <small class="form-help">Usada para scraping novo ou para localizar o snapshot mais recente desse perfil.</small>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-report-type">Relatório</label>
+      <select id="{{ prefix }}-schedule-report-type" class="form-control">
+        <option value="complete">Completo</option>
+        <option value="simple">Simples</option>
+        <option value="health">Health / Operacional</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-attachment-format">Formato do Anexo</label>
+      <select id="{{ prefix }}-schedule-attachment-format" class="form-control">
+        <option value="txt">TXT</option>
+        <option value="json">JSON</option>
+        <option value="csv">CSV</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-attachment-scope">Escopo do Anexo</label>
+      <select id="{{ prefix }}-schedule-attachment-scope" class="form-control">
+        <option value="responses">Respostas geradas</option>
+        <option value="comments">Comentários coletados</option>
+        <option value="snapshot">Snapshot consolidado</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="checkbox-grid">
+    <label class="checkbox-wrapper" for="{{ prefix }}-schedule-trigger-new-scrape">
+      <input type="checkbox" id="{{ prefix }}-schedule-trigger-new-scrape" checked>
+      <span class="checkbox-label">Executar scraping novo antes de enviar</span>
+    </label>
+    <label class="checkbox-wrapper" for="{{ prefix }}-schedule-include-generation">
+      <input type="checkbox" id="{{ prefix }}-schedule-include-generation" onchange="toggleScheduleConditionalFields('{{ prefix }}')">
+      <span class="checkbox-label">Gerar respostas automáticas</span>
+    </label>
+    <label class="checkbox-wrapper" for="{{ prefix }}-schedule-send-attachment">
+      <input type="checkbox" id="{{ prefix }}-schedule-send-attachment" checked onchange="toggleScheduleConditionalFields('{{ prefix }}')">
+      <span class="checkbox-label">Enviar anexo junto da mensagem</span>
+    </label>
+    <label class="checkbox-wrapper" for="{{ prefix }}-schedule-include-health-status">
+      <input type="checkbox" id="{{ prefix }}-schedule-include-health-status">
+      <span class="checkbox-label">Incluir health da API, Redis e Selenium</span>
+    </label>
+  </div>
+
+  <div class="form-row conditional-field" data-schedule-prefix="{{ prefix }}" data-field="generation-settings" style="display:none;">
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-generation-mode">Modo de Geração</label>
+      <select id="{{ prefix }}-schedule-generation-mode" class="form-control">
+        <option value="default">Padrão do sistema</option>
+        <option value="local">Local</option>
+        <option value="openai">OpenAI</option>
+        <option value="gemini">Gemini</option>
+        <option value="claude">Claude</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-max-reviews">Máximo de Reviews</label>
+      <input type="number" id="{{ prefix }}-schedule-max-reviews" class="form-control" min="1" max="100" step="1" value="20">
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+  <div class="form-section-title">Destino Telegram</div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-telegram-token">Token do Bot</label>
+      <input type="password" id="{{ prefix }}-schedule-telegram-token" class="form-control" placeholder="Opcional: usa a configuração global">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-telegram-chat-id">Chat ID</label>
+      <input type="text" id="{{ prefix }}-schedule-telegram-chat-id" class="form-control" placeholder="Opcional: usa a configuração global">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="{{ prefix }}-schedule-parse-mode">Parse Mode</label>
+      <select id="{{ prefix }}-schedule-parse-mode" class="form-control">
+        <option value="Markdown">Markdown</option>
+        <option value="">Nenhum</option>
+        <option value="MarkdownV2">MarkdownV2</option>
+        <option value="HTML">HTML</option>
+      </select>
+    </div>
+  </div>
+</div>
+{% endmacro %}
 
 {% block content %}
 <div id="telegram-schedule-alert"></div>
@@ -50,345 +213,330 @@
   </div>
 </div>
 
-<div class="notification-grid">
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-vial"></i>
-        Teste Rápido do Telegram
-      </h3>
+<div class="notification-shell">
+  <aside class="notification-sidebar">
+    <div class="card action-panel">
+      <div class="card-header">
+        <h3 class="card-title">
+          <i class="fas fa-layer-group"></i>
+          Atalhos do Painel
+        </h3>
+      </div>
+      <div class="card-body action-stack">
+        <button class="btn btn-primary" onclick="openNewScheduleForm()">
+          <i class="fas fa-plus"></i>
+          Criar novo agendamento
+        </button>
+        <button class="btn btn-secondary" onclick="toggleQuickTestCard()">
+          <i class="fas fa-vial"></i>
+          Teste Rápido do Telegram
+        </button>
+        <button class="btn btn-secondary" onclick="document.getElementById('history-section').scrollIntoView({ behavior: 'smooth', block: 'start' })">
+          <i class="fas fa-clock-rotate-left"></i>
+          Histórico das notificações
+        </button>
+        <button class="btn btn-secondary" onclick="refreshNotificationWorkspace()">
+          <i class="fas fa-arrows-rotate"></i>
+          Recarregar dados
+        </button>
+      </div>
     </div>
-    <div class="card-body">
-      <div class="form-grid">
-        <div class="alert alert-info mb-2">
-          <i class="fas fa-circle-info"></i>
-          <div>
-            Use esta ação para validar token, chat e conectividade antes de ativar um agendamento.
-            Se deixar token/chat vazios, a API usa a configuração global atual.
-          </div>
-        </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Token do Bot</label>
-            <input type="password" id="test-telegram-token" class="form-control" placeholder="Opcional: usar credencial global">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Chat ID</label>
-            <input type="text" id="test-telegram-chat-id" class="form-control" placeholder="Opcional: usar chat global">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Parse Mode</label>
-            <select id="test-parse-mode" class="form-control">
-              <option value="Markdown">Markdown</option>
-              <option value="">Nenhum</option>
-              <option value="MarkdownV2">MarkdownV2</option>
-              <option value="HTML">HTML</option>
-            </select>
-          </div>
+    <div class="card fold-card" id="quick-test-card">
+      <div class="card-header fold-card-header">
+        <div>
+          <div class="fold-card-kicker">Validação operacional</div>
+          <h3 class="card-title">
+            <i class="fas fa-vial"></i>
+            Teste Rápido do Telegram
+          </h3>
+          <p class="fold-card-description">Abra apenas quando quiser validar token, chat e conectividade antes de ativar um fluxo recorrente.</p>
         </div>
+        <button class="btn btn-secondary btn-sm fold-toggle" type="button" data-fold-toggle data-open-label="Recolher" data-closed-label="Expandir" onclick="toggleQuickTestCard()">
+          <span class="fold-toggle-label">Expandir</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+      <div class="card-body fold-card-body" data-fold-body hidden>
+        <form id="quick-test-form" class="form-grid" onsubmit="event.preventDefault(); sendTelegramTestNotification();">
+          <div class="alert alert-info compact-alert">
+            <i class="fas fa-circle-info"></i>
+            <div>
+              Se deixar token/chat vazios, a API usa a configuração global atual. A mensagem também pode ser vazia para usar o texto padrão.
+            </div>
+          </div>
 
-        <div class="form-group">
-          <label class="form-label">Mensagem de Teste</label>
-          <textarea id="test-message" class="form-control" rows="3" placeholder="Opcional: se vazio, a API monta uma mensagem padrão."></textarea>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="test-telegram-token">Token do Bot</label>
+              <input type="password" id="test-telegram-token" class="form-control" placeholder="Opcional: usar credencial global">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="test-telegram-chat-id">Chat ID</label>
+              <input type="text" id="test-telegram-chat-id" class="form-control" placeholder="Opcional: usar chat global">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="test-parse-mode">Parse Mode</label>
+              <select id="test-parse-mode" class="form-control">
+                <option value="Markdown">Markdown</option>
+                <option value="">Nenhum</option>
+                <option value="MarkdownV2">MarkdownV2</option>
+                <option value="HTML">HTML</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="test-message">Mensagem de Teste</label>
+            <textarea id="test-message" class="form-control" rows="3" placeholder="Opcional: se vazio, a API monta uma mensagem padrão."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="quick-test-submit">
+              <i class="fas fa-paper-plane"></i>
+              Enviar teste
+            </button>
+            <button class="btn btn-secondary" type="button" onclick="clearTelegramTestForm()">
+              <i class="fas fa-eraser"></i>
+              Limpar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card fold-card" id="new-schedule-card">
+      <div class="card-header fold-card-header">
+        <div>
+          <div class="fold-card-kicker">Fluxo separado de criação</div>
+          <h3 class="card-title">
+            <i class="fas fa-calendar-plus"></i>
+            Criar novo agendamento
+          </h3>
+          <p class="fold-card-description">Este formulário é exclusivo para novos agendamentos. A edição de um item já salvo acontece inline, abaixo do card correspondente.</p>
         </div>
+        <button class="btn btn-secondary btn-sm fold-toggle" type="button" data-fold-toggle data-open-label="Recolher" data-closed-label="Abrir formulário" onclick="toggleNewScheduleCard()">
+          <span class="fold-toggle-label">Abrir formulário</span>
+          <i class="fas fa-chevron-down"></i>
+        </button>
+      </div>
+      <div class="card-body fold-card-body" data-fold-body hidden>
+        <form id="new-schedule-form" class="form-grid" onsubmit="event.preventDefault(); saveNewSchedule();">
+          {{ schedule_form_fields('new') }}
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" id="new-schedule-submit">
+              <i class="fas fa-save"></i>
+              Salvar agendamento
+            </button>
+            <button class="btn btn-secondary" type="button" onclick="resetScheduleForm('new')">
+              <i class="fas fa-rotate-left"></i>
+              Limpar formulário
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </aside>
 
-        <div class="flex gap-2" style="flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="sendTelegramTestNotification()">
-            <i class="fas fa-paper-plane"></i>
-            Enviar Teste
-          </button>
-          <button class="btn btn-secondary" onclick="clearTelegramTestForm()">
-            <i class="fas fa-eraser"></i>
-            Limpar
+  <section class="notification-main">
+    <div class="card mb-3">
+      <div class="card-header">
+        <div>
+          <div class="fold-card-kicker">Operação recorrente</div>
+          <h3 class="card-title">
+            <i class="fas fa-calendar-days"></i>
+            Agendamentos Cadastrados
+          </h3>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="loadSchedules()">
+            <i class="fas fa-sync-alt"></i>
+            Recarregar
           </button>
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-sliders-h"></i>
-        Configuração do Agendamento
-      </h3>
-      <div class="card-actions">
-        <span class="status-inline" id="schedule-form-status">Criando novo</span>
-      </div>
-    </div>
-    <div class="card-body">
-      <input type="hidden" id="schedule-edit-id">
-
-      <div class="form-grid">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Nome Operacional</label>
-            <input type="text" id="schedule-name" class="form-control" placeholder="Ex.: Relatório matinal do perfil principal">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Timezone</label>
-            <input type="text" id="schedule-timezone" class="form-control" value="America/Sao_Paulo" placeholder="America/Sao_Paulo">
+      <div class="card-body">
+        <div id="schedule-card-list" class="schedule-card-grid">
+          <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Carregando agendamentos...</span>
           </div>
         </div>
-
-        <div class="checkbox-wrapper">
-          <input type="checkbox" id="schedule-enabled" checked>
-          <label for="schedule-enabled" class="checkbox-label">
-            Ativar recorrência automaticamente
-          </label>
-        </div>
-
-        <div class="section-divider"></div>
-        <div class="form-section-title">Recorrência</div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Tipo</label>
-            <select id="schedule-recurrence-type" class="form-control" onchange="toggleScheduleConditionalFields()">
-              <option value="daily">Diário</option>
-              <option value="weekdays">Dias úteis</option>
-              <option value="weekly">Semanal</option>
-              <option value="interval">Intervalo fixo</option>
-              <option value="custom_cron">Cron customizado</option>
-            </select>
+        <div id="schedule-edit-panel-home" hidden></div>
+        <div id="schedule-edit-panel" class="inline-edit-panel" hidden>
+          <div class="inline-edit-panel-header">
+            <div>
+              <div class="fold-card-kicker">Edição inline</div>
+              <h4 class="inline-edit-panel-title" id="edit-schedule-panel-title">Editar agendamento</h4>
+              <p class="fold-card-description">As alterações abaixo afetam apenas o agendamento selecionado.</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" type="button" onclick="cancelEditSchedule()">
+              <i class="fas fa-xmark"></i>
+              Fechar
+            </button>
           </div>
-          <div class="form-group conditional-field" data-field="time-of-day">
-            <label class="form-label">Hora</label>
-            <input type="time" id="schedule-time-of-day" class="form-control" value="09:00">
-          </div>
-          <div class="form-group conditional-field" data-field="day-of-week" style="display:none;">
-            <label class="form-label">Dia da Semana</label>
-            <select id="schedule-day-of-week" class="form-control">
-              <option value="0">Domingo</option>
-              <option value="1">Segunda</option>
-              <option value="2">Terça</option>
-              <option value="3">Quarta</option>
-              <option value="4">Quinta</option>
-              <option value="5">Sexta</option>
-              <option value="6">Sábado</option>
-            </select>
-          </div>
-          <div class="form-group conditional-field" data-field="interval" style="display:none;">
-            <label class="form-label">Intervalo (min)</label>
-            <input type="number" id="schedule-interval-minutes" class="form-control" min="5" step="5" value="60">
-          </div>
-        </div>
-
-        <div class="form-group conditional-field" data-field="cron" style="display:none;">
-          <label class="form-label">Expressão Cron</label>
-          <input type="text" id="schedule-cron-expression" class="form-control" placeholder="0 8 * * 1-5">
-          <small class="form-help">Use a sintaxe tradicional de 5 campos: minuto hora dia mês dia-da-semana.</small>
-        </div>
-
-        <div class="section-divider"></div>
-        <div class="form-section-title">Escopo da Notificação</div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Perfil / Rótulo</label>
-            <input type="text" id="schedule-profile-label" class="form-control" placeholder="Ex.: Dra. Ana - perfil principal">
-          </div>
-          <div class="form-group">
-            <label class="form-label">URL do Perfil</label>
-            <input type="url" id="schedule-profile-url" class="form-control" placeholder="https://www.doctoralia.com.br/...">
-            <small class="form-help">Usada para scraping novo ou para localizar o snapshot mais recente desse perfil.</small>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Relatório</label>
-            <select id="schedule-report-type" class="form-control">
-              <option value="complete">Completo</option>
-              <option value="simple">Simples</option>
-              <option value="health">Health / Operacional</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Formato do Anexo</label>
-            <select id="schedule-attachment-format" class="form-control">
-              <option value="txt">TXT</option>
-              <option value="json">JSON</option>
-              <option value="csv">CSV</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Escopo do Anexo</label>
-            <select id="schedule-attachment-scope" class="form-control">
-              <option value="responses">Respostas geradas</option>
-              <option value="comments">Comentários coletados</option>
-              <option value="snapshot">Snapshot consolidado</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="checkbox-wrapper">
-            <input type="checkbox" id="schedule-trigger-new-scrape" checked>
-            <label for="schedule-trigger-new-scrape" class="checkbox-label">
-              Executar scraping novo antes de enviar
-            </label>
-          </div>
-          <div class="checkbox-wrapper">
-            <input type="checkbox" id="schedule-include-generation" onchange="toggleScheduleConditionalFields()">
-            <label for="schedule-include-generation" class="checkbox-label">
-              Gerar respostas automáticas
-            </label>
-          </div>
-          <div class="checkbox-wrapper">
-            <input type="checkbox" id="schedule-send-attachment" checked onchange="toggleScheduleConditionalFields()">
-            <label for="schedule-send-attachment" class="checkbox-label">
-              Enviar anexo junto da mensagem
-            </label>
-          </div>
-          <div class="checkbox-wrapper">
-            <input type="checkbox" id="schedule-include-health-status">
-            <label for="schedule-include-health-status" class="checkbox-label">
-              Incluir health da API, Redis e Selenium
-            </label>
-          </div>
-        </div>
-
-        <div class="form-row conditional-field" data-field="generation-settings" style="display:none;">
-          <div class="form-group">
-            <label class="form-label">Modo de Geração</label>
-            <select id="schedule-generation-mode" class="form-control">
-              <option value="default">Padrão do sistema</option>
-              <option value="local">Local</option>
-              <option value="openai">OpenAI</option>
-              <option value="gemini">Gemini</option>
-              <option value="claude">Claude</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Máximo de Reviews</label>
-            <input type="number" id="schedule-max-reviews" class="form-control" min="1" max="100" step="1" value="20">
-          </div>
-        </div>
-
-        <div class="section-divider"></div>
-        <div class="form-section-title">Destino Telegram</div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Token do Bot</label>
-            <input type="password" id="schedule-telegram-token" class="form-control" placeholder="Opcional: usa a configuração global">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Chat ID</label>
-            <input type="text" id="schedule-telegram-chat-id" class="form-control" placeholder="Opcional: usa a configuração global">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Parse Mode</label>
-            <select id="schedule-parse-mode" class="form-control">
-              <option value="Markdown">Markdown</option>
-              <option value="">Nenhum</option>
-              <option value="MarkdownV2">MarkdownV2</option>
-              <option value="HTML">HTML</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="flex gap-2" style="flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="saveSchedule()">
-            <i class="fas fa-save"></i>
-            Salvar Agendamento
-          </button>
-          <button class="btn btn-secondary" onclick="resetScheduleForm()">
-            <i class="fas fa-rotate-left"></i>
-            Resetar Formulário
-          </button>
+          <form id="edit-schedule-form" class="form-grid" onsubmit="event.preventDefault(); saveEditSchedule();">
+            {{ schedule_form_fields('edit') }}
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit" id="edit-schedule-submit">
+                <i class="fas fa-save"></i>
+                Salvar alterações
+              </button>
+              <button class="btn btn-secondary" type="button" onclick="cancelEditSchedule()">
+                <i class="fas fa-rotate-left"></i>
+                Cancelar edição
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
-  </div>
-</div>
 
-<div class="card mb-3">
-  <div class="card-header">
-    <h3 class="card-title">
-      <i class="fas fa-calendar-days"></i>
-      Agendamentos Persistidos
-    </h3>
-    <div class="card-actions">
-      <button class="btn btn-secondary btn-sm" onclick="loadSchedules()">
-        <i class="fas fa-sync-alt"></i>
-        Recarregar
-      </button>
-    </div>
-  </div>
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Recorrência</th>
-            <th>Perfil</th>
-            <th>Próxima Execução</th>
-            <th>Último Resultado</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="schedule-table-body">
-          <tr>
-            <td colspan="6" class="text-center text-secondary">Carregando agendamentos...</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+    <div class="card" id="history-section">
+      <div class="card-header">
+        <div>
+          <div class="fold-card-kicker">Linha do tempo operacional</div>
+          <h3 class="card-title">
+            <i class="fas fa-clock-rotate-left"></i>
+            Histórico das Notificações
+          </h3>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="loadScheduleHistory()">
+            <i class="fas fa-sync-alt"></i>
+            Atualizar histórico
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="history-toolbar">
+          <div class="form-row history-filter-row">
+            <div class="form-group">
+              <label class="form-label" for="history-filter-query">Nome da execução</label>
+              <input type="text" id="history-filter-query" class="form-control" placeholder="Buscar por nome do agendamento ou resumo" oninput="updateHistoryFilters()">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="history-filter-status">Status</label>
+              <select id="history-filter-status" class="form-control" onchange="updateHistoryFilters()">
+                <option value="all">Todos os status</option>
+              </select>
+            </div>
+          </div>
+          <div class="history-toolbar-footer">
+            <div class="page-summary" id="history-page-summary">Mostrando 0 de 0 execuções</div>
+          </div>
+        </div>
 
-<div class="card">
-  <div class="card-header">
-    <h3 class="card-title">
-      <i class="fas fa-clock-rotate-left"></i>
-      Histórico das Notificações
-    </h3>
-    <div class="card-actions">
-      <button class="btn btn-secondary btn-sm" onclick="loadScheduleHistory()">
-        <i class="fas fa-sync-alt"></i>
-        Atualizar Histórico
-      </button>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Execução</th>
+                <th>Status</th>
+                <th>Resumo</th>
+                <th>Reviews</th>
+                <th>Respostas</th>
+                <th>Anexo</th>
+                <th>Detalhes</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body">
+              <tr>
+                <td colspan="7" class="text-center text-secondary">Carregando histórico...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination-bar" id="history-pagination"></div>
+      </div>
     </div>
-  </div>
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Execução</th>
-            <th>Status</th>
-            <th>Resumo</th>
-            <th>Reviews</th>
-            <th>Respostas</th>
-            <th>Anexo</th>
-            <th>Detalhes</th>
-          </tr>
-        </thead>
-        <tbody id="history-table-body">
-          <tr>
-            <td colspan="7" class="text-center text-secondary">Carregando histórico...</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  </section>
 </div>
 
 <style>
-  .notification-grid {
+  .notification-shell {
     display: grid;
     gap: 24px;
-    margin-bottom: 24px;
+    align-items: start;
   }
 
   @media (min-width: 1200px) {
-    .notification-grid {
-      grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.6fr);
+    .notification-shell {
+      grid-template-columns: minmax(340px, 0.95fr) minmax(0, 1.65fr);
     }
+  }
+
+  .notification-sidebar {
+    display: grid;
+    gap: 24px;
+    position: sticky;
+    top: 24px;
+  }
+
+  @media (max-width: 1199px) {
+    .notification-sidebar {
+      position: static;
+    }
+  }
+
+  .notification-main {
+    display: grid;
+    gap: 24px;
+  }
+
+  .action-stack {
+    display: grid;
+    gap: 12px;
+  }
+
+  .action-stack .btn {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .fold-card-kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .fold-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .fold-card-description {
+    margin: 10px 0 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .fold-toggle {
+    min-width: 130px;
+    justify-content: space-between;
+    align-self: center;
+  }
+
+  .fold-toggle i {
+    transition: transform var(--transition-fast);
+  }
+
+  .fold-card.is-open .fold-toggle i {
+    transform: rotate(180deg);
+  }
+
+  .fold-card-body[hidden] {
+    display: none !important;
+  }
+
+  .compact-alert {
+    margin-bottom: 0;
   }
 
   .table {
@@ -435,6 +583,12 @@
     font-weight: 700;
     color: var(--text-secondary);
     margin-bottom: 2px;
+  }
+
+  .checkbox-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   }
 
   .status-inline {
@@ -484,6 +638,8 @@
   .schedule-name {
     font-weight: 700;
     color: var(--text-primary);
+    font-size: 18px;
+    line-height: 1.2;
   }
 
   .schedule-subtitle,
@@ -500,18 +656,228 @@
     font-size: 12px;
   }
 
-  .table-actions {
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 120px;
+    padding: 24px;
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    text-align: center;
+  }
+
+  .schedule-card-grid {
+    display: grid;
+    gap: 16px;
+  }
+
+  .schedule-item {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 248, 250, 0.96));
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .schedule-item.is-editing {
+    border-color: rgba(0, 122, 255, 0.35);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  }
+
+  .schedule-item-shell {
+    padding: 22px;
+  }
+
+  .schedule-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  @media (max-width: 860px) {
+    .schedule-item-header {
+      flex-direction: column;
+    }
+  }
+
+  .schedule-kicker {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .schedule-pill-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .schedule-mode-summary {
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+
+  .schedule-card-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+    justify-content: flex-end;
   }
 
-  .table-actions .btn {
-    min-width: auto;
+  @media (max-width: 860px) {
+    .schedule-card-actions {
+      justify-content: flex-start;
+    }
+  }
+
+  .schedule-meta-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    margin-top: 18px;
+  }
+
+  .schedule-meta-card {
+    padding: 14px 16px;
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    border: 1px solid rgba(15, 23, 42, 0.04);
+  }
+
+  .schedule-meta-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.55px;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  .schedule-meta-value {
+    display: block;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .schedule-meta-note {
+    display: block;
+    margin-top: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .inline-edit-slot {
+    padding: 0 22px 22px;
+  }
+
+  .inline-edit-panel {
+    margin-top: 4px;
+    padding: 20px;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(180deg, rgba(0, 122, 255, 0.06), rgba(255, 255, 255, 0.98));
+    border: 1px solid rgba(0, 122, 255, 0.18);
+  }
+
+  .inline-edit-panel[hidden] {
+    display: none !important;
+  }
+
+  .inline-edit-panel-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .inline-edit-panel-title {
+    margin: 0;
+    font-size: 20px;
+    color: var(--text-primary);
+  }
+
+  .history-toolbar {
+    display: grid;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  .history-filter-row {
+    gap: 16px;
+  }
+
+  .history-toolbar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .page-summary {
+    color: var(--text-secondary);
+    font-size: 13px;
   }
 
   .history-detail {
     max-width: 340px;
+  }
+
+  .pagination-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .page-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 38px;
+    height: 38px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .page-chip:hover:not(:disabled) {
+    border-color: rgba(0, 122, 255, 0.24);
+    color: var(--apple-blue);
+  }
+
+  .page-chip.active {
+    background: var(--apple-blue);
+    border-color: var(--apple-blue);
+    color: white;
+  }
+
+  .page-chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 </style>
 
@@ -520,6 +886,13 @@
     schedules: [],
     history: [],
     editingId: null,
+    historyPage: 1,
+    historyPageSize: 5,
+    historyFilterQuery: '',
+    historyFilterStatus: 'all',
+    quickTestOpen: false,
+    newScheduleOpen: false,
+    runningScheduleIds: new Set(),
   };
 
   function escapeHtml(value) {
@@ -566,7 +939,7 @@
 
   function showTelegramScheduleAlert(type, message) {
     const container = document.getElementById('telegram-schedule-alert');
-    const level = type === 'error' ? 'danger' : type;
+    const level = type === 'error' ? 'error' : type;
     container.innerHTML = `
       <div class="alert alert-${level}">
         <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i>
@@ -592,7 +965,7 @@
     return parts[parts.length - 1] || pathValue;
   }
 
-  function statusPill(status, enabled = true) {
+  function getStatusMeta(status, enabled = true) {
     const normalized = (status || (enabled ? 'enabled' : 'paused')).toLowerCase();
     const labelMap = {
       sent: 'Enviado',
@@ -603,14 +976,26 @@
       disabled: 'Desativado',
       error: 'Erro',
       info: 'Info',
+      pending: 'Em andamento',
     };
+
     const className = normalized === 'sent' ? 'sent'
       : normalized === 'failed' ? 'failed'
       : normalized === 'paused' || normalized === 'disabled' ? 'paused'
       : normalized === 'error' ? 'error'
+      : normalized === 'pending' ? 'pending'
       : 'enabled';
 
-    return `<span class="status-pill ${className}">${escapeHtml(labelMap[normalized] || status || 'Ativo')}</span>`;
+    return {
+      normalized,
+      className,
+      label: labelMap[normalized] || status || 'Ativo',
+    };
+  }
+
+  function statusPill(status, enabled = true) {
+    const meta = getStatusMeta(status, enabled);
+    return `<span class="status-pill ${meta.className}">${escapeHtml(meta.label)}</span>`;
   }
 
   function notificationModeSummary(schedule) {
@@ -638,64 +1023,438 @@
     document.getElementById('schedule-last-failure').textContent = formatDateTime(summary.last_failure_at);
   }
 
-  function renderSchedulesTable(schedules) {
-    const tbody = document.getElementById('schedule-table-body');
-    if (!schedules.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Nenhum agendamento salvo.</td></tr>';
-      return;
-    }
+  function setFoldCardOpen(cardId, open) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
 
-    tbody.innerHTML = schedules.map((schedule) => `
-      <tr>
-        <td>
-          <div class="schedule-name">${escapeHtml(schedule.name)}</div>
-          <span class="schedule-subtitle">${statusPill(schedule.last_status || (schedule.enabled ? 'enabled' : 'paused'), schedule.enabled)}</span>
-          <span class="muted-line">${escapeHtml(notificationModeSummary(schedule))}</span>
-        </td>
-        <td>
-          ${escapeHtml(schedule.recurrence_label || schedule.recurrence_type)}
-          <span class="muted-line">${escapeHtml(schedule.timezone || 'America/Sao_Paulo')}</span>
-        </td>
-        <td>
-          ${escapeHtml(schedule.profile_label || 'Perfil sem rótulo')}
-          <span class="muted-line mono-text">${escapeHtml(schedule.profile_url || 'Usando perfil padrão / snapshot geral')}</span>
-        </td>
-        <td>
-          ${escapeHtml(formatDateTime(schedule.next_run_at))}
-          <span class="muted-line">Criado em ${escapeHtml(formatDateTime(schedule.created_at))}</span>
-        </td>
-        <td>
-          ${escapeHtml(formatDateTime(schedule.last_run_at))}
-          <span class="muted-line">${escapeHtml(schedule.last_error || 'Sem erros recentes')}</span>
-        </td>
-        <td>
-          <div class="table-actions">
-            <button class="btn btn-secondary btn-sm" onclick="editSchedule('${schedule.id}')">
-              <i class="fas fa-pen"></i>
-              Editar
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="runScheduleNow('${schedule.id}')">
-              <i class="fas fa-bolt"></i>
-              Rodar Agora
-            </button>
-            <button class="btn btn-danger btn-sm" onclick="deleteSchedule('${schedule.id}')">
-              <i class="fas fa-trash"></i>
-              Excluir
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('');
+    const body = card.querySelector('[data-fold-body]');
+    const toggle = card.querySelector('[data-fold-toggle]');
+    const label = toggle?.querySelector('.fold-toggle-label');
+
+    card.classList.toggle('is-open', open);
+    if (body) {
+      body.hidden = !open;
+    }
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    if (label && toggle) {
+      label.textContent = open
+        ? (toggle.dataset.openLabel || 'Recolher')
+        : (toggle.dataset.closedLabel || 'Expandir');
+    }
   }
 
-  function renderHistoryTable(history) {
-    const tbody = document.getElementById('history-table-body');
-    if (!history.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">Nenhuma execução registrada ainda.</td></tr>';
+  function toggleQuickTestCard(forceOpen) {
+    notificationState.quickTestOpen = typeof forceOpen === 'boolean'
+      ? forceOpen
+      : !notificationState.quickTestOpen;
+    setFoldCardOpen('quick-test-card', notificationState.quickTestOpen);
+  }
+
+  function toggleNewScheduleCard(forceOpen) {
+    notificationState.newScheduleOpen = typeof forceOpen === 'boolean'
+      ? forceOpen
+      : !notificationState.newScheduleOpen;
+    setFoldCardOpen('new-schedule-card', notificationState.newScheduleOpen);
+  }
+
+  function openNewScheduleForm() {
+    if (notificationState.editingId) {
+      cancelEditSchedule();
+    }
+    notificationState.newScheduleOpen = true;
+    setFoldCardOpen('new-schedule-card', true);
+    resetScheduleForm('new');
+    clearTelegramScheduleAlert();
+    document.getElementById('new-schedule-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('new-schedule-name').focus();
+  }
+
+  function resetScheduleForm(prefix) {
+    document.getElementById(`${prefix}-schedule-name`).value = '';
+    document.getElementById(`${prefix}-schedule-enabled`).checked = true;
+    document.getElementById(`${prefix}-schedule-timezone`).value = 'America/Sao_Paulo';
+    document.getElementById(`${prefix}-schedule-recurrence-type`).value = 'daily';
+    document.getElementById(`${prefix}-schedule-time-of-day`).value = '09:00';
+    document.getElementById(`${prefix}-schedule-day-of-week`).value = '1';
+    document.getElementById(`${prefix}-schedule-interval-minutes`).value = '60';
+    document.getElementById(`${prefix}-schedule-cron-expression`).value = '';
+    document.getElementById(`${prefix}-schedule-profile-label`).value = '';
+    document.getElementById(`${prefix}-schedule-profile-url`).value = '';
+    document.getElementById(`${prefix}-schedule-trigger-new-scrape`).checked = true;
+    document.getElementById(`${prefix}-schedule-include-generation`).checked = false;
+    document.getElementById(`${prefix}-schedule-generation-mode`).value = 'default';
+    document.getElementById(`${prefix}-schedule-report-type`).value = 'complete';
+    document.getElementById(`${prefix}-schedule-include-health-status`).checked = false;
+    document.getElementById(`${prefix}-schedule-send-attachment`).checked = true;
+    document.getElementById(`${prefix}-schedule-attachment-scope`).value = 'responses';
+    document.getElementById(`${prefix}-schedule-attachment-format`).value = 'txt';
+    document.getElementById(`${prefix}-schedule-max-reviews`).value = '20';
+    document.getElementById(`${prefix}-schedule-telegram-token`).value = '';
+    document.getElementById(`${prefix}-schedule-telegram-chat-id`).value = '';
+    document.getElementById(`${prefix}-schedule-parse-mode`).value = 'Markdown';
+    toggleScheduleConditionalFields(prefix);
+  }
+
+  function fillScheduleForm(prefix, schedule) {
+    document.getElementById(`${prefix}-schedule-name`).value = schedule.name || '';
+    document.getElementById(`${prefix}-schedule-enabled`).checked = Boolean(schedule.enabled);
+    document.getElementById(`${prefix}-schedule-timezone`).value = schedule.timezone || 'America/Sao_Paulo';
+    document.getElementById(`${prefix}-schedule-recurrence-type`).value = schedule.recurrence_type || 'daily';
+    document.getElementById(`${prefix}-schedule-time-of-day`).value = schedule.time_of_day || '09:00';
+    document.getElementById(`${prefix}-schedule-day-of-week`).value = String(schedule.day_of_week ?? 1);
+    document.getElementById(`${prefix}-schedule-interval-minutes`).value = schedule.interval_minutes || 60;
+    document.getElementById(`${prefix}-schedule-cron-expression`).value = schedule.cron_expression || '';
+    document.getElementById(`${prefix}-schedule-profile-label`).value = schedule.profile_label || '';
+    document.getElementById(`${prefix}-schedule-profile-url`).value = schedule.profile_url || '';
+    document.getElementById(`${prefix}-schedule-trigger-new-scrape`).checked = Boolean(schedule.trigger_new_scrape);
+    document.getElementById(`${prefix}-schedule-include-generation`).checked = Boolean(schedule.include_generation);
+    document.getElementById(`${prefix}-schedule-generation-mode`).value = schedule.generation_mode || 'default';
+    document.getElementById(`${prefix}-schedule-report-type`).value = schedule.report_type || 'complete';
+    document.getElementById(`${prefix}-schedule-include-health-status`).checked = Boolean(schedule.include_health_status);
+    document.getElementById(`${prefix}-schedule-send-attachment`).checked = Boolean(schedule.send_attachment);
+    document.getElementById(`${prefix}-schedule-attachment-scope`).value = schedule.attachment_scope || 'responses';
+    document.getElementById(`${prefix}-schedule-attachment-format`).value = schedule.attachment_format || 'txt';
+    document.getElementById(`${prefix}-schedule-max-reviews`).value = schedule.max_reviews || 20;
+    document.getElementById(`${prefix}-schedule-telegram-token`).value = schedule.telegram_token || '';
+    document.getElementById(`${prefix}-schedule-telegram-chat-id`).value = schedule.telegram_chat_id || '';
+    document.getElementById(`${prefix}-schedule-parse-mode`).value = schedule.parse_mode ?? 'Markdown';
+    toggleScheduleConditionalFields(prefix);
+  }
+
+  function toggleScheduleConditionalFields(prefix) {
+    const recurrenceType = document.getElementById(`${prefix}-schedule-recurrence-type`).value;
+    const includeGeneration = document.getElementById(`${prefix}-schedule-include-generation`).checked;
+    const sendAttachment = document.getElementById(`${prefix}-schedule-send-attachment`).checked;
+
+    const timeOfDayField = document.querySelector(`[data-schedule-prefix="${prefix}"][data-field="time-of-day"]`);
+    const dayOfWeekField = document.querySelector(`[data-schedule-prefix="${prefix}"][data-field="day-of-week"]`);
+    const intervalField = document.querySelector(`[data-schedule-prefix="${prefix}"][data-field="interval"]`);
+    const cronField = document.querySelector(`[data-schedule-prefix="${prefix}"][data-field="cron"]`);
+    const generationField = document.querySelector(`[data-schedule-prefix="${prefix}"][data-field="generation-settings"]`);
+
+    if (timeOfDayField) {
+      timeOfDayField.style.display = recurrenceType === 'interval' || recurrenceType === 'custom_cron' ? 'none' : '';
+    }
+    if (dayOfWeekField) {
+      dayOfWeekField.style.display = recurrenceType === 'weekly' ? '' : 'none';
+    }
+    if (intervalField) {
+      intervalField.style.display = recurrenceType === 'interval' ? '' : 'none';
+    }
+    if (cronField) {
+      cronField.style.display = recurrenceType === 'custom_cron' ? '' : 'none';
+    }
+    if (generationField) {
+      generationField.style.display = includeGeneration ? '' : 'none';
+    }
+
+    document.getElementById(`${prefix}-schedule-generation-mode`).disabled = !includeGeneration;
+    document.getElementById(`${prefix}-schedule-max-reviews`).disabled = !includeGeneration;
+    document.getElementById(`${prefix}-schedule-attachment-scope`).disabled = !sendAttachment;
+    document.getElementById(`${prefix}-schedule-attachment-format`).disabled = !sendAttachment;
+  }
+
+  function serializeScheduleForm(prefix) {
+    const recurrenceType = document.getElementById(`${prefix}-schedule-recurrence-type`).value;
+    const includeGeneration = document.getElementById(`${prefix}-schedule-include-generation`).checked;
+    const sendAttachment = document.getElementById(`${prefix}-schedule-send-attachment`).checked;
+
+    const payload = {
+      name: document.getElementById(`${prefix}-schedule-name`).value.trim(),
+      enabled: document.getElementById(`${prefix}-schedule-enabled`).checked,
+      timezone: document.getElementById(`${prefix}-schedule-timezone`).value.trim() || 'America/Sao_Paulo',
+      recurrence_type: recurrenceType,
+      time_of_day: recurrenceType === 'interval' || recurrenceType === 'custom_cron'
+        ? null
+        : document.getElementById(`${prefix}-schedule-time-of-day`).value || null,
+      day_of_week: recurrenceType === 'weekly'
+        ? Number(document.getElementById(`${prefix}-schedule-day-of-week`).value)
+        : null,
+      interval_minutes: recurrenceType === 'interval'
+        ? Number(document.getElementById(`${prefix}-schedule-interval-minutes`).value || 0)
+        : null,
+      cron_expression: recurrenceType === 'custom_cron'
+        ? document.getElementById(`${prefix}-schedule-cron-expression`).value.trim() || null
+        : null,
+      profile_label: document.getElementById(`${prefix}-schedule-profile-label`).value.trim() || null,
+      profile_url: document.getElementById(`${prefix}-schedule-profile-url`).value.trim() || null,
+      trigger_new_scrape: document.getElementById(`${prefix}-schedule-trigger-new-scrape`).checked,
+      include_generation: includeGeneration,
+      generation_mode: includeGeneration
+        ? document.getElementById(`${prefix}-schedule-generation-mode`).value
+        : 'default',
+      report_type: document.getElementById(`${prefix}-schedule-report-type`).value,
+      include_health_status: document.getElementById(`${prefix}-schedule-include-health-status`).checked,
+      send_attachment: sendAttachment,
+      attachment_scope: document.getElementById(`${prefix}-schedule-attachment-scope`).value,
+      attachment_format: document.getElementById(`${prefix}-schedule-attachment-format`).value,
+      max_reviews: Number(document.getElementById(`${prefix}-schedule-max-reviews`).value || 20),
+      telegram_token: document.getElementById(`${prefix}-schedule-telegram-token`).value.trim() || null,
+      telegram_chat_id: document.getElementById(`${prefix}-schedule-telegram-chat-id`).value.trim() || null,
+      parse_mode: document.getElementById(`${prefix}-schedule-parse-mode`).value,
+    };
+
+    if (!payload.name) {
+      throw new Error('O nome do agendamento é obrigatório.');
+    }
+
+    return payload;
+  }
+
+  function clearTelegramTestForm() {
+    document.getElementById('test-telegram-token').value = '';
+    document.getElementById('test-telegram-chat-id').value = '';
+    document.getElementById('test-message').value = '';
+    document.getElementById('test-parse-mode').value = 'Markdown';
+  }
+
+  function moveEditPanelHome() {
+    const home = document.getElementById('schedule-edit-panel-home');
+    const panel = document.getElementById('schedule-edit-panel');
+    if (!home || !panel) return;
+    home.appendChild(panel);
+    panel.hidden = true;
+  }
+
+  function mountEditPanel() {
+    const panel = document.getElementById('schedule-edit-panel');
+    if (!panel) return;
+
+    if (!notificationState.editingId) {
+      moveEditPanelHome();
       return;
     }
 
-    tbody.innerHTML = history.map((entry) => `
+    const slot = document.getElementById(`schedule-edit-slot-${notificationState.editingId}`);
+    const schedule = notificationState.schedules.find((item) => item.id === notificationState.editingId);
+
+    if (!slot || !schedule) {
+      notificationState.editingId = null;
+      moveEditPanelHome();
+      return;
+    }
+
+    document.getElementById('edit-schedule-panel-title').textContent = `Editar ${schedule.name}`;
+    slot.appendChild(panel);
+    panel.hidden = false;
+  }
+
+  function cancelEditSchedule() {
+    notificationState.editingId = null;
+    resetScheduleForm('edit');
+    renderScheduleCards(notificationState.schedules);
+    moveEditPanelHome();
+  }
+
+  function editSchedule(scheduleId) {
+    if (notificationState.editingId === scheduleId) {
+      cancelEditSchedule();
+      return;
+    }
+
+    const schedule = notificationState.schedules.find((item) => item.id === scheduleId);
+    if (!schedule) {
+      showTelegramScheduleAlert('error', 'Agendamento não encontrado para edição.');
+      return;
+    }
+
+    notificationState.editingId = schedule.id;
+    fillScheduleForm('edit', schedule);
+    renderScheduleCards(notificationState.schedules);
+    mountEditPanel();
+
+    const slot = document.getElementById(`schedule-edit-slot-${schedule.id}`);
+    if (slot) {
+      slot.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  function renderScheduleCards(schedules) {
+    const container = document.getElementById('schedule-card-list');
+
+    if (!schedules.length) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-calendar-xmark"></i>
+          <span>Nenhum agendamento salvo.</span>
+        </div>
+      `;
+      moveEditPanelHome();
+      return;
+    }
+
+    container.innerHTML = schedules.map((schedule) => {
+      const isEditing = notificationState.editingId === schedule.id;
+      const isRunning = notificationState.runningScheduleIds.has(schedule.id);
+      const lastResult = schedule.last_error || 'Sem erros recentes';
+      const runLabel = isRunning ? 'Enfileirando...' : 'Rodar agora';
+
+      return `
+        <article class="schedule-item ${isEditing ? 'is-editing' : ''}">
+          <div class="schedule-item-shell">
+            <div class="schedule-item-header">
+              <div>
+                <div class="schedule-kicker">${escapeHtml(schedule.recurrence_label || schedule.recurrence_type || 'Agendamento')}</div>
+                <div class="schedule-name">${escapeHtml(schedule.name)}</div>
+                <div class="schedule-pill-row">
+                  ${statusPill(schedule.last_status || (schedule.enabled ? 'enabled' : 'paused'), schedule.enabled)}
+                  <span class="schedule-mode-summary">${escapeHtml(notificationModeSummary(schedule))}</span>
+                </div>
+              </div>
+              <div class="schedule-card-actions">
+                <button class="btn btn-secondary btn-sm" type="button" onclick="editSchedule('${schedule.id}')">
+                  <i class="fas fa-pen"></i>
+                  ${isEditing ? 'Fechar edição' : 'Editar'}
+                </button>
+                <button class="btn btn-primary btn-sm" type="button" onclick="runScheduleNow('${schedule.id}')" ${isRunning ? 'disabled' : ''}>
+                  <i class="fas fa-bolt"></i>
+                  ${escapeHtml(runLabel)}
+                </button>
+                <button class="btn btn-danger btn-sm" type="button" onclick="deleteSchedule('${schedule.id}')">
+                  <i class="fas fa-trash"></i>
+                  Excluir
+                </button>
+              </div>
+            </div>
+
+            <div class="schedule-meta-grid">
+              <div class="schedule-meta-card">
+                <span class="schedule-meta-label">Recorrência</span>
+                <span class="schedule-meta-value">${escapeHtml(schedule.recurrence_label || schedule.recurrence_type || '—')}</span>
+                <span class="schedule-meta-note">${escapeHtml(schedule.timezone || 'America/Sao_Paulo')}</span>
+              </div>
+              <div class="schedule-meta-card">
+                <span class="schedule-meta-label">Perfil</span>
+                <span class="schedule-meta-value">${escapeHtml(schedule.profile_label || 'Perfil sem rótulo')}</span>
+                <span class="schedule-meta-note mono-text">${escapeHtml(schedule.profile_url || 'Usando perfil padrão / snapshot geral')}</span>
+              </div>
+              <div class="schedule-meta-card">
+                <span class="schedule-meta-label">Próxima execução</span>
+                <span class="schedule-meta-value">${escapeHtml(formatDateTime(schedule.next_run_at))}</span>
+                <span class="schedule-meta-note">Criado em ${escapeHtml(formatDateTime(schedule.created_at))}</span>
+              </div>
+              <div class="schedule-meta-card">
+                <span class="schedule-meta-label">Último resultado</span>
+                <span class="schedule-meta-value">${escapeHtml(formatDateTime(schedule.last_run_at))}</span>
+                <span class="schedule-meta-note">${escapeHtml(lastResult)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="inline-edit-slot" id="schedule-edit-slot-${schedule.id}"></div>
+        </article>
+      `;
+    }).join('');
+
+    mountEditPanel();
+  }
+
+  function getFilteredHistoryEntries() {
+    const query = notificationState.historyFilterQuery.trim().toLowerCase();
+    const status = notificationState.historyFilterStatus;
+
+    return notificationState.history.filter((entry) => {
+      const entryStatus = String(entry.status || 'info').toLowerCase();
+      const matchesStatus = status === 'all' || entryStatus === status;
+
+      if (!matchesStatus) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const haystack = [
+        entry.schedule_name || '',
+        entry.summary || '',
+      ].join(' ').toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }
+
+  function renderHistoryStatusOptions() {
+    const select = document.getElementById('history-filter-status');
+    const statuses = [...new Set(
+      notificationState.history
+        .map((entry) => String(entry.status || 'info').toLowerCase())
+        .filter(Boolean)
+    )].sort();
+
+    select.innerHTML = `
+      <option value="all">Todos os status</option>
+      ${statuses.map((status) => {
+        const meta = getStatusMeta(status, true);
+        return `<option value="${escapeHtml(status)}">${escapeHtml(meta.label)}</option>`;
+      }).join('')}
+    `;
+
+    select.value = statuses.includes(notificationState.historyFilterStatus)
+      ? notificationState.historyFilterStatus
+      : 'all';
+  }
+
+  function renderHistoryPagination(totalPages) {
+    const container = document.getElementById('history-pagination');
+
+    if (totalPages <= 1) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const current = notificationState.historyPage;
+    const visiblePages = [];
+    const start = Math.max(1, current - 2);
+    const end = Math.min(totalPages, current + 2);
+
+    for (let page = start; page <= end; page += 1) {
+      visiblePages.push(page);
+    }
+
+    container.innerHTML = `
+      <button class="page-chip" type="button" onclick="changeHistoryPage(${current - 1})" ${current === 1 ? 'disabled' : ''}>
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      ${visiblePages.map((page) => `
+        <button class="page-chip ${page === current ? 'active' : ''}" type="button" onclick="changeHistoryPage(${page})">
+          ${page}
+        </button>
+      `).join('')}
+      <button class="page-chip" type="button" onclick="changeHistoryPage(${current + 1})" ${current === totalPages ? 'disabled' : ''}>
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    `;
+  }
+
+  function renderHistoryTable() {
+    const tbody = document.getElementById('history-table-body');
+    const filtered = getFilteredHistoryEntries();
+    const totalEntries = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(totalEntries / notificationState.historyPageSize));
+
+    if (notificationState.historyPage > totalPages) {
+      notificationState.historyPage = totalPages;
+    }
+
+    const startIndex = totalEntries === 0
+      ? 0
+      : (notificationState.historyPage - 1) * notificationState.historyPageSize;
+    const pageEntries = filtered.slice(startIndex, startIndex + notificationState.historyPageSize);
+    const endIndex = pageEntries.length ? startIndex + pageEntries.length : 0;
+
+    document.getElementById('history-page-summary').textContent = totalEntries
+      ? `Mostrando ${startIndex + 1}-${endIndex} de ${totalEntries} execuções`
+      : 'Nenhuma execução encontrada para os filtros atuais';
+
+    if (!pageEntries.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">Nenhuma execução encontrada.</td></tr>';
+      renderHistoryPagination(totalEntries ? totalPages : 0);
+      return;
+    }
+
+    tbody.innerHTML = pageEntries.map((entry) => `
       <tr>
         <td>
           ${escapeHtml(entry.schedule_name || 'Execução manual')}
@@ -718,164 +1477,45 @@
         </td>
       </tr>
     `).join('');
+
+    renderHistoryPagination(totalPages);
   }
 
-  function fillScheduleForm(schedule) {
-    notificationState.editingId = schedule.id;
-    document.getElementById('schedule-edit-id').value = schedule.id;
-    document.getElementById('schedule-form-status').textContent = `Editando ${schedule.name}`;
-    document.getElementById('schedule-name').value = schedule.name || '';
-    document.getElementById('schedule-enabled').checked = Boolean(schedule.enabled);
-    document.getElementById('schedule-timezone').value = schedule.timezone || 'America/Sao_Paulo';
-    document.getElementById('schedule-recurrence-type').value = schedule.recurrence_type || 'daily';
-    document.getElementById('schedule-time-of-day').value = schedule.time_of_day || '09:00';
-    document.getElementById('schedule-day-of-week').value = String(schedule.day_of_week ?? 1);
-    document.getElementById('schedule-interval-minutes').value = schedule.interval_minutes || 60;
-    document.getElementById('schedule-cron-expression').value = schedule.cron_expression || '';
-    document.getElementById('schedule-profile-label').value = schedule.profile_label || '';
-    document.getElementById('schedule-profile-url').value = schedule.profile_url || '';
-    document.getElementById('schedule-trigger-new-scrape').checked = Boolean(schedule.trigger_new_scrape);
-    document.getElementById('schedule-include-generation').checked = Boolean(schedule.include_generation);
-    document.getElementById('schedule-generation-mode').value = schedule.generation_mode || 'default';
-    document.getElementById('schedule-report-type').value = schedule.report_type || 'complete';
-    document.getElementById('schedule-include-health-status').checked = Boolean(schedule.include_health_status);
-    document.getElementById('schedule-send-attachment').checked = Boolean(schedule.send_attachment);
-    document.getElementById('schedule-attachment-scope').value = schedule.attachment_scope || 'responses';
-    document.getElementById('schedule-attachment-format').value = schedule.attachment_format || 'txt';
-    document.getElementById('schedule-max-reviews').value = schedule.max_reviews || 20;
-    document.getElementById('schedule-telegram-token').value = schedule.telegram_token || '';
-    document.getElementById('schedule-telegram-chat-id').value = schedule.telegram_chat_id || '';
-    document.getElementById('schedule-parse-mode').value = schedule.parse_mode ?? 'Markdown';
-    toggleScheduleConditionalFields();
-    clearTelegramScheduleAlert();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function editSchedule(scheduleId) {
-    const schedule = notificationState.schedules.find((item) => item.id === scheduleId);
-    if (!schedule) {
-      showTelegramScheduleAlert('error', 'Agendamento não encontrado para edição.');
-      return;
+  function updateHistoryFilters(resetPage = true) {
+    notificationState.historyFilterQuery = document.getElementById('history-filter-query').value || '';
+    notificationState.historyFilterStatus = document.getElementById('history-filter-status').value || 'all';
+    if (resetPage) {
+      notificationState.historyPage = 1;
     }
-    fillScheduleForm(schedule);
+    renderHistoryTable();
   }
 
-  function resetScheduleForm() {
-    notificationState.editingId = null;
-    document.getElementById('schedule-edit-id').value = '';
-    document.getElementById('schedule-form-status').textContent = 'Criando novo';
-    document.getElementById('schedule-name').value = '';
-    document.getElementById('schedule-enabled').checked = true;
-    document.getElementById('schedule-timezone').value = 'America/Sao_Paulo';
-    document.getElementById('schedule-recurrence-type').value = 'daily';
-    document.getElementById('schedule-time-of-day').value = '09:00';
-    document.getElementById('schedule-day-of-week').value = '1';
-    document.getElementById('schedule-interval-minutes').value = '60';
-    document.getElementById('schedule-cron-expression').value = '';
-    document.getElementById('schedule-profile-label').value = '';
-    document.getElementById('schedule-profile-url').value = '';
-    document.getElementById('schedule-trigger-new-scrape').checked = true;
-    document.getElementById('schedule-include-generation').checked = false;
-    document.getElementById('schedule-generation-mode').value = 'default';
-    document.getElementById('schedule-report-type').value = 'complete';
-    document.getElementById('schedule-include-health-status').checked = false;
-    document.getElementById('schedule-send-attachment').checked = true;
-    document.getElementById('schedule-attachment-scope').value = 'responses';
-    document.getElementById('schedule-attachment-format').value = 'txt';
-    document.getElementById('schedule-max-reviews').value = '20';
-    document.getElementById('schedule-telegram-token').value = '';
-    document.getElementById('schedule-telegram-chat-id').value = '';
-    document.getElementById('schedule-parse-mode').value = 'Markdown';
-    toggleScheduleConditionalFields();
-  }
-
-  function clearTelegramTestForm() {
-    document.getElementById('test-telegram-token').value = '';
-    document.getElementById('test-telegram-chat-id').value = '';
-    document.getElementById('test-message').value = '';
-    document.getElementById('test-parse-mode').value = 'Markdown';
-  }
-
-  function toggleScheduleConditionalFields() {
-    const recurrenceType = document.getElementById('schedule-recurrence-type').value;
-    const includeGeneration = document.getElementById('schedule-include-generation').checked;
-    const sendAttachment = document.getElementById('schedule-send-attachment').checked;
-
-    document.querySelector('[data-field="time-of-day"]').style.display =
-      recurrenceType === 'interval' || recurrenceType === 'custom_cron' ? 'none' : '';
-    document.querySelector('[data-field="day-of-week"]').style.display =
-      recurrenceType === 'weekly' ? '' : 'none';
-    document.querySelector('[data-field="interval"]').style.display =
-      recurrenceType === 'interval' ? '' : 'none';
-    document.querySelector('[data-field="cron"]').style.display =
-      recurrenceType === 'custom_cron' ? '' : 'none';
-    document.querySelector('[data-field="generation-settings"]').style.display =
-      includeGeneration ? '' : 'none';
-
-    document.getElementById('schedule-generation-mode').disabled = !includeGeneration;
-    document.getElementById('schedule-max-reviews').disabled = !includeGeneration;
-    document.getElementById('schedule-attachment-scope').disabled = !sendAttachment;
-    document.getElementById('schedule-attachment-format').disabled = !sendAttachment;
-  }
-
-  function serializeScheduleForm() {
-    const recurrenceType = document.getElementById('schedule-recurrence-type').value;
-    const includeGeneration = document.getElementById('schedule-include-generation').checked;
-    const sendAttachment = document.getElementById('schedule-send-attachment').checked;
-
-    const payload = {
-      name: document.getElementById('schedule-name').value.trim(),
-      enabled: document.getElementById('schedule-enabled').checked,
-      timezone: document.getElementById('schedule-timezone').value.trim() || 'America/Sao_Paulo',
-      recurrence_type: recurrenceType,
-      time_of_day: recurrenceType === 'interval' || recurrenceType === 'custom_cron'
-        ? null
-        : document.getElementById('schedule-time-of-day').value || null,
-      day_of_week: recurrenceType === 'weekly'
-        ? Number(document.getElementById('schedule-day-of-week').value)
-        : null,
-      interval_minutes: recurrenceType === 'interval'
-        ? Number(document.getElementById('schedule-interval-minutes').value || 0)
-        : null,
-      cron_expression: recurrenceType === 'custom_cron'
-        ? document.getElementById('schedule-cron-expression').value.trim() || null
-        : null,
-      profile_label: document.getElementById('schedule-profile-label').value.trim() || null,
-      profile_url: document.getElementById('schedule-profile-url').value.trim() || null,
-      trigger_new_scrape: document.getElementById('schedule-trigger-new-scrape').checked,
-      include_generation: includeGeneration,
-      generation_mode: includeGeneration
-        ? document.getElementById('schedule-generation-mode').value
-        : 'default',
-      report_type: document.getElementById('schedule-report-type').value,
-      include_health_status: document.getElementById('schedule-include-health-status').checked,
-      send_attachment: sendAttachment,
-      attachment_scope: document.getElementById('schedule-attachment-scope').value,
-      attachment_format: document.getElementById('schedule-attachment-format').value,
-      max_reviews: Number(document.getElementById('schedule-max-reviews').value || 20),
-      telegram_token: document.getElementById('schedule-telegram-token').value.trim() || null,
-      telegram_chat_id: document.getElementById('schedule-telegram-chat-id').value.trim() || null,
-      parse_mode: document.getElementById('schedule-parse-mode').value,
-    };
-
-    if (!payload.name) {
-      throw new Error('O nome do agendamento é obrigatório.');
-    }
-
-    return payload;
+  function changeHistoryPage(page) {
+    const filtered = getFilteredHistoryEntries();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / notificationState.historyPageSize));
+    notificationState.historyPage = Math.min(Math.max(page, 1), totalPages);
+    renderHistoryTable();
   }
 
   async function loadSchedules() {
     const data = await apiRequest('/api/notifications/telegram/schedules');
     notificationState.schedules = data.schedules || [];
-    renderSchedulesTable(notificationState.schedules);
+
+    if (notificationState.editingId && !notificationState.schedules.find((item) => item.id === notificationState.editingId)) {
+      notificationState.editingId = null;
+      moveEditPanelHome();
+    }
+
+    renderScheduleCards(notificationState.schedules);
     updateScheduleSummary(data.summary || {});
   }
 
   async function loadScheduleHistory() {
-    const data = await apiRequest('/api/notifications/telegram/history?limit=100');
+    const data = await apiRequest('/api/notifications/telegram/history?limit=200');
     notificationState.history = data.history || [];
-    renderHistoryTable(notificationState.history);
+    renderHistoryStatusOptions();
+    notificationState.historyPage = 1;
+    renderHistoryTable();
   }
 
   async function refreshNotificationWorkspace() {
@@ -887,26 +1527,42 @@
     }
   }
 
-  async function saveSchedule() {
+  async function saveNewSchedule() {
     try {
-      const payload = serializeScheduleForm();
-      const scheduleId = notificationState.editingId;
-      const endpoint = scheduleId
-        ? `/api/notifications/telegram/schedules/${scheduleId}`
-        : '/api/notifications/telegram/schedules';
-      const method = scheduleId ? 'PUT' : 'POST';
-      const result = await apiRequest(endpoint, {
-        method,
+      const payload = serializeScheduleForm('new');
+      await apiRequest('/api/notifications/telegram/schedules', {
+        method: 'POST',
         body: JSON.stringify(payload),
       });
 
-      showTelegramScheduleAlert('success', scheduleId ? 'Agendamento atualizado com sucesso.' : 'Agendamento criado com sucesso.');
-      resetScheduleForm();
+      showTelegramScheduleAlert('success', 'Agendamento criado com sucesso.');
+      resetScheduleForm('new');
+      notificationState.newScheduleOpen = false;
+      setFoldCardOpen('new-schedule-card', false);
       await refreshNotificationWorkspace();
-      return result;
     } catch (error) {
-      showTelegramScheduleAlert('error', error.message || 'Não foi possível salvar o agendamento.');
-      return null;
+      showTelegramScheduleAlert('error', error.message || 'Não foi possível criar o agendamento.');
+    }
+  }
+
+  async function saveEditSchedule() {
+    if (!notificationState.editingId) {
+      showTelegramScheduleAlert('error', 'Nenhum agendamento selecionado para edição.');
+      return;
+    }
+
+    try {
+      const payload = serializeScheduleForm('edit');
+      await apiRequest(`/api/notifications/telegram/schedules/${notificationState.editingId}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+
+      showTelegramScheduleAlert('success', 'Agendamento atualizado com sucesso.');
+      cancelEditSchedule();
+      await refreshNotificationWorkspace();
+    } catch (error) {
+      showTelegramScheduleAlert('error', error.message || 'Não foi possível atualizar o agendamento.');
     }
   }
 
@@ -919,9 +1575,11 @@
       await apiRequest(`/api/notifications/telegram/schedules/${scheduleId}`, {
         method: 'DELETE',
       });
+
       if (notificationState.editingId === scheduleId) {
-        resetScheduleForm();
+        cancelEditSchedule();
       }
+
       showTelegramScheduleAlert('success', 'Agendamento removido.');
       await refreshNotificationWorkspace();
     } catch (error) {
@@ -930,6 +1588,9 @@
   }
 
   async function runScheduleNow(scheduleId) {
+    notificationState.runningScheduleIds.add(scheduleId);
+    renderScheduleCards(notificationState.schedules);
+
     try {
       const result = await apiRequest(`/api/notifications/telegram/schedules/${scheduleId}/run`, {
         method: 'POST',
@@ -939,6 +1600,9 @@
       await refreshNotificationWorkspace();
     } catch (error) {
       showTelegramScheduleAlert('error', error.message || 'Não foi possível executar o agendamento.');
+    } finally {
+      notificationState.runningScheduleIds.delete(scheduleId);
+      renderScheduleCards(notificationState.schedules);
     }
   }
 
@@ -963,8 +1627,12 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    resetScheduleForm();
+    resetScheduleForm('new');
+    resetScheduleForm('edit');
     clearTelegramTestForm();
+    setFoldCardOpen('quick-test-card', false);
+    setFoldCardOpen('new-schedule-card', false);
+    moveEditPanelHome();
     refreshNotificationWorkspace();
   });
 </script>

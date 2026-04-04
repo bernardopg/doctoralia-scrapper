@@ -127,7 +127,7 @@ def main() -> bool:
     # Verificar instalação
     if check_installation():
         print("\n🎉 INSTALAÇÃO CONCLUÍDA COM SUCESSO!")
-        print("Execute agora: python scripts/setup.py")
+        print("Execute agora: python scripts/bootstrap_setup.py")
     else:
         print("\n❌ INSTALAÇÃO INCOMPLETA")
         print("Verifique os erros acima e instale manualmente se necessário")

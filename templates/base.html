@@ -287,15 +287,24 @@
           </button>
         </div>
 
-        <div class="sidebar-user">
+        <a href="/me" class="sidebar-user {% if request.path.startswith('/me') %}active{% endif %}" id="sidebar-user-link" title="Abrir minha área">
           <div class="sidebar-user-avatar">
-            <i class="fas fa-user"></i>
+            <span id="sidebar-user-avatar-text">{{ ((dashboard_user_name or 'A')[:1])|upper }}</span>
           </div>
           <div class="sidebar-user-info">
             <div class="sidebar-user-name" id="sidebar-user-name">{{ dashboard_user_name }}</div>
             <div class="sidebar-user-role" id="sidebar-user-role">@{{ dashboard_username }}</div>
           </div>
-        </div>
+          <i class="fas fa-chevron-right sidebar-user-chevron"></i>
+        </a>
+        {% if dashboard_auth_enabled %}
+        <form method="post" action="/logout" class="sidebar-logout-form">
+          <button type="submit" class="sidebar-logout-btn">
+            <i class="fas fa-arrow-right-from-bracket"></i>
+            <span>Sair</span>
+          </button>
+        </form>
+        {% endif %}
       </div>
     </aside>
 
@@ -693,8 +702,12 @@
         document.getElementById('workspace-favorites-count').textContent = summary.favorite_profiles_count ?? '-';
         document.getElementById('nav-pending-responses-count').textContent = summary.unanswered_reviews_current ?? 0;
         document.getElementById('nav-favorites-count').textContent = summary.favorite_profiles_count ?? 0;
-        document.getElementById('sidebar-user-name').textContent = userProfile.display_name || '{{ dashboard_user_name }}';
-        document.getElementById('sidebar-user-role').textContent = `@${userProfile.username || '{{ dashboard_username }}'}`;
+        const displayName = userProfile.display_name || '{{ dashboard_user_name }}';
+        const username = userProfile.username || '{{ dashboard_username }}';
+        document.getElementById('sidebar-user-name').textContent = displayName;
+        document.getElementById('sidebar-user-role').textContent = `@${username}`;
+        document.getElementById('sidebar-user-avatar-text').textContent = (displayName.trim().charAt(0) || 'A').toUpperCase();
+        document.getElementById('sidebar-user-link').href = `/me?user=${encodeURIComponent(username)}`;
       } catch (error) {
         console.warn('Failed to hydrate workspace sidebar:', error);
       }

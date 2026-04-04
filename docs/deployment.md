@@ -25,6 +25,7 @@ Guia para deploy do sistema em produção com Docker.
 | Serviço | Função | Porta |
 |---------|--------|-------|
 | API (FastAPI) | Endpoints REST / jobs | 8000 |
+| Dashboard (Flask) | Workspace web autenticado | 5000 |
 | Worker (RQ) | Processa scraping em background | — |
 | Redis | Fila de jobs | 6379 |
 | Selenium | Browser para scraping | 4444 |
@@ -53,6 +54,10 @@ Variáveis opcionais:
 TELEGRAM_TOKEN=<bot_token>
 TELEGRAM_CHAT_ID=<chat_id>
 OPENAI_API_KEY=<chave_openai>
+DASHBOARD_AUTH_ENABLED=true
+DASHBOARD_PASSWORD_HASH=<hash_werkzeug_opcional>
+DASHBOARD_SESSION_SECRET=<segredo_para_cookie_de_sessao>
+DASHBOARD_SESSION_TTL_MINUTES=480
 N8N_BASIC_AUTH_USER=admin
 N8N_BASIC_AUTH_PASSWORD=<senha_segura>
 N8N_ENCRYPTION_KEY=<64_hex_chars>
@@ -62,6 +67,19 @@ LOG_LEVEL=INFO
 ```
 
 No compose local atual, o n8n também fica preso em `127.0.0.1:5678` e exige auth básica.
+
+### Bootstrap de autenticação do dashboard
+
+Sem `DASHBOARD_PASSWORD_HASH`, o dashboard ainda pode subir autenticado usando este comportamento:
+
+- o usuário esperado vem de `user_profile.username`
+- a senha inicial é a `API_KEY`
+- a primeira rotação em `/me` grava uma senha dedicada e desativa o bootstrap
+
+Para produção, prefira definir também:
+
+- `DASHBOARD_SESSION_SECRET` com um segredo próprio, sem reaproveitar outros segredos
+- `DASHBOARD_PASSWORD_HASH` já provisionado, para não depender da `API_KEY` como senha inicial
 
 ## Docker Compose (Desenvolvimento / Staging)
 
@@ -229,6 +247,7 @@ server {
 ```bash
 curl -H "X-API-Key: $API_KEY" http://localhost:8000/v1/health
 curl http://localhost:8000/v1/ready
+curl http://localhost:8000/v1/auth/status
 ```
 
 ## Firewall
@@ -246,6 +265,8 @@ sudo ufw enable
 ## Checklist de Segurança
 
 - [ ] `API_KEY` forte (gerada com `openssl rand -hex 32`)
+- [ ] `DASHBOARD_SESSION_SECRET` próprio e forte
+- [ ] `DASHBOARD_PASSWORD_HASH` provisionado antes de expor o dashboard publicamente
 - [ ] HTTPS ativo (Let's Encrypt / Traefik / Caddy)
 - [ ] Redis acessível apenas na rede interna
 - [ ] Logs sem PII sensível (`MASK_PII=true`)

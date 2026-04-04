@@ -17,9 +17,10 @@
 
 O dashboard é a mesa de operação do projeto. Ele organiza o que no backend já existe, mas de forma navegável para o operador:
 
+- login web com sessão assinada e redirecionamento para rotas protegidas
 - visão consolidada de perfis, reviews, pendências e saúde
 - fila de respostas sugeridas
-- gestão de favoritos e preferências do operador
+- gestão de favoritos, preferências e credenciais do operador
 - inventário e limpeza de snapshots
 - relatórios operacionais
 - configuração central
@@ -29,15 +30,35 @@ O dashboard é a mesa de operação do projeto. Ele organiza o que no backend j�
 
 | Rota | Função |
 |---|---|
+| `/login` | Entrada autenticada do dashboard |
 | `/` | Overview do workspace |
 | `/profiles` | Recorte por perfil e histórico recente |
 | `/responses` | Fila de comentários sem resposta |
 | `/history` | Snapshots persistidos e limpeza |
 | `/reports` | Inventário, timeline e relatórios |
-| `/me` | Preferências do operador |
+| `/me` | Perfil do operador, favoritos e troca de senha |
 | `/settings` | Configuração central |
 | `/notifications/telegram/schedule` | Scheduler Telegram |
 | `/health-check` | Leitura operacional da stack |
+
+## Autenticação do dashboard
+
+Quando `dashboard_auth_enabled` está ativo e existe uma credencial válida, o dashboard protege as rotas web e redireciona para `/login`.
+
+- usuário esperado: `config/config.json > user_profile.username`
+- senha inicial de bootstrap: `API_KEY`, enquanto ainda não existir `dashboard_password_hash`
+- senha dedicada: passa a valer depois da primeira rotação feita em `/me`
+- sessão: cookie Flask assinado com TTL controlado por `dashboard_session_ttl_minutes`
+
+## Área `/me`
+
+O card `Segurança & Login` em `/me` cobre:
+
+- leitura do estado atual de autenticação
+- indicação visual de bootstrap ativo vs. senha dedicada
+- troca de senha do dashboard
+- feedback inline para senha atual incorreta, confirmação divergente e regra mínima
+- medidor visual de força da nova senha com checklist das regras exibidas na UI
 
 ## Como os dados aparecem na UI
 

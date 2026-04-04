@@ -203,6 +203,31 @@ class TelegramScheduleService:
     def delete_schedule(self, schedule_id: str) -> bool:
         return bool(self.redis.hdel(self.schedules_key, schedule_id))
 
+    def claim_manual_execution(
+        self, schedule_id: str, *, ttl_seconds: int = 1800
+    ) -> Optional[str]:
+        schedule = self.get_schedule(schedule_id)
+        if schedule is None:
+            return None
+
+        lock_key = self._execution_lock_key(schedule_id, None)
+        locked = self.redis.set(lock_key, "1", ex=ttl_seconds, nx=True)
+        if not locked:
+            return ""
+        return lock_key
+
+    def release_manual_execution(self, schedule_id: str) -> None:
+        lock_key = self._execution_lock_key(schedule_id, None)
+        try:
+            self.redis.delete(lock_key)
+        except Exception:
+            # Lock TTL is the final safety net; deletion failure should not
+            # surface as a user-facing schedule execution error.
+            self.logger.debug(
+                "Unable to release manual execution lock for %s",
+                schedule_id,
+            )
+
     def run_due_schedules(self) -> List[Dict[str, Any]]:
         now = _utcnow()
         results = []

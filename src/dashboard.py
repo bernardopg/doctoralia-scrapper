@@ -5,15 +5,21 @@ Provides real-time monitoring, analytics, and management interface.
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode, urlparse
 
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_cors import CORS
 
 from config.settings import AppConfig
+from src.auth import (
+    MIN_PASSWORD_LENGTH,
+    get_dashboard_auth_state,
+    verify_dashboard_login,
+)
 from src.logger import setup_logger
 from src.multi_site_scraper import ScraperFactory
 from src.performance_monitor import PerformanceMonitor
@@ -67,6 +73,7 @@ class DashboardApp:
         data_dir = self._get_data_directory()
         self.stats_service = StatsService(data_dir, self.logger)
         self.workspace_service = WorkspaceService(data_dir, self.logger)
+        self._configure_session()
 
         self.setup_routes()
 
@@ -78,6 +85,72 @@ class DashboardApp:
             return AppConfig.load()
         except Exception:
             return self.config
+
+    def _configure_session(self) -> None:
+        auth_state = get_dashboard_auth_state(self._get_runtime_config())
+        public_url = self._get_api_docs_url()
+        parsed_public_url = urlparse(public_url) if public_url else None
+        use_secure_cookie = bool(
+            parsed_public_url and parsed_public_url.scheme == "https"
+        )
+
+        self.app.secret_key = auth_state.session_secret
+        self.app.config.update(
+            SESSION_COOKIE_HTTPONLY=True,
+            SESSION_COOKIE_SAMESITE="Lax",
+            SESSION_COOKIE_SECURE=use_secure_cookie,
+            SESSION_REFRESH_EACH_REQUEST=True,
+            PERMANENT_SESSION_LIFETIME=timedelta(
+                minutes=auth_state.session_ttl_minutes
+            ),
+        )
+
+    def _get_dashboard_auth_state(self):
+        return get_dashboard_auth_state(self._get_runtime_config())
+
+    def _is_auth_enabled(self) -> bool:
+        if self.app.config.get("AUTH_FORCE_DISABLED"):
+            return False
+        if self.app.config.get("AUTH_FORCE_ENABLED"):
+            return True
+        if self.app.config.get("TESTING"):
+            return False
+        return bool(self._get_dashboard_auth_state().enabled)
+
+    def _is_authenticated(self) -> bool:
+        if not self._is_auth_enabled():
+            return True
+        return bool(session.get("dashboard_authenticated"))
+
+    def _public_route(self, path: str) -> bool:
+        if path.startswith("/static/"):
+            return True
+        if path in {"/login", "/favicon.ico", "/api/health", "/api/auth/session"}:
+            return True
+        if path.startswith("/api/auth/login"):
+            return True
+        return False
+
+    def _safe_next_url(self, candidate: Optional[str]) -> str:
+        if not candidate:
+            return "/"
+        parsed = urlparse(candidate)
+        if parsed.scheme or parsed.netloc:
+            return "/"
+        if not candidate.startswith("/"):
+            return "/"
+        return candidate
+
+    def _login_session_user(self) -> None:
+        auth_state = self._get_dashboard_auth_state()
+        session.clear()
+        session.permanent = True
+        session["dashboard_authenticated"] = True
+        session["dashboard_username"] = auth_state.username
+        session["dashboard_authenticated_at"] = datetime.now().isoformat()
+
+    def _logout_session_user(self) -> None:
+        session.clear()
 
     def _get_api_base_url(self) -> str:
         config = self._get_runtime_config()
@@ -311,6 +384,26 @@ class DashboardApp:
     def _setup_main_routes(self) -> None:
         """Setup main application routes."""
 
+        @self.app.before_request
+        def protect_dashboard_routes():
+            if not self._is_auth_enabled():
+                return None
+
+            if self._public_route(request.path):
+                return None
+
+            if self._is_authenticated():
+                return None
+
+            if request.path.startswith("/api/"):
+                return jsonify({"error": "Authentication required"}), 401
+
+            next_target = self._safe_next_url(request.full_path.rstrip("?"))
+            login_url = url_for("login")
+            if next_target and next_target != "/":
+                login_url = f"{login_url}?{urlencode({'next': next_target})}"
+            return redirect(login_url)
+
         @self.app.context_processor
         def inject_template_config():
             user_profile = self._get_user_profile_settings()
@@ -321,7 +414,49 @@ class DashboardApp:
                     "display_name", "Administrador"
                 ),
                 "dashboard_username": user_profile.get("username", "admin"),
+                "dashboard_auth_enabled": self._is_auth_enabled(),
+                "dashboard_session_username": session.get("dashboard_username", ""),
+                "dashboard_min_password_length": MIN_PASSWORD_LENGTH,
             }
+
+        @self.app.route("/login", methods=["GET", "POST"])
+        def login():
+            """Dashboard login page."""
+            auth_state = self._get_dashboard_auth_state()
+            if not auth_state.enabled and request.method == "GET":
+                return redirect(url_for("index"))
+
+            if self._is_authenticated():
+                return redirect(self._safe_next_url(request.args.get("next")))
+
+            error_message = None
+            next_target = self._safe_next_url(
+                request.values.get("next") or request.args.get("next")
+            )
+
+            if request.method == "POST":
+                username = (request.form.get("username") or "").strip()
+                password = request.form.get("password") or ""
+                if verify_dashboard_login(
+                    self._get_runtime_config(), username, password
+                ):
+                    self._login_session_user()
+                    return redirect(next_target or url_for("index"))
+                error_message = "Credenciais inválidas."
+
+            return render_template(
+                "login.html",
+                login_error=error_message,
+                next_target=next_target,
+                login_username_hint=auth_state.username,
+                bootstrap_password_enabled=auth_state.bootstrap_password_enabled,
+            )
+
+        @self.app.route("/logout", methods=["POST"])
+        def logout():
+            """End dashboard session."""
+            self._logout_session_user()
+            return redirect(url_for("login"))
 
         @self.app.route("/")
         def index():
@@ -385,6 +520,82 @@ class DashboardApp:
 
     def _setup_api_routes(self) -> None:
         """Setup API routes."""
+
+        @self.app.route("/api/auth/login", methods=["POST"])
+        def login_auth_session():
+            """Authenticate a dashboard user and start a signed session."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                payload, status_code = self._request_api_with_status(
+                    "/v1/auth/login",
+                    method="POST",
+                    json={
+                        "username": (data.get("username") or "").strip(),
+                        "password": data.get("password") or "",
+                    },
+                )
+
+                if payload is None:
+                    return jsonify({"error": "API não disponível"}), 503
+
+                if status_code == 200 and payload.get("success"):
+                    self._login_session_user()
+
+                response_payload = dict(payload)
+                response_payload["authenticated"] = self._is_authenticated()
+                response_payload["username"] = session.get("dashboard_username")
+                return jsonify(response_payload), status_code
+            except Exception as e:
+                return self._error_response("Erro interno do dashboard", exc=e)
+
+        @self.app.route("/api/auth/session")
+        def get_auth_session():
+            """Expose dashboard session state for authenticated pages."""
+            auth_status = self._call_api("/v1/auth/status") or {}
+            return jsonify(
+                {
+                    "authenticated": self._is_authenticated(),
+                    "username": session.get("dashboard_username"),
+                    "auth_enabled": self._is_auth_enabled(),
+                    "password_configured": auth_status.get(
+                        "password_configured", False
+                    ),
+                    "bootstrap_password_enabled": auth_status.get(
+                        "bootstrap_password_enabled", False
+                    ),
+                    "session_ttl_minutes": auth_status.get("session_ttl_minutes", 480),
+                }
+            )
+
+        @self.app.route("/api/auth/logout", methods=["POST"])
+        def logout_auth_session():
+            """End the dashboard session via JSON API."""
+            self._logout_session_user()
+            return jsonify({"success": True, "message": "Logout successful"})
+
+        @self.app.route("/api/auth/change-password", methods=["POST"])
+        def change_auth_password():
+            """Proxy dashboard password rotation to the API."""
+            try:
+                data = request.get_json(force=True, silent=True) or {}
+                payload, status_code = self._request_api_with_status(
+                    "/v1/auth/change-password",
+                    method="POST",
+                    json=data,
+                )
+                if payload is None:
+                    return jsonify({"error": "API não disponível"}), 503
+
+                if isinstance(payload.get("error"), dict):
+                    api_error = payload.get("error") or {}
+                    message = str(api_error.get("message") or "").strip()
+                    if message:
+                        payload = dict(payload)
+                        payload["error"] = message
+
+                return jsonify(payload), status_code
+            except Exception as e:
+                return self._error_response("Erro interno do dashboard", exc=e)
 
         @self.app.route("/api/stats")
         def get_stats():
@@ -658,7 +869,7 @@ class DashboardApp:
             """Run a Telegram notification schedule immediately."""
             try:
                 return self._proxy_api_response(
-                    f"/v1/notifications/telegram/schedules/{schedule_id}/run",
+                    f"/v1/notifications/telegram/schedules/{schedule_id}/run?wait=false",
                     method="POST",
                     json={},
                 )

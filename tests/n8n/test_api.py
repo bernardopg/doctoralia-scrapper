@@ -239,6 +239,76 @@ class TestAuthentication:
             )
             assert response.status_code == 200
 
+    def test_dashboard_auth_status_exposes_bootstrap_state(self, client, tmp_path):
+        config = make_config(tmp_path)
+        config.security.api_key = "bootstrap-secret"
+        config.user_profile.username = "admin"
+
+        with patch("config.settings.AppConfig.load", return_value=config):
+            response = client.get("/v1/auth/status")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["auth_enabled"] is True
+        assert data["password_configured"] is True
+        assert data["bootstrap_password_enabled"] is True
+        assert data["user"]["username"] == "admin"
+
+    def test_dashboard_login_uses_shared_credentials(self, client, tmp_path):
+        config = make_config(tmp_path)
+        config.security.api_key = "bootstrap-secret"
+        config.user_profile.username = "admin"
+
+        with patch("config.settings.AppConfig.load", return_value=config):
+            success = client.post(
+                "/v1/auth/login",
+                json={"username": "admin", "password": "bootstrap-secret"},
+            )
+            invalid = client.post(
+                "/v1/auth/login",
+                json={"username": "admin", "password": "wrong"},
+            )
+
+        assert success.status_code == 200
+        assert success.json()["success"] is True
+        assert invalid.status_code == 401
+        assert invalid.json()["error"]["message"] == "Invalid dashboard credentials"
+
+    def test_dashboard_change_password_rotates_to_dedicated_hash(
+        self, client, tmp_path
+    ):
+        config = make_config(tmp_path)
+        config.security.api_key = "bootstrap-secret"
+        config.user_profile.username = "admin"
+        config.save = MagicMock()
+
+        with patch("config.settings.AppConfig.load", return_value=config):
+            response = client.post(
+                "/v1/auth/change-password",
+                headers={"X-API-Key": "bootstrap-secret"},
+                json={
+                    "current_password": "bootstrap-secret",
+                    "new_password": "NovaSenha123",
+                },
+            )
+            login_with_old_password = client.post(
+                "/v1/auth/login",
+                json={"username": "admin", "password": "bootstrap-secret"},
+            )
+            login_with_new_password = client.post(
+                "/v1/auth/login",
+                json={"username": "admin", "password": "NovaSenha123"},
+            )
+
+        assert response.status_code == 200
+        assert response.json()["message"] == "Dashboard password updated successfully"
+        assert config.security.dashboard_password_hash
+        config.save.assert_called_once()
+        assert login_with_old_password.status_code == 401
+        assert login_with_new_password.status_code == 200
+        assert login_with_new_password.json()["success"] is True
+
 
 class TestTelegramNotificationEndpoints:
     """Test Telegram scheduling endpoints."""
@@ -334,6 +404,68 @@ class TestTelegramNotificationEndpoints:
         assert response_body["error"]["message"] == "Schedule not found"
         assert "Schedule abc not found" not in str(response_body)
         assert "detail" not in response_body["error"]
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    @patch("src.api.v1.main.get_queue")
+    def test_run_telegram_notification_schedule_async_queues_job(
+        self, mock_get_queue, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.get_schedule.return_value = {
+            "id": "schedule-1",
+            "name": "Matinal",
+        }
+        service.claim_manual_execution.return_value = (
+            "doctoralia:telegram:schedules:lock:schedule-1:manual"
+        )
+        mock_get_service.return_value = service
+
+        queue = MagicMock()
+        mock_get_queue.return_value = queue
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run?wait=false",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 202
+        response_body = response.json()
+        assert response_body["success"] is True
+        assert response_body["result"]["queued"] is True
+        assert response_body["result"]["schedule_id"] == "schedule-1"
+        assert response_body["result"]["schedule_name"] == "Matinal"
+        assert response_body["result"]["job_id"].startswith("telegram-schedule-")
+        queue.enqueue.assert_called_once()
+        service.release_manual_execution.assert_not_called()
+
+    @patch("src.api.v1.main._get_telegram_schedule_service")
+    @patch("src.api.v1.main.get_queue")
+    def test_run_telegram_notification_schedule_async_returns_already_running(
+        self, mock_get_queue, mock_get_service, client, mock_env, api_key
+    ):
+        service = MagicMock()
+        service.get_schedule.return_value = {
+            "id": "schedule-1",
+            "name": "Matinal",
+        }
+        service.claim_manual_execution.return_value = ""
+        mock_get_service.return_value = service
+
+        response = client.post(
+            "/v1/notifications/telegram/schedules/schedule-1/run?wait=false",
+            headers={"X-API-Key": api_key},
+        )
+
+        assert response.status_code == 202
+        response_body = response.json()
+        assert response_body["success"] is True
+        assert response_body["result"] == {
+            "queued": False,
+            "already_running": True,
+            "schedule_id": "schedule-1",
+            "schedule_name": "Matinal",
+        }
+        mock_get_queue.assert_not_called()
 
     @patch("src.api.v1.main._get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_sanitizes_failed_result(

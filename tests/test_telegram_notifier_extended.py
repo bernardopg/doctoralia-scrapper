@@ -30,6 +30,29 @@ def test_sanitize_markdown_private(notifier):
     # Ensure underscores are escaped but bold preserved
     assert "**bold**" in sanitized
     assert "_world_" not in sanitized  # It should become escaped
+    assert "(test)!" in sanitized
+
+
+def test_sanitize_markdown_preserves_plain_dots_and_inline_code_in_markdown(notifier):
+    raw = (
+        "📁 Snapshot: `20260403_224727_bruna_pinto_gomes.json`\n"
+        "• I.N: Uma excelente médica."
+    )
+
+    sanitized = notifier._sanitize_markdown(raw, parse_mode="Markdown")
+
+    assert "`20260403_224727_bruna_pinto_gomes.json`" in sanitized
+    assert "I.N: Uma excelente médica." in sanitized
+    assert "\\." not in sanitized
+    assert "\\_" not in sanitized
+
+
+def test_sanitize_markdownv2_keeps_escaping_special_characters(notifier):
+    raw = "Arquivo final: relatorio_01.json."
+
+    sanitized = notifier._sanitize_markdown(raw, parse_mode="MarkdownV2")
+
+    assert "relatorio\\_01\\.json\\." in sanitized
 
 
 def test_send_message_rate_limit_then_success(monkeypatch, notifier):

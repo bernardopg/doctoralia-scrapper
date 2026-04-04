@@ -36,6 +36,46 @@ def build_dashboard(tmp_path):
     return dashboard
 
 
+def build_authenticated_dashboard(tmp_path, bootstrap_password="bootstrap-secret"):
+    data_dir = tmp_path / "data"
+    logs_dir = tmp_path / "logs"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    config = SimpleNamespace(
+        data_dir=str(data_dir),
+        logs_dir=str(logs_dir),
+        api=SimpleNamespace(port=8000),
+        integrations=SimpleNamespace(api_url=None, api_public_url=None),
+        security=SimpleNamespace(
+            api_key=bootstrap_password,
+            webhook_signing_secret="webhook-secret",
+            dashboard_auth_enabled=True,
+            dashboard_password_hash=None,
+            dashboard_session_secret="dashboard-session-secret",
+            dashboard_session_ttl_minutes=90,
+        ),
+        user_profile=SimpleNamespace(
+            display_name="Administrador",
+            username="admin",
+            favorite_profiles=[],
+        ),
+    )
+    dashboard = DashboardApp(config=config, logger=MagicMock())
+    dashboard.app.config.update({"TESTING": True, "AUTH_FORCE_ENABLED": True})
+    dashboard._get_runtime_config = MagicMock(return_value=config)
+    dashboard._call_api = MagicMock(
+        return_value={
+            "success": True,
+            "auth_enabled": True,
+            "password_configured": True,
+            "bootstrap_password_enabled": True,
+            "session_ttl_minutes": 90,
+            "user": {"username": "admin"},
+        }
+    )
+    return dashboard
+
+
 def test_clean_optional_and_runtime_url_helpers(tmp_path, monkeypatch):
     dashboard = build_dashboard(tmp_path)
     dashboard._get_runtime_config = MagicMock(
@@ -328,6 +368,91 @@ def test_workspace_routes_cover_filters_and_error_shapes(tmp_path):
     )
     assert pending.status_code == 200
     assert pending.get_json() == {"items": []}
+
+
+def test_dashboard_auth_redirects_and_keeps_public_health_route(tmp_path):
+    dashboard = build_authenticated_dashboard(tmp_path)
+    client = dashboard.app.test_client()
+
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/login")
+
+    protected_api = client.get("/api/stats")
+    assert protected_api.status_code == 401
+    assert protected_api.get_json() == {"error": "Authentication required"}
+
+    public_health = client.get("/api/health")
+    assert public_health.status_code == 200
+
+
+def test_dashboard_login_session_and_logout_flow(tmp_path):
+    dashboard = build_authenticated_dashboard(tmp_path)
+    client = dashboard.app.test_client()
+
+    invalid = client.post(
+        "/login",
+        data={"username": "admin", "password": "wrong"},
+        follow_redirects=False,
+    )
+    assert invalid.status_code == 200
+    assert "Credenciais inválidas." in invalid.get_data(as_text=True)
+
+    login = client.post(
+        "/login",
+        data={"username": "admin", "password": "bootstrap-secret"},
+        follow_redirects=False,
+    )
+    assert login.status_code == 302
+    assert login.headers["Location"].endswith("/")
+
+    with client.session_transaction() as session_state:
+        assert session_state["dashboard_authenticated"] is True
+        assert session_state["dashboard_username"] == "admin"
+
+    session_response = client.get("/api/auth/session")
+    assert session_response.status_code == 200
+    assert session_response.get_json()["authenticated"] is True
+
+    index = client.get("/")
+    assert index.status_code == 200
+
+    logout = client.post("/logout", follow_redirects=False)
+    assert logout.status_code == 302
+    assert logout.headers["Location"].endswith("/login")
+
+    after_logout = client.get("/", follow_redirects=False)
+    assert after_logout.status_code == 302
+    assert "/login" in after_logout.headers["Location"]
+
+
+def test_dashboard_json_login_and_logout_endpoints(tmp_path):
+    dashboard = build_authenticated_dashboard(tmp_path)
+    dashboard._request_api_with_status = MagicMock(
+        return_value=(
+            {
+                "success": True,
+                "message": "Dashboard login successful",
+                "user": {"username": "admin"},
+            },
+            200,
+        )
+    )
+    client = dashboard.app.test_client()
+
+    response = client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "bootstrap-secret"},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["authenticated"] is True
+    assert payload["username"] == "admin"
+
+    logout = client.post("/api/auth/logout")
+    assert logout.status_code == 200
+    assert logout.get_json()["success"] is True
 
 
 def test_workspace_history_and_save_routes_validation_and_success(tmp_path):

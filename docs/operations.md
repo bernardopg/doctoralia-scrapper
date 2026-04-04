@@ -19,7 +19,9 @@ Esta página concentra o runbook do projeto: health, logs, agendamentos, retenç
 
 | Página | Uso |
 |---|---|
+| `/login` | acesso autenticado ao dashboard |
 | `/` | visão consolidada do workspace |
+| `/me` | favoritos do operador e rotação de senha |
 | `/history` | auditoria e prune de snapshots |
 | `/reports` | inventário e resumo executivo |
 | `/health-check` | leitura visual de saúde |
@@ -86,6 +88,7 @@ tar -czf backup_$(date +%Y%m%d).tgz data config/config.json
 | Workspace sem atualização | Snapshot não salvo ou leitura incorreta de `data/` |
 | Histórico Telegram vazio | Nenhum envio concluído ou Redis limpo |
 | Health parcial | Dependência fora do ar, especialmente Selenium |
+| Login do dashboard falha | Verifique `user_profile.username`, bootstrap via `API_KEY` e se já existe `dashboard_password_hash` |
 | Callback n8n falhando | Assinatura HMAC, timeout ou URL de callback |
 
 ## Robustez sugerida

@@ -1,4 +1,5 @@
 import csv
+import html
 import json
 import re
 import time
@@ -16,20 +17,43 @@ class TelegramNotifier:
         self.config = config
         self.logger = logger
 
-    def _sanitize_markdown(self, text: str) -> str:
-        """Sanitiza texto para evitar problemas com Markdown do Telegram"""
+    def _sanitize_markdown(self, text: str, parse_mode: Optional[str] = None) -> str:
+        """Sanitiza texto de acordo com o parse mode do Telegram."""
         if not text:
             return text
 
-        # Escapar caracteres especiais do Markdown (pensado p/ parse_mode "Markdown")
-        text = re.sub(r"([_*\[\]()~`>#+\\=|{}.!-])", r"\\\1", text)
+        effective_parse_mode = (
+            parse_mode or self._get_parse_mode() or "Markdown"
+        ).strip()
+        if effective_parse_mode not in {"Markdown", "MarkdownV2"}:
+            return text
 
-        # Manter formatações desejadas (negrito/itálico/código inline)
-        text = re.sub(r"\\\*\\\*([^*]+)\\\*\\\*", r"**\1**", text)  # Negrito
-        text = re.sub(r"\\\*([^*]+)\\\*", r"*\1*", text)  # Itálico
-        text = re.sub(r"\\`([^`]+)\\`", r"`\1`", text)  # Código inline
+        protected_tokens: list[str] = []
 
-        return text
+        def _protect(match: re.Match[str]) -> str:
+            protected_tokens.append(match.group(0))
+            return f"\u0000{len(protected_tokens) - 1}\u0000"
+
+        # Preserve explicit formatting produced by the app before escaping
+        sanitized = re.sub(r"`[^`\n]+`", _protect, text)
+        sanitized = re.sub(r"\*\*[^*\n]+\*\*", _protect, sanitized)
+        sanitized = re.sub(r"\*[^*\n]+\*", _protect, sanitized)
+
+        if effective_parse_mode == "MarkdownV2":
+            sanitized = re.sub(
+                r"([\\_*\[\]()~`>#+\-=|{}.!])",
+                r"\\\1",
+                sanitized,
+            )
+        else:
+            sanitized = re.sub(r"([\\_*`\[])", r"\\\1", sanitized)
+
+        def _restore(match: re.Match[str]) -> str:
+            return protected_tokens[int(match.group(1))]
+
+        sanitized = re.sub(r"\u0000(\d+)\u0000", _restore, sanitized)
+
+        return sanitized
 
     def _get_parse_mode(self) -> str:
         """Obtém parse_mode da configuração, com fallback seguro."""
@@ -50,9 +74,11 @@ class TelegramNotifier:
 
         parse_mode = self._get_parse_mode()
 
-        # Sanitizar mensagem para evitar problemas com Markdown
-        # Obs.: se parse_mode != "Markdown", ainda assim sanitizar ajuda a evitar 400
-        message = self._sanitize_markdown(message)
+        if parse_mode in {"Markdown", "MarkdownV2"}:
+            message = self._sanitize_markdown(message, parse_mode=parse_mode)
+        elif parse_mode == "HTML":
+            # Escape only raw angle brackets/ampersands when HTML mode is explicitly used.
+            message = html.escape(message, quote=False)
 
         url = f"https://api.telegram.org/bot{self.config.telegram.token}/sendMessage"
         data = {
@@ -130,8 +156,10 @@ class TelegramNotifier:
 
         parse_mode = self._get_parse_mode()
 
-        # Sanitizar caption
-        caption = self._sanitize_markdown(caption)
+        if parse_mode in {"Markdown", "MarkdownV2"}:
+            caption = self._sanitize_markdown(caption, parse_mode=parse_mode)
+        elif parse_mode == "HTML":
+            caption = html.escape(caption, quote=False)
 
         url = f"https://api.telegram.org/bot{self.config.telegram.token}/sendDocument"
 
