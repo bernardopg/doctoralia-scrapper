@@ -16,12 +16,9 @@ from flask_cors import CORS
 
 from config.settings import AppConfig
 from src.auth import (
-    get_dashboard_auth_state,
-    hash_dashboard_password,
     MIN_PASSWORD_LENGTH,
-    validate_new_password,
+    get_dashboard_auth_state,
     verify_dashboard_login,
-    verify_dashboard_password,
 )
 from src.logger import setup_logger
 from src.multi_site_scraper import ScraperFactory
@@ -440,7 +437,9 @@ class DashboardApp:
             if request.method == "POST":
                 username = (request.form.get("username") or "").strip()
                 password = request.form.get("password") or ""
-                if verify_dashboard_login(self._get_runtime_config(), username, password):
+                if verify_dashboard_login(
+                    self._get_runtime_config(), username, password
+                ):
                     self._login_session_user()
                     return redirect(next_target or url_for("index"))
                 error_message = "Credenciais inválidas."
@@ -564,9 +563,7 @@ class DashboardApp:
                     "bootstrap_password_enabled": auth_status.get(
                         "bootstrap_password_enabled", False
                     ),
-                    "session_ttl_minutes": auth_status.get(
-                        "session_ttl_minutes", 480
-                    ),
+                    "session_ttl_minutes": auth_status.get("session_ttl_minutes", 480),
                 }
             )
 

@@ -22,7 +22,9 @@ class TelegramNotifier:
         if not text:
             return text
 
-        effective_parse_mode = (parse_mode or self._get_parse_mode() or "Markdown").strip()
+        effective_parse_mode = (
+            parse_mode or self._get_parse_mode() or "Markdown"
+        ).strip()
         if effective_parse_mode not in {"Markdown", "MarkdownV2"}:
             return text
 

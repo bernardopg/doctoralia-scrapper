@@ -81,6 +81,15 @@ jobs:
             exit 1
           fi
 
+          stray_setup_files=$(find . -type f -name 'setup.py' -print)
+          if [[ -n "${stray_setup_files}" ]]; then
+            echo "Unexpected legacy packaging manifests found:"
+            echo "${stray_setup_files}"
+            echo "This repository uses Poetry as the single dependency source of truth."
+            echo "Do not add custom scripts named setup.py because dependency scanners treat them as package manifests."
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
         with:

@@ -61,6 +61,7 @@ from src.api.schemas.settings import (
     StatisticsResponse,
 )
 from src.api.v1.deps import require_api_key, verify_webhook_signature
+from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.auth import (
     get_dashboard_auth_state,
     hash_dashboard_password,
@@ -68,7 +69,6 @@ from src.auth import (
     verify_dashboard_login,
     verify_dashboard_password,
 )
-from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 from src.jobs.queue import get_queue
 from src.jobs.tasks import run_telegram_schedule_job, scrape_and_process
@@ -321,6 +321,7 @@ def _sanitize_schedule_run_response(raw_response: dict[str, Any]) -> dict[str, A
         "result": safe_result,
     }
 
+
 def _build_auth_status_response(message: Optional[str] = None) -> AuthStatusResponse:
     config = _load_config()
     auth_state = get_dashboard_auth_state(config)
@@ -333,6 +334,8 @@ def _build_auth_status_response(message: Optional[str] = None) -> AuthStatusResp
         user=AuthUserModel(username=auth_state.username),
         message=message,
     )
+
+
 def _get_metrics_store() -> Optional[RedisAPIMetricsStore]:
     """Reuse one Redis-backed metrics store per effective Redis URL."""
     global _metrics_store_cache, _metrics_store_cache_url

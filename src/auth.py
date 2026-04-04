@@ -49,25 +49,23 @@ def hash_dashboard_password(password: str) -> str:
 def validate_new_password(password: str) -> Optional[str]:
     cleaned = (password or "").strip()
     if len(cleaned) < MIN_PASSWORD_LENGTH:
-        return (
-            f"A senha deve ter pelo menos {MIN_PASSWORD_LENGTH} caracteres."
-        )
+        return f"A senha deve ter pelo menos {MIN_PASSWORD_LENGTH} caracteres."
     return None
 
 
 def get_dashboard_auth_state(config: Any) -> DashboardAuthState:
     username = _clean_optional(_get_attr(config, "user_profile.username")) or "admin"
-    explicit_secret = (
-        _clean_optional(_get_attr(config, "security.dashboard_session_secret"))
-        or _clean_optional(os.getenv("DASHBOARD_SESSION_SECRET"))
-    )
-    fallback_secret = (
-        _clean_optional(_get_attr(config, "security.webhook_signing_secret"))
-        or _clean_optional(_get_attr(config, "security.api_key"))
-    )
+    explicit_secret = _clean_optional(
+        _get_attr(config, "security.dashboard_session_secret")
+    ) or _clean_optional(os.getenv("DASHBOARD_SESSION_SECRET"))
+    fallback_secret = _clean_optional(
+        _get_attr(config, "security.webhook_signing_secret")
+    ) or _clean_optional(_get_attr(config, "security.api_key"))
     session_secret = explicit_secret or fallback_secret or secrets.token_urlsafe(32)
 
-    password_hash = _clean_optional(_get_attr(config, "security.dashboard_password_hash"))
+    password_hash = _clean_optional(
+        _get_attr(config, "security.dashboard_password_hash")
+    )
     bootstrap_password = _clean_optional(_get_attr(config, "security.api_key"))
     ttl_raw = _get_attr(
         config,
@@ -97,7 +95,9 @@ def verify_dashboard_password(config: Any, password: str) -> bool:
     if not candidate:
         return False
 
-    password_hash = _clean_optional(_get_attr(config, "security.dashboard_password_hash"))
+    password_hash = _clean_optional(
+        _get_attr(config, "security.dashboard_password_hash")
+    )
     if password_hash:
         try:
             return check_password_hash(password_hash, candidate)

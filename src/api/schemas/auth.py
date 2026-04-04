@@ -35,4 +35,3 @@ class AuthLoginResponse(BaseModel):
     success: bool
     message: str
     user: Optional[AuthUserModel] = None
-
