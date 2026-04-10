@@ -146,7 +146,7 @@ jobs:
       # TruffleHog: scan PR diffs when base and head differ
       - name: Check for secrets (PR diff)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha != github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6bd2d14f7a4bc1e569fa3550efa7ec632a4fa67b # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -156,7 +156,7 @@ jobs:
       # Fallback: PR full scan when base and head are identical (e.g., re-runs)
       - name: Check for secrets (PR full scan)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha == github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6bd2d14f7a4bc1e569fa3550efa7ec632a4fa67b # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -164,7 +164,7 @@ jobs:
       # TruffleHog: scan push diffs when before SHA is valid and differs
       - name: Check for secrets (push diff)
         if: github.event_name == 'push' && github.event.before != '' && github.event.before != github.sha && !startsWith(github.event.before, '000000')
-        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6bd2d14f7a4bc1e569fa3550efa7ec632a4fa67b # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.before }}
@@ -174,7 +174,7 @@ jobs:
       # Fallback: push full scan when no valid diff available (e.g., new branch)
       - name: Check for secrets (push full scan)
         if: github.event_name == 'push' && (github.event.before == '' || github.event.before == github.sha || startsWith(github.event.before, '000000'))
-        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6bd2d14f7a4bc1e569fa3550efa7ec632a4fa67b # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -182,7 +182,7 @@ jobs:
       # TruffleHog: fallback for manual triggers or other events
       - name: "Check for secrets (manual full scan)"
         if: github.event_name == 'workflow_dispatch'
-        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6bd2d14f7a4bc1e569fa3550efa7ec632a4fa67b # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
