@@ -20,12 +20,44 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const pr = context.payload.pull_request;
+            const initialPr = context.payload.pull_request;
 
-            if (pr.base.ref !== "main") {
-              core.info(`Skipping PR #${pr.number}: base branch is ${pr.base.ref}.`);
+            if (initialPr.base.ref !== "main") {
+              core.info(`Skipping PR #${initialPr.number}: base branch is ${initialPr.base.ref}.`);
               return;
             }
+
+            async function waitForStablePullRequest(pullNumber, attempts = 6, delayMs = 5000) {
+              let currentPr = initialPr;
+
+              for (let attempt = 1; attempt <= attempts; attempt += 1) {
+                const { data } = await github.rest.pulls.get({
+                  owner,
+                  repo,
+                  pull_number: pullNumber,
+                });
+                currentPr = data;
+
+                core.info(
+                  `Attempt ${attempt}/${attempts}: mergeable=${currentPr.mergeable} mergeable_state=${currentPr.mergeable_state}`
+                );
+
+                if (
+                  currentPr.mergeable !== null &&
+                  !["unknown", "unstable"].includes(currentPr.mergeable_state)
+                ) {
+                  return currentPr;
+                }
+
+                if (attempt < attempts) {
+                  await new Promise(resolve => setTimeout(resolve, delayMs));
+                }
+              }
+
+              return currentPr;
+            }
+
+            const pr = await waitForStablePullRequest(initialPr.number);
 
             if (pr.mergeable_state === "behind") {
               try {
@@ -35,10 +67,16 @@ jobs:
                   pull_number: pr.number,
                   expected_head_sha: pr.head.sha,
                 });
-                core.info(`Updated branch for PR #${pr.number}.`);
+                core.info(`Updated branch for PR #${pr.number}. Waiting for the synchronize event to retry auto-merge.`);
               } catch (error) {
                 core.warning(`Could not update branch for PR #${pr.number}: ${error.message}`);
               }
+              return;
+            }
+
+            if (pr.mergeable === null || ["unknown", "unstable"].includes(pr.mergeable_state)) {
+              core.warning(`Skipping PR #${pr.number}: mergeable state is still ${pr.mergeable_state}.`);
+              return;
             }
 
             try {
@@ -56,6 +94,10 @@ jobs:
             } catch (error) {
               if ((error.message || "").includes("already enabled")) {
                 core.info(`Auto-merge is already enabled for PR #${pr.number}.`);
+                return;
+              }
+              if ((error.message || "").includes("unstable status")) {
+                core.warning(`Skipping PR #${pr.number}: GitHub still reports the pull request as unstable.`);
                 return;
               }
               throw error;
