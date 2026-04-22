@@ -5,7 +5,7 @@
 A API expõe scraping, jobs assíncronos, settings, métricas Redis-backed, health checks, geração de respostas, autenticação compartilhada do dashboard e o scheduler Telegram através de endpoints RESTful.
 
 **Base URL**: `http://localhost:8000` (desenvolvimento) ou seu domínio em produção
-**Versão Atual**: `1.2.0-rc.1`
+**Versão Atual**: `2.0.1`
 
 ## Autenticação
 
@@ -388,7 +388,7 @@ Verifica saúde básica da API.
 ```json
 {
   "status": "ok",
-  "version": "1.2.0-rc.1",
+  "version": "2.0.1",
   "uptime_s": 3600
 }
 ```
@@ -441,7 +441,7 @@ Verifica disponibilidade de todas as dependências.
 
 ```json
 {
-  "version": "1.2.0-rc.1",
+  "version": "2.0.1",
   "start_time": "2024-01-15T10:00:00.000000"
 }
 ```
@@ -456,7 +456,7 @@ Métricas de performance e uso da API persistidas em Redis para leitura consiste
 
 ```json
 {
-  "version": "1.2.0-rc.1",
+  "version": "2.0.1",
   "uptime_s": 3600,
   "requests": {
     "total": 1523,
