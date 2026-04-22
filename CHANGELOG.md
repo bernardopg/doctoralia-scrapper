@@ -15,7 +15,7 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 ### Changed
 
 - Dependências Python atualizadas via Dependabot: `lxml` `6.1.0`, `packaging` `26.1`, `fastapi` `0.136.0`, `pydantic` `2.13.2`, `rq` `2.8.0` e `authlib` `1.6.11`.
-- GitHub Actions atualizadas via Dependabot: `actions/cache` `5.0.5` e `github/codeql-action` `4.35.2`.
+- GitHub Actions atualizadas via Dependabot: `actions/cache` `5.0.5`, `github/codeql-action` `4.35.2`, `trufflesecurity/trufflehog` `3.95.2` e `aquasecurity/trivy-action` `0.36.0`.
 - Metadados de versão do pacote, API e dashboard alinhados para `2.0.1`.
 
 ## [1.2.0-rc.1] - 2026-03-27
