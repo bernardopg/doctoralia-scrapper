@@ -6,9 +6,23 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
-### Changed
+## [2.1.0] - 2026-04-24
 
-- Ainda sem mudanças publicadas depois da release `v2.0.1`.
+### Added
+
+- Rate limiting por IP/API key nos endpoints da API (`X-RateLimit-Remaining` por janela deslizante via Redis).
+- CSRF protection nas ações autenticadas do dashboard (`login`, `logout`, troca de senha e futuras mutações web).
+- Mascaramento de segredos na tela de settings sem perder a capacidade de rotação de chave (`_mask_secret` / `_is_masked_secret`).
+- Serviço de limpeza de jobs antigos do Redis (`scripts/cleanup_redis_jobs.py`).
+- Target `test` no Dockerfile com `requirements-dev.txt` para execução de testes isolados em container.
+- Serviço `test` no `docker-compose.yml` (ativado via profile `test`).
+- Cabeçalho de navegação responsivo no template base do dashboard.
+- Helper `_config_to_settings_model` e `_preserve_masked_settings` para serialização e atualização segura de settings.
+
+### Fixed
+
+- Corrigida formatação de código (Black/isort) em `src/api/v1/main.py`, `src/scraper.py` e `src/dashboard.py`.
+- Corrigidos erros de tipo mypy em `src/api/v1/main.py`: tipagem do retorno de `redis.incr` e coerção de `id_salt` opcional.
 
 ## [2.0.1] - 2026-04-22
 

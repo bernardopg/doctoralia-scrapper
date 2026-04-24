@@ -2,9 +2,9 @@
 Main API module for n8n integration.
 """
 
+import hashlib
 import logging
 import os
-import hashlib
 import time
 import uuid
 from datetime import datetime
@@ -76,7 +76,7 @@ from src.jobs.tasks import run_telegram_schedule_job, scrape_and_process
 from src.services.telegram_schedule_service import TelegramScheduleService
 
 # API metadata
-API_VERSION = "2.0.1"
+API_VERSION = "2.1.0"
 API_START_TIME = datetime.now()
 logger = logging.getLogger(__name__)
 
@@ -447,11 +447,11 @@ def _check_rate_limit(request: Request) -> Optional[JSONResponse]:
         identifier = _rate_limit_identifier(request)
         bucket = int(time.time() // window)
         key = f"{RATE_LIMIT_PREFIX}:{identifier}:{bucket}"
-        count = redis_client.incr(key)
+        count: int = redis_client.incr(key)  # type: ignore[assignment]
         if count == 1:
             redis_client.expire(key, window + 5)
-        remaining = max(max_requests - int(count), 0)
-        if int(count) <= max_requests:
+        remaining = max(max_requests - count, 0)
+        if count <= max_requests:
             request.state.rate_limit_remaining = remaining
             return None
         retry_after = window - (int(time.time()) % window)
@@ -1515,9 +1515,11 @@ def _config_to_settings_model(config, *, mask_secrets: bool = False) -> Settings
     return SettingsModel(
         telegram=TelegramSettingsModel(
             enabled=config.telegram.enabled,
-            token=_mask_secret(config.telegram.token)
-            if mask_secrets
-            else config.telegram.token,
+            token=(
+                _mask_secret(config.telegram.token)
+                if mask_secrets
+                else config.telegram.token
+            ),
             chat_id=config.telegram.chat_id,
             parse_mode=config.telegram.parse_mode,
             attach_responses_auto=config.telegram.attach_responses_auto,
@@ -1548,29 +1550,41 @@ def _config_to_settings_model(config, *, mask_secrets: bool = False) -> Settings
             workers=config.api.workers,
         ),
         security=SecuritySettingsModel(
-            api_key=_mask_secret(config.security.api_key)
-            if mask_secrets
-            else config.security.api_key,
-            webhook_signing_secret=_mask_secret(config.security.webhook_signing_secret)
-            if mask_secrets
-            else config.security.webhook_signing_secret,
-            openai_api_key=_mask_secret(config.security.openai_api_key)
-            if mask_secrets
-            else config.security.openai_api_key,
+            api_key=(
+                _mask_secret(config.security.api_key)
+                if mask_secrets
+                else config.security.api_key
+            ),
+            webhook_signing_secret=(
+                _mask_secret(config.security.webhook_signing_secret)
+                if mask_secrets
+                else config.security.webhook_signing_secret
+            ),
+            openai_api_key=(
+                _mask_secret(config.security.openai_api_key)
+                if mask_secrets
+                else config.security.openai_api_key
+            ),
         ),
         generation=GenerationSettingsModel(
             mode=config.generation.mode,
-            openai_api_key=_mask_secret(config.generation.openai_api_key)
-            if mask_secrets
-            else config.generation.openai_api_key,
+            openai_api_key=(
+                _mask_secret(config.generation.openai_api_key)
+                if mask_secrets
+                else config.generation.openai_api_key
+            ),
             openai_model=config.generation.openai_model,
-            gemini_api_key=_mask_secret(config.generation.gemini_api_key)
-            if mask_secrets
-            else config.generation.gemini_api_key,
+            gemini_api_key=(
+                _mask_secret(config.generation.gemini_api_key)
+                if mask_secrets
+                else config.generation.gemini_api_key
+            ),
             gemini_model=config.generation.gemini_model,
-            claude_api_key=_mask_secret(config.generation.claude_api_key)
-            if mask_secrets
-            else config.generation.claude_api_key,
+            claude_api_key=(
+                _mask_secret(config.generation.claude_api_key)
+                if mask_secrets
+                else config.generation.claude_api_key
+            ),
             claude_model=config.generation.claude_model,
             temperature=config.generation.temperature,
             max_tokens=config.generation.max_tokens,
@@ -1584,9 +1598,11 @@ def _config_to_settings_model(config, *, mask_secrets: bool = False) -> Settings
         ),
         privacy=PrivacySettingsModel(
             mask_pii=config.privacy.mask_pii,
-            id_salt=_mask_secret(config.privacy.id_salt)
-            if mask_secrets
-            else config.privacy.id_salt,
+            id_salt=(
+                _mask_secret(config.privacy.id_salt) or config.privacy.id_salt
+                if mask_secrets
+                else config.privacy.id_salt
+            ),
             job_result_ttl=config.privacy.job_result_ttl,
             rate_limit_requests=config.privacy.rate_limit_requests,
             rate_limit_window=config.privacy.rate_limit_window,
@@ -1620,7 +1636,9 @@ def _preserve_masked_settings(settings: SettingsModel, config) -> SettingsModel:
     if _is_masked_secret(settings.security.api_key):
         settings.security.api_key = config.security.api_key
     if _is_masked_secret(settings.security.webhook_signing_secret):
-        settings.security.webhook_signing_secret = config.security.webhook_signing_secret
+        settings.security.webhook_signing_secret = (
+            config.security.webhook_signing_secret
+        )
     if _is_masked_secret(settings.security.openai_api_key):
         settings.security.openai_api_key = config.security.openai_api_key
     if _is_masked_secret(settings.generation.openai_api_key):

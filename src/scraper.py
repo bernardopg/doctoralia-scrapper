@@ -327,8 +327,8 @@ class DoctoraliaScraper:
                         continue
 
                     text_content = (
-                        element.get_attribute("textContent") or ""
-                    ).strip().lower()
+                        (element.get_attribute("textContent") or "").strip().lower()
+                    )
                     data_id = (element.get_attribute("data-id") or "").lower()
                     test_id = (element.get_attribute("data-test-id") or "").lower()
                     is_opinion_button = (

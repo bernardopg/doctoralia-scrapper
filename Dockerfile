@@ -76,9 +76,13 @@ CMD ["python", "-c", "from src.dashboard import start_dashboard; start_dashboard
 
 # Test runner with dev-only dependencies.
 FROM base AS test
-COPY requirements-dev.txt ./
 COPY main.py ./
 COPY scripts ./scripts
 COPY tests ./tests
-RUN pip install --no-cache-dir -r requirements-dev.txt
+RUN pip install --no-cache-dir \
+    "pytest>=7.4.0" \
+    "pytest-asyncio>=0.21.0" \
+    "pytest-cov>=4.1.0" \
+    "pytest-mock>=3.11.1" \
+    "httpx~=0.28.1"
 CMD ["python", "-m", "pytest", "tests"]

@@ -3,9 +3,9 @@ Web dashboard for monitoring Doctoralia scraper operations.
 Provides real-time monitoring, analytics, and management interface.
 """
 
+import hmac
 import json
 import os
-import hmac
 import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -165,9 +165,7 @@ class DashboardApp:
 
     def _submitted_csrf_token(self) -> str:
         return (
-            request.headers.get("X-CSRF-Token")
-            or request.form.get("csrf_token")
-            or ""
+            request.headers.get("X-CSRF-Token") or request.form.get("csrf_token") or ""
         )
 
     def _is_csrf_valid(self) -> bool:
@@ -551,7 +549,7 @@ class DashboardApp:
                     "dashboard": {
                         "status": "healthy",
                         "timestamp": datetime.now().isoformat(),
-                        "version": "2.0.1",
+                        "version": "2.1.0",
                     },
                     "api": api_health,
                 }
