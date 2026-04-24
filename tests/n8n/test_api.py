@@ -1130,7 +1130,7 @@ class TestSettingsEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["settings"]["security"]["api_key"] == "initial-api-key"
+        assert data["settings"]["security"]["api_key"] == "********-key"
         assert (
             data["settings"]["integrations"]["api_public_url"]
             == "https://doctoralia.example.com/api"

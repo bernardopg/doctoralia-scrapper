@@ -5,6 +5,8 @@ Provides real-time monitoring, analytics, and management interface.
 
 import json
 import os
+import hmac
+import secrets
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -143,14 +145,39 @@ class DashboardApp:
 
     def _login_session_user(self) -> None:
         auth_state = self._get_dashboard_auth_state()
+        csrf_token = session.get("csrf_token") or secrets.token_urlsafe(32)
         session.clear()
         session.permanent = True
+        session["csrf_token"] = csrf_token
         session["dashboard_authenticated"] = True
         session["dashboard_username"] = auth_state.username
         session["dashboard_authenticated_at"] = datetime.now().isoformat()
 
     def _logout_session_user(self) -> None:
         session.clear()
+
+    def _csrf_token(self) -> str:
+        token = session.get("csrf_token")
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session["csrf_token"] = token
+        return str(token)
+
+    def _submitted_csrf_token(self) -> str:
+        return (
+            request.headers.get("X-CSRF-Token")
+            or request.form.get("csrf_token")
+            or ""
+        )
+
+    def _is_csrf_valid(self) -> bool:
+        expected = session.get("csrf_token")
+        submitted = self._submitted_csrf_token()
+        return bool(
+            expected
+            and submitted
+            and hmac.compare_digest(str(expected), str(submitted))
+        )
 
     def _get_api_base_url(self) -> str:
         config = self._get_runtime_config()
@@ -389,7 +416,18 @@ class DashboardApp:
             if not self._is_auth_enabled():
                 return None
 
-            if self._public_route(request.path):
+            if self._public_route(request.path) and not (
+                request.path == "/login" and request.method == "POST"
+            ):
+                return None
+
+            if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                if not self._is_csrf_valid():
+                    if request.path.startswith("/api/"):
+                        return jsonify({"error": "CSRF token inválido ou ausente"}), 403
+                    return redirect(url_for("login"))
+
+            if request.path == "/login":
                 return None
 
             if self._is_authenticated():
@@ -417,6 +455,7 @@ class DashboardApp:
                 "dashboard_auth_enabled": self._is_auth_enabled(),
                 "dashboard_session_username": session.get("dashboard_username", ""),
                 "dashboard_min_password_length": MIN_PASSWORD_LENGTH,
+                "csrf_token": self._csrf_token(),
             }
 
         @self.app.route("/login", methods=["GET", "POST"])

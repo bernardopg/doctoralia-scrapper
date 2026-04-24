@@ -266,11 +266,12 @@ class TelegramScheduleService:
             result = self._execute_schedule(schedule, manual=manual)
             status = "sent" if result.get("sent") else "failed"
             error = None if result.get("sent") else result.get("error")
-        except Exception:
-            # Log full exception details server-side, but avoid storing or exposing them.
+        except Exception as exc:
+            # Log full exception details server-side, and keep the concise cause
+            # in schedule history so dashboard failures are actionable.
             self.logger.exception("Failed to execute schedule %s", schedule_id)
             status = "failed"
-            error = "Schedule execution failed"
+            error = str(exc)[:500] or "Schedule execution failed"
             result = {
                 "sent": False,
                 "error": error,
@@ -1004,6 +1005,8 @@ class TelegramScheduleService:
 
         try:
             selenium_url = runtime_config.integrations.selenium_remote_url.rstrip("/")
+            if selenium_url.endswith("/wd/hub"):
+                selenium_url = selenium_url[: -len("/wd/hub")]
             response = requests.get(f"{selenium_url}/status", timeout=5)
             snapshot["selenium"] = {
                 "status": "ok" if response.ok else "error",

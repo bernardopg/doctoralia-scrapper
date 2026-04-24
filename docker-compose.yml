@@ -211,6 +211,35 @@ services:
           cpus: "0.1"
           memory: 64M
 
+  test:
+    build:
+      context: .
+      target: test
+    profiles:
+      - test
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+      - API_KEY=${API_KEY}
+      - WEBHOOK_SIGNING_SECRET=${WEBHOOK_SIGNING_SECRET}
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MASK_PII=${MASK_PII:-true}
+    depends_on:
+      redis:
+        condition: service_healthy
+      selenium:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    networks:
+      - doctoralia-net
+
 volumes:
   redis-data:
   n8n-data:

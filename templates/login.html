@@ -195,6 +195,7 @@
       {% endif %}
 
       <form method="post" class="login-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="next" value="{{ next_target or '/' }}">
 
         <div class="form-group">

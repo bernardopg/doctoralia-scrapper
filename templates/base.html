@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Doctoralia Scraper{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -299,6 +300,7 @@
         </a>
         {% if dashboard_auth_enabled %}
         <form method="post" action="/logout" class="sidebar-logout-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="sidebar-logout-btn">
             <i class="fas fa-arrow-right-from-bracket"></i>
             <span>Sair</span>
@@ -654,6 +656,20 @@
        SCRIPTS GLOBAIS
   ══════════════════════════════════ -->
   <script>
+    const dashboardCsrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = (resource, options = {}) => {
+      const method = String(options.method || 'GET').toUpperCase();
+      if (dashboardCsrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        const headers = new Headers(options.headers || {});
+        if (!headers.has('X-CSRF-Token')) {
+          headers.set('X-CSRF-Token', dashboardCsrfToken);
+        }
+        options = { ...options, headers };
+      }
+      return nativeFetch(resource, options);
+    };
+
     // ── Sidebar mobile ──────────────────────────────────
     function toggleSidebar() {
       document.getElementById('sidebar').classList.toggle('open');

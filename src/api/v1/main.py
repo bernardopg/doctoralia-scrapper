@@ -4,6 +4,7 @@ Main API module for n8n integration.
 
 import logging
 import os
+import hashlib
 import time
 import uuid
 from datetime import datetime
@@ -82,6 +83,8 @@ logger = logging.getLogger(__name__)
 METRICS_MAX_SAMPLES = 500
 METRICS_ACTIVE_REQUEST_TTL_S = 3600
 METRICS_PREFIX = "doctoralia:api:metrics"
+RATE_LIMIT_PREFIX = "doctoralia:api:rate_limit"
+SECRET_MASK_PREFIX = "********"
 SCHEDULE_RUN_FAILURE_MESSAGE = "Schedule execution failed"
 SCHEDULE_RUN_SUCCESS_MESSAGE = "Schedule executed successfully"
 SCHEDULE_RUN_ACCEPTED_MESSAGE = (
@@ -397,6 +400,78 @@ def _get_telegram_schedule_service(
     return _telegram_schedule_service
 
 
+def _mask_secret(value: Optional[str]) -> Optional[str]:
+    """Return a stable placeholder that proves a secret exists without exposing it."""
+    if not value:
+        return value
+    suffix = value[-4:] if len(value) >= 4 else "set"
+    return f"{SECRET_MASK_PREFIX}{suffix}"
+
+
+def _is_masked_secret(value: Optional[str]) -> bool:
+    return bool(value and value.startswith(SECRET_MASK_PREFIX))
+
+
+def _rate_limit_identifier(request: Request) -> str:
+    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+    if api_key:
+        digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
+        return f"key:{digest}"
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+    client_ip = forwarded_for.split(",", 1)[0].strip()
+    if not client_ip and request.client:
+        client_ip = request.client.host
+    return f"ip:{client_ip or 'unknown'}"
+
+
+def _is_rate_limit_exempt(request: Request) -> bool:
+    path = request.url.path
+    return path in {"/", "/v1/health", "/v1/ready", "/v1/version"} or path.startswith(
+        ("/docs", "/redoc", "/openapi.json")
+    )
+
+
+def _check_rate_limit(request: Request) -> Optional[JSONResponse]:
+    if _is_rate_limit_exempt(request):
+        return None
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        return None
+    try:
+        config = _load_config()
+        max_requests = int(config.privacy.rate_limit_requests)
+        window = int(config.privacy.rate_limit_window)
+        if max_requests <= 0 or window <= 0:
+            return None
+
+        redis_client = redis.Redis.from_url(config.integrations.redis_url)
+        identifier = _rate_limit_identifier(request)
+        bucket = int(time.time() // window)
+        key = f"{RATE_LIMIT_PREFIX}:{identifier}:{bucket}"
+        count = redis_client.incr(key)
+        if count == 1:
+            redis_client.expire(key, window + 5)
+        remaining = max(max_requests - int(count), 0)
+        if int(count) <= max_requests:
+            request.state.rate_limit_remaining = remaining
+            return None
+        retry_after = window - (int(time.time()) % window)
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(max(1, retry_after))},
+            content=ErrorResponse(
+                error=ErrorDetail(
+                    code="RATE_LIMITED",
+                    message="Rate limit exceeded",
+                    details={"window_seconds": window, "limit": max_requests},
+                    request_id=getattr(request.state, "request_id", None),
+                )
+            ).dict(),
+        )
+    except Exception as exc:  # pragma: no cover - redis/config dependent
+        logger.debug("Rate limit check skipped: %s", exc)
+        return None
+
+
 def _record_request_start_metric(request_id: str, started_at_s: float) -> None:
     try:
         metrics_store = _get_metrics_store()
@@ -488,7 +563,12 @@ async def add_request_id(request: Request, call_next):
     failed = False
     _record_request_start_metric(request_id, started_at_s)
     try:
-        response = await call_next(request)
+        rate_limited_response = _check_rate_limit(request)
+        if rate_limited_response is not None:
+            failed = True
+            response = rate_limited_response
+        else:
+            response = await call_next(request)
     except Exception:
         failed = True
         raise
@@ -497,6 +577,10 @@ async def add_request_id(request: Request, call_next):
         _record_request_end_metric(request_id, duration_ms, failed=failed)
     response.headers["X-Request-Id"] = request_id
     response.headers["X-Response-Time-ms"] = str(duration_ms)
+    if hasattr(request.state, "rate_limit_remaining"):
+        response.headers["X-RateLimit-Remaining"] = str(
+            request.state.rate_limit_remaining
+        )
     return response
 
 
@@ -1412,7 +1496,7 @@ async def analyze_quality_batch(request: BatchQualityAnalysisRequest):
 # ---------------------------------------------------------------------------
 
 
-def _config_to_settings_model(config) -> SettingsModel:
+def _config_to_settings_model(config, *, mask_secrets: bool = False) -> SettingsModel:
     """Convert an AppConfig object to a SettingsModel."""
     from src.api.schemas.settings import (
         APISettingsModel,
@@ -1431,7 +1515,9 @@ def _config_to_settings_model(config) -> SettingsModel:
     return SettingsModel(
         telegram=TelegramSettingsModel(
             enabled=config.telegram.enabled,
-            token=config.telegram.token,
+            token=_mask_secret(config.telegram.token)
+            if mask_secrets
+            else config.telegram.token,
             chat_id=config.telegram.chat_id,
             parse_mode=config.telegram.parse_mode,
             attach_responses_auto=config.telegram.attach_responses_auto,
@@ -1462,17 +1548,29 @@ def _config_to_settings_model(config) -> SettingsModel:
             workers=config.api.workers,
         ),
         security=SecuritySettingsModel(
-            api_key=config.security.api_key,
-            webhook_signing_secret=config.security.webhook_signing_secret,
-            openai_api_key=config.security.openai_api_key,
+            api_key=_mask_secret(config.security.api_key)
+            if mask_secrets
+            else config.security.api_key,
+            webhook_signing_secret=_mask_secret(config.security.webhook_signing_secret)
+            if mask_secrets
+            else config.security.webhook_signing_secret,
+            openai_api_key=_mask_secret(config.security.openai_api_key)
+            if mask_secrets
+            else config.security.openai_api_key,
         ),
         generation=GenerationSettingsModel(
             mode=config.generation.mode,
-            openai_api_key=config.generation.openai_api_key,
+            openai_api_key=_mask_secret(config.generation.openai_api_key)
+            if mask_secrets
+            else config.generation.openai_api_key,
             openai_model=config.generation.openai_model,
-            gemini_api_key=config.generation.gemini_api_key,
+            gemini_api_key=_mask_secret(config.generation.gemini_api_key)
+            if mask_secrets
+            else config.generation.gemini_api_key,
             gemini_model=config.generation.gemini_model,
-            claude_api_key=config.generation.claude_api_key,
+            claude_api_key=_mask_secret(config.generation.claude_api_key)
+            if mask_secrets
+            else config.generation.claude_api_key,
             claude_model=config.generation.claude_model,
             temperature=config.generation.temperature,
             max_tokens=config.generation.max_tokens,
@@ -1486,7 +1584,9 @@ def _config_to_settings_model(config) -> SettingsModel:
         ),
         privacy=PrivacySettingsModel(
             mask_pii=config.privacy.mask_pii,
-            id_salt=config.privacy.id_salt,
+            id_salt=_mask_secret(config.privacy.id_salt)
+            if mask_secrets
+            else config.privacy.id_salt,
             job_result_ttl=config.privacy.job_result_ttl,
             rate_limit_requests=config.privacy.rate_limit_requests,
             rate_limit_window=config.privacy.rate_limit_window,
@@ -1511,6 +1611,27 @@ def _config_to_settings_model(config) -> SettingsModel:
             ],
         ),
     )
+
+
+def _preserve_masked_settings(settings: SettingsModel, config) -> SettingsModel:
+    """Keep existing secret values when the UI posts masked placeholders back."""
+    if _is_masked_secret(settings.telegram.token):
+        settings.telegram.token = config.telegram.token
+    if _is_masked_secret(settings.security.api_key):
+        settings.security.api_key = config.security.api_key
+    if _is_masked_secret(settings.security.webhook_signing_secret):
+        settings.security.webhook_signing_secret = config.security.webhook_signing_secret
+    if _is_masked_secret(settings.security.openai_api_key):
+        settings.security.openai_api_key = config.security.openai_api_key
+    if _is_masked_secret(settings.generation.openai_api_key):
+        settings.generation.openai_api_key = config.generation.openai_api_key
+    if _is_masked_secret(settings.generation.gemini_api_key):
+        settings.generation.gemini_api_key = config.generation.gemini_api_key
+    if _is_masked_secret(settings.generation.claude_api_key):
+        settings.generation.claude_api_key = config.generation.claude_api_key
+    if _is_masked_secret(settings.privacy.id_salt):
+        settings.privacy.id_salt = config.privacy.id_salt
+    return settings
 
 
 def _is_http_url(value: Optional[str]) -> bool:
@@ -1637,7 +1758,7 @@ async def get_settings():
         return SettingsResponse(
             success=True,
             message="Settings retrieved successfully",
-            settings=_config_to_settings_model(config),
+            settings=_config_to_settings_model(config, mask_secrets=True),
         )
     except Exception as exc:
         return SettingsResponse(
@@ -1656,6 +1777,8 @@ async def get_settings():
 async def update_settings(settings: SettingsModel):
     """Update and persist application settings."""
     try:
+        config = _load_config()
+        settings = _preserve_masked_settings(settings, config)
         validation = _validate_settings(settings)
         if not validation["valid"]:
             return SettingsResponse(
@@ -1664,7 +1787,6 @@ async def update_settings(settings: SettingsModel):
                 settings=None,
             )
 
-        config = _load_config()
         provided_sections = set(settings.model_fields_set)
 
         if "telegram" in provided_sections:
@@ -1769,7 +1891,7 @@ async def update_settings(settings: SettingsModel):
         return SettingsResponse(
             success=True,
             message="Settings updated successfully. Restart required for some changes to take effect.",
-            settings=_config_to_settings_model(config),
+            settings=_config_to_settings_model(config, mask_secrets=True),
         )
     except Exception as exc:
         return SettingsResponse(
@@ -1787,12 +1909,14 @@ async def update_settings(settings: SettingsModel):
 )
 async def validate_settings_endpoint(settings: SettingsModel):
     """Validate settings without saving."""
+    config = _load_config()
+    settings = _preserve_masked_settings(settings, config)
     validation = _validate_settings(settings)
     if validation["valid"]:
         return SettingsResponse(
             success=True,
             message="Settings are valid",
-            settings=settings,
+            settings=_config_to_settings_model(config, mask_secrets=True),
         )
     return SettingsResponse(
         success=False,

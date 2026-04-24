@@ -23,7 +23,6 @@ data/
 logs/
 
 # Testing
-tests/
 .pytest_cache/
 htmlcov/
 .coverage
@@ -39,9 +38,8 @@ poetry.lock
 *.lock
 .pre-commit-config.yaml
 
-# Docs & scripts (not needed at runtime)
+# Docs (not needed at runtime)
 docs/
-scripts/
 examples/
 
 # Temp / debug files

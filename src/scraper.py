@@ -308,19 +308,45 @@ class DoctoraliaScraper:
     def _find_load_more_button(
         self, button_selectors: List[str]
     ) -> Optional[WebElement]:
-        """Find the first visible and enabled 'Load More' button."""
+        """Find the first visible and enabled reviews "Load More" button."""
         if not self.driver:
             return None
 
+        valid_button_labels = (
+            "ver mais",
+            "veja mais",
+            "mostrar mais",
+            "carregar mais",
+            "load more",
+        )
         for selector in button_selectors:
             try:
                 elements = self.driver.find_elements(By.CSS_SELECTOR, selector)
                 for element in elements:
-                    if element.is_displayed() and element.is_enabled():
-                        self.logger.info(
-                            f"Botão 'Veja Mais' encontrado com seletor: {selector}"
+                    if not (element.is_displayed() and element.is_enabled()):
+                        continue
+
+                    text_content = (
+                        element.get_attribute("textContent") or ""
+                    ).strip().lower()
+                    data_id = (element.get_attribute("data-id") or "").lower()
+                    test_id = (element.get_attribute("data-test-id") or "").lower()
+                    is_opinion_button = (
+                        "opinion" in data_id
+                        or "opinion" in test_id
+                        or any(label in text_content for label in valid_button_labels)
+                    )
+                    if not is_opinion_button:
+                        self.logger.debug(
+                            "Ignorando botão genérico que não parece carregar reviews: %s",
+                            text_content[:80],
                         )
-                        return element
+                        continue
+
+                    self.logger.info(
+                        f"Botão 'Veja Mais' encontrado com seletor: {selector}"
+                    )
+                    return element
             except NoSuchElementException:
                 continue
         return None
@@ -337,7 +363,7 @@ class DoctoraliaScraper:
             "button[data-id='load-more-opinions']",
             "a[data-test-id='load-more-opinions']",
             "#profile-reviews > div > div.card-footer.text-center > button",
-            ".text-center button",
+            "#profile-reviews button",
         ]
 
         initial_reviews_count = self._count_current_reviews()

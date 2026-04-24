@@ -1,7 +1,7 @@
 # Makefile para Doctoralia Scrapper
 # ===================================
 
-.PHONY: help install setup test lint run daemon monitor clean venv format security deps-sync deps-check analyze run-full-url
+.PHONY: help install setup test docker-test lint run daemon monitor clean venv format security deps-sync deps-check analyze run-full-url
 
 # Variáveis
 # Detecta se .venv existe e usa o Python do venv, caso contrário usa python3 do sistema
@@ -38,7 +38,8 @@ install: ## Instala dependências de produção
 install-dev: ## Instala dependências completas + setup do ambiente
 	@echo "$(BLUE)Instalando dependências de desenvolvimento...$(NC)"
 	$(PIP) install -r requirements.txt
-	$(PIP) install pytest pytest-cov pytest-mock black isort mypy flake8 pylint bandit safety pre-commit
+	$(PIP) install -r requirements-dev.txt
+	$(PIP) install black isort mypy flake8 pylint bandit safety pre-commit
 venv: ## Cria ambiente virtual local (.venv) usando Poetry e instala deps
 	@echo "$(BLUE)Configurando ambiente virtual com Poetry...$(NC)"
 	@if command -v poetry >/dev/null 2>&1; then \
@@ -77,6 +78,10 @@ test-html: ## Executa testes com relatório HTML
 	@echo "$(BLUE)Executando testes com cobertura HTML...$(NC)"
 	$(PYTHON) -m pytest $(TEST_DIR) --cov=$(SRC_DIR) --cov-report=html --cov-report=term
 	@echo "$(GREEN)Relatório de cobertura salvo em htmlcov/index.html$(NC)"
+
+docker-test: ## Executa testes dentro do container Docker com pytest instalado
+	@echo "$(BLUE)Executando testes no container test...$(NC)"
+	docker compose --profile test run --rm test
 
 lint: ## Executa linting, formatação e verificação de segurança
 	@echo "$(BLUE)Formatando código...$(NC)"
@@ -176,6 +181,10 @@ clean: ## Remove dados/arquivos temporários/cache
 	rm -rf *.egg-info
 	rm -rf data/
 	rm -rf .ruff_cache
+
+clean-redis-jobs: ## Remove jobs antigos e workers órfãos do Redis/RQ
+	@echo "$(BLUE)Limpando jobs antigos do Redis...$(NC)"
+	$(PYTHON) scripts/cleanup_redis_jobs.py --queue doctoralia --ttl $${REDIS_JOB_CLEANUP_TTL:-86400}
 
 
 # Comandos Priority 4 - Dashboard e API

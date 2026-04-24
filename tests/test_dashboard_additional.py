@@ -390,9 +390,13 @@ def test_dashboard_login_session_and_logout_flow(tmp_path):
     dashboard = build_authenticated_dashboard(tmp_path)
     client = dashboard.app.test_client()
 
+    with client.session_transaction() as session_state:
+        session_state["csrf_token"] = "test-csrf-token"
+        csrf_token = session_state["csrf_token"]
+
     invalid = client.post(
         "/login",
-        data={"username": "admin", "password": "wrong"},
+        data={"username": "admin", "password": "wrong", "csrf_token": csrf_token},
         follow_redirects=False,
     )
     assert invalid.status_code == 200
@@ -400,7 +404,11 @@ def test_dashboard_login_session_and_logout_flow(tmp_path):
 
     login = client.post(
         "/login",
-        data={"username": "admin", "password": "bootstrap-secret"},
+        data={
+            "username": "admin",
+            "password": "bootstrap-secret",
+            "csrf_token": csrf_token,
+        },
         follow_redirects=False,
     )
     assert login.status_code == 302
@@ -409,6 +417,7 @@ def test_dashboard_login_session_and_logout_flow(tmp_path):
     with client.session_transaction() as session_state:
         assert session_state["dashboard_authenticated"] is True
         assert session_state["dashboard_username"] == "admin"
+        csrf_token = session_state["csrf_token"]
 
     session_response = client.get("/api/auth/session")
     assert session_response.status_code == 200
@@ -417,7 +426,9 @@ def test_dashboard_login_session_and_logout_flow(tmp_path):
     index = client.get("/")
     assert index.status_code == 200
 
-    logout = client.post("/logout", follow_redirects=False)
+    logout = client.post(
+        "/logout", data={"csrf_token": csrf_token}, follow_redirects=False
+    )
     assert logout.status_code == 302
     assert logout.headers["Location"].endswith("/login")
 
@@ -439,10 +450,14 @@ def test_dashboard_json_login_and_logout_endpoints(tmp_path):
         )
     )
     client = dashboard.app.test_client()
+    client.get("/login")
+    with client.session_transaction() as session_state:
+        csrf_token = session_state["csrf_token"]
 
     response = client.post(
         "/api/auth/login",
         json={"username": "admin", "password": "bootstrap-secret"},
+        headers={"X-CSRF-Token": csrf_token},
     )
     assert response.status_code == 200
     payload = response.get_json()
@@ -450,7 +465,7 @@ def test_dashboard_json_login_and_logout_endpoints(tmp_path):
     assert payload["authenticated"] is True
     assert payload["username"] == "admin"
 
-    logout = client.post("/api/auth/logout")
+    logout = client.post("/api/auth/logout", headers={"X-CSRF-Token": csrf_token})
     assert logout.status_code == 200
     assert logout.get_json()["success"] is True
 
