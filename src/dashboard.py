@@ -772,13 +772,7 @@ class DashboardApp:
         def proxy_task_status(task_id):
             """Proxy task status request to main API."""
             try:
-                result = self._call_api(f"/v1/jobs/{task_id}")
-                if result is not None:
-                    return jsonify(result)
-                return (
-                    jsonify({"error": "API não disponível ou task não encontrada"}),
-                    503,
-                )
+                return self._proxy_api_response(f"/v1/jobs/{task_id}")
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -786,15 +780,11 @@ class DashboardApp:
         def proxy_list_tasks():
             """Proxy task list request to main API."""
             try:
-                status = request.args.get("status")
+                task_status = request.args.get("status")
                 endpoint = "/v1/jobs"
-                if status:
-                    endpoint += f"?status={status}"
-
-                result = self._call_api(endpoint)
-                if result is not None:
-                    return jsonify(result)
-                return jsonify({"error": "API não disponível"}), 503
+                if task_status:
+                    endpoint += f"?status={task_status}"
+                return self._proxy_api_response(endpoint)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 

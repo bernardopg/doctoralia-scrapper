@@ -540,17 +540,25 @@
     }
   }
 
+  const POLL_INTERVAL_ACTIVE = 5000;
+  const POLL_INTERVAL_IDLE   = 30000;
+
   async function loadTasks() {
     const tbody = document.getElementById('tasks-table-body');
 
     try {
       const response = await fetch('/api/tasks');
+      if (response.status === 429) {
+        // Rate limited: back off and retry later without error UI
+        reschedulePolling(POLL_INTERVAL_IDLE);
+        return;
+      }
       const data = response.ok ? await response.json() : [];
       const tasks = Array.isArray(data) ? data : [];
 
       if (!tasks.length) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Nenhum job encontrado.</td></tr>';
-        stopPolling();
+        reschedulePolling(POLL_INTERVAL_IDLE);
         return;
       }
 
@@ -583,20 +591,21 @@
         `;
       }).join('');
 
-      if (hasActiveTasks) {
-        startPolling();
-      } else {
-        stopPolling();
-      }
+      reschedulePolling(hasActiveTasks ? POLL_INTERVAL_ACTIVE : POLL_INTERVAL_IDLE);
     } catch (error) {
       tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Erro ao carregar jobs.</td></tr>';
       stopPolling();
     }
   }
 
+  function reschedulePolling(intervalMs) {
+    stopPolling();
+    pollInterval = setInterval(loadTasks, intervalMs);
+  }
+
   function startPolling() {
     if (!pollInterval) {
-      pollInterval = setInterval(loadTasks, 2000);
+      pollInterval = setInterval(loadTasks, POLL_INTERVAL_ACTIVE);
     }
   }
 

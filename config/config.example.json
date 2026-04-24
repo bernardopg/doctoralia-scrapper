@@ -62,7 +62,7 @@
     "mask_pii": true,
     "id_salt": "change-me",
     "job_result_ttl": 3600,
-    "rate_limit_requests": 10,
+    "rate_limit_requests": 120,
     "rate_limit_window": 60,
     "require_tls_callbacks": true,
     "allowed_callback_domains": [

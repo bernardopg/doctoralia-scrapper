@@ -3,6 +3,7 @@ Main API module for n8n integration.
 """
 
 import hashlib
+import ipaddress
 import logging
 import os
 import time
@@ -424,11 +425,25 @@ def _rate_limit_identifier(request: Request) -> str:
     return f"ip:{client_ip or 'unknown'}"
 
 
+def _is_private_ip(ip: str) -> bool:
+    try:
+        return ipaddress.ip_address(ip).is_private
+    except ValueError:
+        return False
+
+
 def _is_rate_limit_exempt(request: Request) -> bool:
     path = request.url.path
-    return path in {"/", "/v1/health", "/v1/ready", "/v1/version"} or path.startswith(
+    if path in {"/", "/v1/health", "/v1/ready", "/v1/version"} or path.startswith(
         ("/docs", "/redoc", "/openapi.json")
-    )
+    ):
+        return True
+    # Exempt internal/private network traffic (Docker service-to-service calls)
+    forwarded_for = request.headers.get("X-Forwarded-For", "")
+    client_ip = forwarded_for.split(",", 1)[0].strip()
+    if not client_ip and request.client:
+        client_ip = request.client.host
+    return bool(client_ip and _is_private_ip(client_ip))
 
 
 def _check_rate_limit(request: Request) -> Optional[JSONResponse]:
