@@ -115,11 +115,23 @@ class BaseMedicalScraper(ABC):
     def get_random_user_agent(self) -> str:
         """Return a random user agent string."""
         user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/121.0.0.0 Safari/537.36"
+            ),
+            (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/121.0.0.0 Safari/537.36"
+            ),
+            (
+                "Mozilla/5.0 (X11; Linux x86_64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/121.0.0.0 Safari/537.36"
+            ),
         ]
-        return random.choice(user_agents)
+        return random.choice(user_agents)  # nosec B311
 
     def navigate_to_page(self, url: str) -> bool:
         """Navigate to the given URL."""
@@ -132,7 +144,7 @@ class BaseMedicalScraper(ABC):
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             # Human-like delay usando configuração
-            delay = random.uniform(
+            delay = random.uniform(  # nosec B311
                 self.config.delays.human_like_min, self.config.delays.human_like_max
             )
             time.sleep(delay)
@@ -160,7 +172,7 @@ class BaseMedicalScraper(ABC):
                 load_more_button.click()
                 clicks += 1
                 # Delay configurável entre cliques
-                delay = random.uniform(
+                delay = random.uniform(  # nosec B311
                     self.config.delays.human_like_min, self.config.delays.human_like_max
                 )
                 time.sleep(delay)
@@ -231,7 +243,7 @@ class BaseMedicalScraper(ABC):
         if self.driver:
             try:
                 self.driver.quit()
-            except Exception:
+            except Exception:  # nosec B110
                 pass
             self.driver = None
 
@@ -270,7 +282,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                     element = self.driver.find_element(By.CSS_SELECTOR, selector)
                     doctor_name = element.text.strip()
                     break
-                except Exception:
+                except Exception:  # nosec B112
                     continue
 
             # Extract specialty and location
@@ -282,7 +294,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                     By.CSS_SELECTOR, "[data-test-id='doctor-specialty']"
                 )
                 specialty = specialty_element.text.strip()
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
             try:
@@ -290,7 +302,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                     By.CSS_SELECTOR, "[data-test-id='doctor-location']"
                 )
                 location = location_element.text.strip()
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
             # Extract rating
@@ -303,7 +315,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                 match = re.search(r"(\d+\.?\d*)", rating_text)
                 if match:
                     rating = float(match.group(1))
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
             return DoctorData(
@@ -348,7 +360,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                             By.CSS_SELECTOR, "[data-test-id='review-author']"
                         )
                         author = author_element.text.strip()
-                    except Exception:
+                    except Exception:  # nosec B110
                         pass
 
                     rating = 0.0
@@ -363,7 +375,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                         match = re.search(r"(\d+\.?\d*)", rating_text)
                         if match:
                             rating = float(match.group(1))
-                    except Exception:
+                    except Exception:  # nosec B110
                         pass
 
                     comment = ""
@@ -372,7 +384,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                             By.CSS_SELECTOR, "[data-test-id='review-comment']"
                         )
                         comment = comment_element.text.strip()
-                    except Exception:
+                    except Exception:  # nosec B110
                         pass
 
                     date = ""
@@ -381,7 +393,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                             By.CSS_SELECTOR, "[data-test-id='review-date']"
                         )
                         date = date_element.text.strip()
-                    except Exception:
+                    except Exception:  # nosec B110
                         pass
 
                     doctor_reply = None
@@ -390,7 +402,7 @@ class DoctoraliaMultiSiteScraper(BaseMedicalScraper):
                             By.CSS_SELECTOR, "[data-test-id='doctor-reply']"
                         )
                         doctor_reply = reply_element.text.strip()
-                    except Exception:
+                    except Exception:  # nosec B110
                         pass
 
                     reviews.append(

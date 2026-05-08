@@ -16,6 +16,7 @@ from selenium.webdriver.chrome.options import Options  # noqa: E402
 from selenium.webdriver.common.by import By  # noqa: E402
 from selenium.webdriver.support import expected_conditions as EC  # noqa: E402
 from selenium.webdriver.support.ui import WebDriverWait  # noqa: E402
+
 from src.scraper import DoctoraliaScraper  # noqa: E402
 
 

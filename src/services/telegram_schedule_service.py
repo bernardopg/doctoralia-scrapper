@@ -826,7 +826,7 @@ class TelegramScheduleService:
                 ):
                     continue
                 return payload, json_file
-            except Exception:
+            except Exception:  # nosec B112
                 continue
         raise FileNotFoundError("No snapshot available for the requested profile")
 

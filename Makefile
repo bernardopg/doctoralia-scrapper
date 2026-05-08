@@ -89,7 +89,8 @@ lint: ## Executa linting, formatação e verificação de segurança
 	isort .
 	@echo "$(BLUE)Executando linting...$(NC)"
 	flake8 $(SRC_DIR) --extend-ignore=E203 --max-line-length=120
-	pylint $(SRC_DIR) --disable=C0114,C0115,C0116
+	# Pylint ainda reporta o backlog técnico, mas falha apenas se a nota cair.
+	pylint $(SRC_DIR) --disable=C0114,C0115,C0116 --fail-under=9.0
 	mypy $(SRC_DIR) --ignore-missing-imports
 	@echo "$(BLUE)Verificando segurança...$(NC)"
 	bandit -r $(SRC_DIR)

@@ -104,7 +104,8 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.0.1...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.0...HEAD
+- [2.1.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.0.1...v2.1.0
 - [2.0.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/2.0.0...v2.0.1
 - [1.2.0-rc.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v1.1.1...v1.2.0-rc.1
 - [1.1.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/1.1.0...v1.1.1

@@ -47,7 +47,7 @@ class DashboardApp:
         if config is None:
             try:
                 config = AppConfig.load()
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
         self.config = config
@@ -1433,7 +1433,11 @@ class DashboardApp:
                         ),
                     }
                 )
-            except Exception:
+            except Exception as exc:
+                if self.logger:
+                    self.logger.debug(
+                        "Skipping unreadable data file %s: %s", json_file, exc
+                    )
                 continue
 
         return files
@@ -1451,7 +1455,11 @@ class DashboardApp:
                 with open(json_file, "r", encoding="utf-8") as f:
                     file_data = json.load(f)
                     all_data.append(file_data)
-            except Exception:
+            except Exception as exc:
+                if self.logger:
+                    self.logger.debug(
+                        "Skipping unreadable data file %s: %s", json_file, exc
+                    )
                 continue
 
         return all_data
@@ -1530,7 +1538,13 @@ class DashboardApp:
                         if doctor_name:
                             doctors.add(doctor_name)
                         total_reviews += len(file_data.get("reviews", []))
-                except Exception:
+                except Exception as exc:
+                    if self.logger:
+                        self.logger.debug(
+                            "Skipping summary aggregation for %s: %s",
+                            json_file,
+                            exc,
+                        )
                     continue
 
         return {

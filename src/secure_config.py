@@ -92,8 +92,9 @@ class SecureConfig:
                     decrypted_data[key] = self.fernet.decrypt(
                         encrypted_value.encode()
                     ).decode()
-                except Exception:
-                    # If decryption fails, keep the encrypted value
+                except Exception:  # nosec B110
+                    # If decryption fails, keep the encrypted value so callers
+                    # can still detect the problem on the next save.
                     pass
 
         return decrypted_data

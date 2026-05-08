@@ -35,10 +35,15 @@ def real_redis_url() -> str:
 
 @pytest.fixture
 def real_redis_client(real_redis_url: str):
-    client = redis.Redis.from_url(real_redis_url)
+    client = redis.Redis.from_url(
+        real_redis_url,
+        socket_connect_timeout=1,
+        socket_timeout=1,
+    )
     try:
         client.ping()
     except redis.RedisError as exc:
+        client.close()
         pytest.skip(f"Redis real indisponivel para testes de integracao: {exc}")
 
     client.flushdb()

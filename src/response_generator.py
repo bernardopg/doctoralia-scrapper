@@ -352,7 +352,7 @@ class ResponseGenerator:
         qualities = self.identify_mentioned_qualities(comment)
         if qualities:
             quality_response = self.templates["qualidades_mencionadas"].get(
-                random.choice(qualities)
+                random.choice(qualities)  # nosec B311
             )
             if quality_response:
                 response_parts.append(quality_response)
@@ -361,7 +361,7 @@ class ResponseGenerator:
         # Garantir que o template de satisfação inclua 'satisfeita'
         satisfaction_response = next(
             (t for t in self.templates["satisfacao"] if "satisfeita" in t),
-            random.choice(self.templates["satisfacao"]),
+            random.choice(self.templates["satisfacao"]),  # nosec B311
         )
         response_parts.append(satisfaction_response)
 

@@ -61,7 +61,8 @@ class RateLimiter:
 
     def add_delay(self, base_delay: float = 1.0) -> None:
         """Add a random delay to make requests more human-like."""
-        delay = base_delay + random.uniform(0.5, 2.0)
+        # Jitter for human-like timing, not security-sensitive randomness.
+        delay = base_delay + random.uniform(0.5, 2.0)  # nosec B311
         time.sleep(delay)
 
 
@@ -111,7 +112,7 @@ class DoctoraliaScraper:
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/121.0.0.0 Safari/537.36",
         ]
-        return random.choice(user_agents)
+        return random.choice(user_agents)  # nosec B311
 
     def setup_driver(self) -> bool:
         max_attempts = 3
@@ -443,7 +444,9 @@ class DoctoraliaScraper:
                                 force_refresh=True
                             )
                             self.logger.debug(
-                                f"Backup de {len(last_successful_reviews)} comentários salvo (clique {clicks_realizados})"
+                                "Backup de %d comentários salvo (clique %d)",
+                                len(last_successful_reviews),
+                                clicks_realizados,
                             )
                         except Exception as e:
                             self.logger.debug(

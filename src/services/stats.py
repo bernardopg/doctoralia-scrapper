@@ -146,8 +146,9 @@ class StatsService:
                 current_last.replace("Z", "+00:00")
             ):
                 stats["last_scrape_time"] = scraped_at
-        except Exception:
-            pass
+        except (ValueError, TypeError, AttributeError) as exc:
+            # Malformed timestamp in a snapshot file — skip silently but note in debug.
+            logger.debug("Could not parse scraped_at=%r: %s", scraped_at, exc)
 
     def _accumulate_trend_from_file(
         self, daily_data: Dict[str, Dict[str, int]], json_file: Path

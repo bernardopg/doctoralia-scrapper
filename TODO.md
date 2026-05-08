@@ -35,6 +35,14 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 - [ ] Evoluir o histórico do scheduler Telegram para paginação/filtros server-side quando o volume crescer além do modo client-side atual.
 - [ ] Permitir presets por favorito em `/me` para rodar scraping com parâmetros salvos por perfil.
 
+## Refatorações e robustez identificadas na vistoria
+
+- [ ] Quebrar `src/api/v1/main.py` em routers FastAPI por domínio (`jobs`, `scrape`, `metrics`, `settings`, `telegram`).
+- [ ] Quebrar `src/dashboard.py` em blueprints Flask e serviços menores, separando rotas, autenticação, leitura de dados e renderização.
+- [ ] Extrair provedores de IA de `src/response_generator.py` para `src/providers/`, mantendo o gerador focado em templates e orquestração.
+- [ ] Endurecer `_is_fatal_error` em `src/error_handling.py`, incluindo exceções próprias do scraper e casos Selenium conhecidos.
+- [ ] Completar `scripts/backup_restore.sh` com backup/restore reais e validação automatizada do restore.
+
 ## Prioridade baixa
 
 - [ ] Reduzir ruído residual de browser no dashboard (`favicon`, autofill de extensões de terceiros e associações de labels remanescentes).

@@ -55,18 +55,40 @@ class HealthChecker:
         return health_status
 
     async def check_webdriver(self) -> HealthStatus:
-        """Verifica se o WebDriver está funcionando"""
+        """Verifica se o WebDriver está funcionando.
+
+        Roda a inicialização real do Chrome em um thread executor para não
+        bloquear o event loop e impõe um timeout duro para evitar travar a
+        suíte de health checks quando o navegador não está disponível.
+        """
         start = time.time()
-        try:
+        loop = asyncio.get_running_loop()
+
+        def _run_driver_probe() -> None:
             options = Options()
             options.add_argument("--headless")
             options.add_argument("--no-sandbox")
             driver = webdriver.Chrome(options=options)
-            driver.quit()
+            try:
+                driver.quit()
+            except Exception:  # nosec B110
+                pass
 
+        try:
+            await asyncio.wait_for(
+                loop.run_in_executor(None, _run_driver_probe),
+                timeout=15.0,
+            )
             response_time = (time.time() - start) * 1000
             return HealthStatus(
                 name="webdriver", status="healthy", response_time_ms=response_time
+            )
+        except asyncio.TimeoutError:
+            return HealthStatus(
+                name="webdriver",
+                status="unhealthy",
+                response_time_ms=(time.time() - start) * 1000,
+                details="webdriver probe timed out after 15s",
             )
         except Exception as e:
             return HealthStatus(

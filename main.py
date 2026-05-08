@@ -33,7 +33,7 @@ from scripts.health_check import HealthChecker as LegacyHealthChecker
 from scripts.system_diagnostic import SystemDiagnostic
 from src.api.v1.main import start_api
 from src.dashboard import start_dashboard
-from src.env_validator import EnvironmentValidator, EnvironmentValidationError
+from src.env_validator import EnvironmentValidationError, EnvironmentValidator
 from src.health_checker import HealthChecker  # Async health checker
 from src.response_generator import ResponseGenerator
 from src.scraper import DoctoraliaScraper

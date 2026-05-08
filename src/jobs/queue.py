@@ -15,7 +15,9 @@ def get_redis_connection():
         from config.settings import AppConfig
 
         redis_url = AppConfig.load().integrations.redis_url or redis_url
-    except Exception:
+    except Exception:  # nosec B110
+        # When AppConfig cannot be loaded (e.g. during early CI/dev),
+        # we silently fall back to REDIS_URL from the environment above.
         pass
     return redis.Redis.from_url(redis_url)
 

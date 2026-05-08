@@ -28,6 +28,8 @@ class EnvironmentValidator:
         "shared": ["REDIS_URL", "SELENIUM_REMOTE_URL"],
     }
 
+    _EMPTY_OPTIONAL_VALUE = ""
+
     # Variáveis opcionais com valores padrão
     OPTIONAL_VARS: Dict[str, str] = {
         "REDIS_URL": "redis://localhost:6379/0",
@@ -37,6 +39,10 @@ class EnvironmentValidator:
         "LOG_LEVEL": "INFO",
         "MASK_PII": "true",
         "DEBUG": "true",
+        "DASHBOARD_AUTH_ENABLED": "true",
+        "DASHBOARD_PASSWORD_HASH": _EMPTY_OPTIONAL_VALUE,
+        "DASHBOARD_SESSION_SECRET": _EMPTY_OPTIONAL_VALUE,
+        "DASHBOARD_SESSION_TTL_MINUTES": "480",
         "GENERATION_MODE": "local",
         "OPENAI_API_KEY": "",
         "GEMINI_API_KEY": "",
@@ -49,6 +55,12 @@ class EnvironmentValidator:
             from config.settings import AppConfig
 
             config = AppConfig.load()
+            dashboard_auth_enabled = getattr(
+                config.security, "dashboard_auth_enabled", None
+            )
+            dashboard_session_ttl = getattr(
+                config.security, "dashboard_session_ttl_minutes", ""
+            )
             mapping = {
                 "API_KEY": config.security.api_key,
                 "WEBHOOK_SIGNING_SECRET": config.security.webhook_signing_secret,
@@ -58,6 +70,22 @@ class EnvironmentValidator:
                 "API_PUBLIC_URL": config.integrations.api_public_url,
                 "MASK_PII": str(config.privacy.mask_pii).lower(),
                 "DEBUG": str(config.api.debug).lower(),
+                "DASHBOARD_AUTH_ENABLED": (
+                    str(dashboard_auth_enabled).lower()
+                    if dashboard_auth_enabled is not None
+                    else ""
+                ),
+                "DASHBOARD_PASSWORD_HASH": getattr(
+                    config.security, "dashboard_password_hash", ""
+                ),
+                "DASHBOARD_SESSION_SECRET": getattr(
+                    config.security, "dashboard_session_secret", ""
+                ),
+                "DASHBOARD_SESSION_TTL_MINUTES": (
+                    str(dashboard_session_ttl)
+                    if dashboard_session_ttl is not None
+                    else ""
+                ),
                 "GENERATION_MODE": config.generation.mode,
                 "OPENAI_API_KEY": config.generation.openai_api_key
                 or config.security.openai_api_key,
