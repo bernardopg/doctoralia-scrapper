@@ -31,7 +31,6 @@ from config.settings import (
 )
 from src.api.v1.main import app
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -233,7 +232,9 @@ class TestScrapeEndpoints:
         config = _make_full_config(tmp_path)
 
         mock_scraper_instance = MagicMock()
-        mock_scraper_instance.scrape_reviews.side_effect = RuntimeError("Selenium crash")
+        mock_scraper_instance.scrape_reviews.side_effect = RuntimeError(
+            "Selenium crash"
+        )
 
         with (
             patch("config.settings.AppConfig.load", return_value=config),
@@ -430,9 +431,7 @@ class TestJobEndpoints:
         assert data["message"] == "Job already exists"
 
     @patch("src.api.v1.main.get_queue")
-    def test_get_job_status_found(
-        self, mock_get_queue, client, mock_env, api_key
-    ):
+    def test_get_job_status_found(self, mock_get_queue, client, mock_env, api_key):
         from src.integrations.n8n.normalize import make_unified_result
 
         unified = make_unified_result(
@@ -462,9 +461,7 @@ class TestJobEndpoints:
         assert response.status_code == 200
 
     @patch("src.api.v1.main.get_queue")
-    def test_get_job_status_not_found(
-        self, mock_get_queue, client, mock_env, api_key
-    ):
+    def test_get_job_status_not_found(self, mock_get_queue, client, mock_env, api_key):
         queue = MagicMock()
         queue.fetch_job.return_value = None
         mock_get_queue.return_value = queue
@@ -496,13 +493,11 @@ class TestJobEndpoints:
         queue.fetch_job.return_value = mock_job
         mock_get_queue.return_value = queue
 
-        with patch(
-            "rq.registry.StartedJobRegistry"
-        ) as mock_started, patch(
-            "rq.registry.FinishedJobRegistry"
-        ) as mock_finished, patch(
-            "rq.registry.FailedJobRegistry"
-        ) as mock_failed:
+        with (
+            patch("rq.registry.StartedJobRegistry") as mock_started,
+            patch("rq.registry.FinishedJobRegistry") as mock_finished,
+            patch("rq.registry.FailedJobRegistry") as mock_failed,
+        ):
             mock_started.return_value.get_job_ids.return_value = []
             mock_finished.return_value.get_job_ids.return_value = []
             mock_failed.return_value.get_job_ids.return_value = []
@@ -1244,9 +1239,7 @@ class TestWebhookEndpoint:
         assert response.status_code == 401
 
     @patch("src.api.v1.main.get_queue")
-    def test_webhook_scrape_valid_signature(
-        self, mock_get_queue, client, tmp_path
-    ):
+    def test_webhook_scrape_valid_signature(self, mock_get_queue, client, tmp_path):
         config = _make_full_config(tmp_path)
         queue = MagicMock()
         mock_get_queue.return_value = queue
@@ -1254,9 +1247,7 @@ class TestWebhookEndpoint:
         import hashlib
         import hmac
 
-        body = json.dumps(
-            {"doctor_url": "https://www.doctoralia.com.br/medico/teste"}
-        )
+        body = json.dumps({"doctor_url": "https://www.doctoralia.com.br/medico/teste"})
         timestamp = str(time.time())
         secret = "test-webhook-secret"
         message = f"{timestamp}.{body}"
@@ -1290,9 +1281,7 @@ class TestErrorHandling:
         response = client.get("/v1/nonexistent-endpoint")
         assert response.status_code in (404, 405)
 
-    def test_http_exception_returns_consistent_schema(
-        self, client, mock_env, api_key
-    ):
+    def test_http_exception_returns_consistent_schema(self, client, mock_env, api_key):
         with patch("src.api.v1.main.get_queue") as mock_queue:
             mock_queue.return_value.fetch_job.return_value = None
             response = client.get(
