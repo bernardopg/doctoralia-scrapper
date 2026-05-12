@@ -1141,9 +1141,7 @@ class DashboardApp:
                     "Snapshot não encontrado", status_code=404, exc=e
                 )
             except OSError as e:
-                return self._error_response(
-                    "Erro ao acessar arquivo", exc=e
-                )
+                return self._error_response("Erro ao acessar arquivo", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1159,9 +1157,7 @@ class DashboardApp:
                 )
                 return jsonify({"success": True, "result": result})
             except OSError as e:
-                return self._error_response(
-                    "Erro ao acessar arquivos", exc=e
-                )
+                return self._error_response("Erro ao acessar arquivos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1217,9 +1213,7 @@ class DashboardApp:
                     "Snapshot não encontrado", status_code=404, exc=e
                 )
             except OSError as e:
-                return self._error_response(
-                    "Erro ao salvar resposta", exc=e
-                )
+                return self._error_response("Erro ao salvar resposta", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
