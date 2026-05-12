@@ -2,8 +2,6 @@
 Main API module for n8n integration.
 """
 
-import hashlib
-import hmac
 import ipaddress
 import logging
 import os
@@ -415,12 +413,11 @@ def _is_masked_secret(value: Optional[str]) -> bool:
 
 
 def _rate_limit_identifier(request: Request) -> str:
-    api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
-    if api_key:
-        digest = hmac.new(
-            b"doctoralia-rate-limit", api_key.encode("utf-8"), hashlib.sha256
-        ).hexdigest()[:16]
-        return f"key:{digest}"
+    presented_key = request.headers.get("X-API-Key") or request.query_params.get(
+        "api_key"
+    )
+    if presented_key:
+        return "key:supplied"
     forwarded_for = request.headers.get("X-Forwarded-For", "")
     client_ip = forwarded_for.split(",", 1)[0].strip()
     if not client_ip and request.client:

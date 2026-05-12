@@ -274,7 +274,7 @@ class TelegramScheduleService:
             error = str(exc)[:500] or "Schedule execution failed"
             result = {
                 "sent": False,
-                "error": error,
+                "error": "Schedule execution failed",
                 "schedule_id": schedule_id,
                 "schedule_name": schedule.get("name"),
             }

@@ -366,8 +366,12 @@ def test_execute_schedule_failure_and_locking(tmp_path):
     history = service.list_history(limit=5)
 
     assert failed["success"] is False
+    assert failed["result"]["error"] == "Schedule execution failed"
+    assert "boom" not in str(failed)
     assert updated["last_status"] == "failed"
+    assert updated["last_error"] == "boom"
     assert history[0]["status"] == "failed"
+    assert history[0]["error"] == "boom"
     assert locked["message"] == "Schedule already claimed by another worker"
 
 
