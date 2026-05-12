@@ -162,3 +162,4 @@ bruna_pinto_gomes.json
 
 # SQLite databases
 *.sqlite
+.gitnexus
