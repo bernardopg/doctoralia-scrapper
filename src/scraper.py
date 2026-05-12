@@ -862,8 +862,14 @@ class DoctoraliaScraper:
                 AttributeError,
                 TimeoutException,
                 WebDriverException,
-            ):
-                continue  # Silenciosamente ignorar erros de processamento
+            ) as e:
+                self.logger.warning(
+                    "Erro ao processar review #%d: %s: %s",
+                    review_index + 1,
+                    type(e).__name__,
+                    e,
+                )
+                continue
 
         # Atualizar cache
         self._cache[cache_key] = reviews_data

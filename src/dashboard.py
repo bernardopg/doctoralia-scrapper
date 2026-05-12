@@ -1025,6 +1025,12 @@ class DashboardApp:
                 )
                 overview["user_profile"] = user_profile
                 return jsonify(overview)
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1039,6 +1045,12 @@ class DashboardApp:
                     favorite_profiles=user_profile.get("favorite_profiles", []),
                 )
                 return jsonify({"profiles": profiles})
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1059,6 +1071,12 @@ class DashboardApp:
                 if detail is None:
                     return jsonify({"error": "Perfil não encontrado"}), 404
                 return jsonify(detail)
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1076,6 +1094,12 @@ class DashboardApp:
                     search=request.args.get("q"),
                 )
                 return jsonify(payload)
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1091,6 +1115,12 @@ class DashboardApp:
                     search=request.args.get("q"),
                 )
                 return jsonify(payload)
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1106,6 +1136,14 @@ class DashboardApp:
                 if deleted is None:
                     return jsonify({"error": "Snapshot não encontrado"}), 404
                 return jsonify({"success": True, "deleted": deleted})
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Snapshot não encontrado", status_code=404, exc=e
+                )
+            except OSError as e:
+                return self._error_response(
+                    "Erro ao acessar arquivo", exc=e
+                )
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1120,6 +1158,10 @@ class DashboardApp:
                     date_to=_clean_optional(payload.get("date_to")),
                 )
                 return jsonify({"success": True, "result": result})
+            except OSError as e:
+                return self._error_response(
+                    "Erro ao acessar arquivos", exc=e
+                )
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1135,6 +1177,12 @@ class DashboardApp:
                     favorite_profiles=user_profile.get("favorite_profiles", []),
                 )
                 return jsonify(payload)
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1164,6 +1212,14 @@ class DashboardApp:
                 if saved is None:
                     return jsonify({"error": "Não foi possível salvar a sugestão"}), 404
                 return jsonify({"success": True, "saved": saved})
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Snapshot não encontrado", status_code=404, exc=e
+                )
+            except OSError as e:
+                return self._error_response(
+                    "Erro ao salvar resposta", exc=e
+                )
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1195,6 +1251,10 @@ class DashboardApp:
             try:
                 files = self._get_data_files()
                 return jsonify({"files": files})
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Diretório de dados não encontrado", status_code=404, exc=e
+                )
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1228,6 +1288,10 @@ class DashboardApp:
                         jsonify({"error": f"Formato '{format_type}' não suportado"}),
                         400,
                     )
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados para exportação não encontrados", status_code=404, exc=e
+                )
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 
@@ -1237,6 +1301,12 @@ class DashboardApp:
             try:
                 summary = self._get_report_summary()
                 return jsonify(summary)
+            except FileNotFoundError as e:
+                return self._error_response(
+                    "Dados não encontrados", status_code=404, exc=e
+                )
+            except json.JSONDecodeError as e:
+                return self._error_response("Dados corrompidos", exc=e)
             except Exception as e:
                 return self._error_response("Erro interno do dashboard", exc=e)
 

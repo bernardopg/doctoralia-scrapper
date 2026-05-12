@@ -225,29 +225,42 @@ class ResponseGenerator:
         if not api_key:
             raise ValueError("OpenAI API key não configurada")
 
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            },
-            timeout=45,
-        )
+        try:
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                },
+                timeout=45,
+            )
+        except requests.exceptions.Timeout:
+            raise ValueError("OpenAI timeout após 45s")
+        except requests.exceptions.ConnectionError:
+            raise ValueError("OpenAI erro de conexão")
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"OpenAI erro de rede: {e}")
+
         if not response.ok:
             raise ValueError(
                 f"OpenAI retornou {response.status_code}: {response.text[:300]}"
             )
 
-        text = self._extract_openai_text(response.json())
+        try:
+            data = response.json()
+        except (ValueError, KeyError):
+            raise ValueError("OpenAI retornou resposta inválida (não-JSON)")
+
+        text = self._extract_openai_text(data)
         if not text:
             raise ValueError("OpenAI não retornou texto de resposta")
         return text, str(model)
@@ -261,28 +274,41 @@ class ResponseGenerator:
         if not api_key:
             raise ValueError("Claude API key não configurada")
 
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            },
-            json={
-                "model": model,
-                "max_tokens": max_tokens,
-                "temperature": temperature,
-                "system": system_prompt,
-                "messages": [{"role": "user", "content": prompt}],
-            },
-            timeout=45,
-        )
+        try:
+            response = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "content-type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "system": system_prompt,
+                    "messages": [{"role": "user", "content": prompt}],
+                },
+                timeout=45,
+            )
+        except requests.exceptions.Timeout:
+            raise ValueError("Claude timeout após 45s")
+        except requests.exceptions.ConnectionError:
+            raise ValueError("Claude erro de conexão")
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"Claude erro de rede: {e}")
+
         if not response.ok:
             raise ValueError(
                 f"Claude retornou {response.status_code}: {response.text[:300]}"
             )
 
-        text = self._extract_claude_text(response.json())
+        try:
+            data = response.json()
+        except (ValueError, KeyError):
+            raise ValueError("Claude retornou resposta inválida (não-JSON)")
+
+        text = self._extract_claude_text(data)
         if not text:
             raise ValueError("Claude não retornou texto de resposta")
         return text, str(model)
@@ -296,26 +322,39 @@ class ResponseGenerator:
         if not api_key:
             raise ValueError("Gemini API key não configurada")
 
-        response = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-            params={"key": api_key},
-            headers={"Content-Type": "application/json"},
-            json={
-                "systemInstruction": {"parts": [{"text": system_prompt}]},
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "temperature": temperature,
-                    "maxOutputTokens": max_tokens,
+        try:
+            response = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                params={"key": api_key},
+                headers={"Content-Type": "application/json"},
+                json={
+                    "systemInstruction": {"parts": [{"text": system_prompt}]},
+                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "temperature": temperature,
+                        "maxOutputTokens": max_tokens,
+                    },
                 },
-            },
-            timeout=45,
-        )
+                timeout=45,
+            )
+        except requests.exceptions.Timeout:
+            raise ValueError("Gemini timeout após 45s")
+        except requests.exceptions.ConnectionError:
+            raise ValueError("Gemini erro de conexão")
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"Gemini erro de rede: {e}")
+
         if not response.ok:
             raise ValueError(
                 f"Gemini retornou {response.status_code}: {response.text[:300]}"
             )
 
-        text = self._extract_gemini_text(response.json())
+        try:
+            data = response.json()
+        except (ValueError, KeyError):
+            raise ValueError("Gemini retornou resposta inválida (não-JSON)")
+
+        text = self._extract_gemini_text(data)
         if not text:
             raise ValueError("Gemini não retornou texto de resposta")
         return text, str(model)
