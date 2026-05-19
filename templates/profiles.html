@@ -7,10 +7,10 @@
 {% block head %}
 <style>
   .profiles-filter-card {
-    border: 1px solid rgba(0, 122, 255, 0.10);
+    border: 1px solid color-mix(in srgb, var(--apple-blue) 16%, var(--border-color));
     background:
-      radial-gradient(circle at top right, rgba(0, 122, 255, 0.08), transparent 34%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 250, 251, 0.98));
+      radial-gradient(circle at top right, color-mix(in srgb, var(--apple-blue) 10%, transparent), transparent 34%),
+      linear-gradient(180deg, var(--surface-raised), var(--surface-muted));
     box-shadow: var(--shadow-sm);
   }
 
@@ -66,8 +66,8 @@
     height: 48px;
     border-radius: var(--radius-full);
     padding-inline: 16px;
-    background: linear-gradient(180deg, #ffffff, #fafbfc);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    background: linear-gradient(180deg, var(--surface-raised), var(--bg-secondary));
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-raised) 78%, transparent);
   }
 
   .profiles-filter-actions {

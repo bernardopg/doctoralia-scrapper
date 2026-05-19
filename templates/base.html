@@ -1,11 +1,18 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>{% block title %}Doctoralia Scraper{% endblock %}</title>
+  <script>
+    (() => {
+      const theme = localStorage.getItem('dashboard-theme') ||
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="/static/styles.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -36,8 +43,8 @@
       transition: background 0.3s;
     }
 
-    .status-dot.online  { background: var(--apple-green); box-shadow: 0 0 0 2px rgba(52,199,89,.2); }
-    .status-dot.offline { background: var(--apple-red);   box-shadow: 0 0 0 2px rgba(255,59,48,.2); }
+    .status-dot.online  { background: var(--apple-green); box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-green) 22%, transparent); }
+    .status-dot.offline { background: var(--apple-red);   box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-red) 22%, transparent); }
 
     .status-label {
       font-size: 12px;
@@ -58,17 +65,17 @@
 
     /* ── Ação de scraping no nav (visual distinto) ── */
     .nav-item.nav-action {
-      background: rgba(0, 122, 255, 0.08);
+      background: color-mix(in srgb, var(--apple-blue) 10%, var(--bg-primary));
       color: var(--apple-blue);
-      border: 1px solid rgba(0, 122, 255, 0.15);
+      border: 1px solid color-mix(in srgb, var(--apple-blue) 18%, var(--border-color));
       margin-bottom: 8px;
     }
 
     .nav-item.nav-action i { color: var(--apple-blue); }
 
     .nav-item.nav-action:hover {
-      background: rgba(0, 122, 255, 0.14);
-      border-color: rgba(0, 122, 255, 0.25);
+      background: color-mix(in srgb, var(--apple-blue) 15%, var(--bg-primary));
+      border-color: color-mix(in srgb, var(--apple-blue) 28%, var(--border-color));
     }
 
     /* ── Divisor externo entre seções ── */
@@ -88,9 +95,9 @@
       padding: 14px;
       border-radius: var(--radius-lg);
       background:
-        radial-gradient(circle at top left, rgba(0, 122, 255, 0.18), transparent 55%),
-        linear-gradient(135deg, rgba(52, 199, 89, 0.12), rgba(0, 122, 255, 0.08));
-      border: 1px solid rgba(0, 122, 255, 0.14);
+        radial-gradient(circle at top left, color-mix(in srgb, var(--apple-blue) 20%, transparent), transparent 55%),
+        linear-gradient(135deg, color-mix(in srgb, var(--apple-green) 12%, transparent), color-mix(in srgb, var(--apple-blue) 9%, transparent));
+      border: 1px solid color-mix(in srgb, var(--apple-blue) 18%, var(--border-color));
     }
 
     .workspace-pill-title {
@@ -130,7 +137,7 @@
       color: var(--apple-blue);
       font-weight: 500;
       padding: 6px 12px;
-      background: rgba(0,122,255,.08);
+      background: color-mix(in srgb, var(--apple-blue) 10%, var(--bg-primary));
       border-radius: var(--radius-full);
       cursor: pointer;
     }
@@ -147,7 +154,7 @@
       margin-top: 16px;
       padding: 10px 18px;
       background: var(--apple-blue);
-      color: white;
+      color: var(--bg-primary);
       border-radius: var(--radius-md);
       font-size: 14px;
       font-weight: 500;
@@ -165,6 +172,7 @@
 </head>
 
 <body>
+  <a href="#main-content" class="skip-link" data-i18n="accessibility.skip">Pular para o conteúdo</a>
   <div class="app-layout">
 
     <!-- ══════════════════════════════════
@@ -175,74 +183,76 @@
       <!-- Logo -->
       <div class="sidebar-header">
         <a href="/" class="sidebar-logo">
-          <i class="fas fa-hospital-alt"></i>
+          <span class="brand-mark" aria-hidden="true">
+            <i class="fas fa-heart-pulse"></i>
+          </span>
           <div class="sidebar-logo-text">
             <span class="sidebar-logo-title">Doctoralia</span>
-            <span class="sidebar-logo-subtitle">Scraper Dashboard</span>
+            <span class="sidebar-logo-subtitle" data-i18n="brand.subtitle">Workspace de Reviews</span>
           </div>
         </a>
       </div>
 
       <div class="workspace-pill">
-        <div class="workspace-pill-title">Workspace</div>
+        <div class="workspace-pill-title" data-i18n="workspace.title">Workspace</div>
         <div class="workspace-pill-grid">
           <div class="workspace-pill-metric">
             <strong id="workspace-tracked-count">-</strong>
-            <span>Perfis</span>
+            <span data-i18n="workspace.profiles">Perfis</span>
           </div>
           <div class="workspace-pill-metric">
             <strong id="workspace-pending-count">-</strong>
-            <span>Pendentes</span>
+            <span data-i18n="workspace.pending">Pendentes</span>
           </div>
           <div class="workspace-pill-metric">
             <strong id="workspace-favorites-count">-</strong>
-            <span>Favoritos</span>
+            <span data-i18n="workspace.favorites">Favoritos</span>
           </div>
         </div>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" aria-label="Navegação principal">
 
         <!-- Central -->
         <div class="nav-section">
-          <div class="nav-section-title">Central</div>
+          <div class="nav-section-title" data-i18n="nav.central">Central</div>
           <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">
             <i class="fas fa-compass"></i>
-            <span>Overview</span>
+            <span data-i18n="nav.overview">Overview</span>
           </a>
           <a href="/profiles" class="nav-item {% if request.path.startswith('/profiles') %}active{% endif %}">
             <i class="fas fa-user-doctor"></i>
-            <span>Perfis</span>
+            <span data-i18n="nav.profiles">Perfis</span>
             <span class="nav-badge nav-badge-muted" id="nav-favorites-count">0</span>
           </a>
           <a href="/responses" class="nav-item {% if request.path.startswith('/responses') %}active{% endif %}">
             <i class="fas fa-reply-all"></i>
-            <span>Respostas</span>
+            <span data-i18n="nav.responses">Respostas</span>
             <span class="nav-badge" id="nav-pending-responses-count">0</span>
           </a>
         </div>
 
         <!-- Operações -->
         <div class="nav-section">
-          <div class="nav-section-title">Operações</div>
+          <div class="nav-section-title" data-i18n="nav.operations">Operações</div>
 
           <!-- Ação destacada -->
           <a href="#" class="nav-item nav-action" onclick="showScrapeModal(); return false;">
             <i class="fas fa-play-circle"></i>
-            <span>Iniciar Scraping</span>
+            <span data-i18n="nav.startScraping">Iniciar Scraping</span>
           </a>
 
           <a href="/history" class="nav-item {% if request.path == '/history' %}active{% endif %}">
             <i class="fas fa-list-alt"></i>
-            <span>Histórico</span>
+            <span data-i18n="nav.history">Histórico</span>
           </a>
           <a href="/reports" class="nav-item {% if request.path == '/reports' %}active{% endif %}">
             <i class="fas fa-chart-line"></i>
-            <span>Relatórios</span>
+            <span data-i18n="nav.reports">Relatórios</span>
           </a>
           <a href="/notifications/telegram/schedule" class="nav-item {% if request.path.startswith('/notifications/telegram') %}active{% endif %}">
             <i class="fab fa-telegram"></i>
-            <span>Notificações</span>
+            <span data-i18n="nav.notifications">Notificações</span>
           </a>
         </div>
 
@@ -250,24 +260,24 @@
 
         <!-- Sistema -->
         <div class="nav-section">
-          <div class="nav-section-title">Conta e Sistema</div>
+          <div class="nav-section-title" data-i18n="nav.system">Conta e Sistema</div>
 
           <a href="/me" class="nav-item {% if request.path.startswith('/me') %}active{% endif %}">
             <i class="fas fa-id-card"></i>
-            <span>Minha Área</span>
+            <span data-i18n="nav.myArea">Minha Área</span>
           </a>
 
           <a href="/health-check" class="nav-item {% if request.path == '/health-check' %}active{% endif %}">
             <i class="fas fa-heartbeat"></i>
-            <span>Health Check</span>
+            <span data-i18n="nav.health">Health Check</span>
           </a>
           <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}">
             <i class="fas fa-cog"></i>
-            <span>Configurações</span>
+            <span data-i18n="nav.settings">Configurações</span>
           </a>
           <a href="#" class="nav-item" onclick="openApiDocs(); return false;">
             <i class="fas fa-book-open"></i>
-            <span>Documentação API</span>
+            <span data-i18n="nav.apiDocs">Documentação API</span>
             <i class="fas fa-external-link-alt" style="font-size:11px; margin-left:auto; color:var(--text-tertiary);"></i>
           </a>
         </div>
@@ -276,13 +286,13 @@
 
       <!-- Rodapé: status da API + usuário -->
       <div class="sidebar-footer">
-        <div class="sidebar-status" id="api-status-bar" title="Status da conexão com a API">
+        <div class="sidebar-status" id="api-status-bar" title="Status da conexão com a API" role="status" aria-live="polite">
           <div class="status-dot" id="api-status-dot"></div>
           <div style="flex:1; min-width:0;">
-            <div class="status-label" id="api-status-label">Verificando API…</div>
+            <div class="status-label" id="api-status-label" data-i18n="status.checking">Verificando API...</div>
             <div class="status-url" id="api-status-url"></div>
           </div>
-          <button onclick="checkApiStatus()" title="Atualizar status"
+          <button type="button" onclick="checkApiStatus()" title="Atualizar status" aria-label="Atualizar status da API"
             style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);padding:2px 4px;border-radius:4px;font-size:12px;">
             <i class="fas fa-sync-alt" id="api-status-refresh-icon"></i>
           </button>
@@ -303,7 +313,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" class="sidebar-logout-btn">
             <i class="fas fa-arrow-right-from-bracket"></i>
-            <span>Sair</span>
+            <span data-i18n="nav.logout">Sair</span>
           </button>
         </form>
         {% endif %}
@@ -311,14 +321,15 @@
     </aside>
 
     <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleSidebar()">
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" onclick="toggleSidebar()" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">
       <i class="fas fa-bars"></i>
     </button>
+    <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
 
     <!-- ══════════════════════════════════
          MAIN CONTENT
     ══════════════════════════════════ -->
-    <main class="main-content">
+    <main class="main-content" id="main-content" tabindex="-1">
 
       <!-- Top Bar -->
       <div class="top-bar">
@@ -329,16 +340,24 @@
           <!-- Indicador de jobs ativos (aparece quando há scraping em curso) -->
           <span id="scrape-status-indicator" onclick="window.location.href='/history'">
             <i class="fas fa-spinner fa-spin"></i>
-            <span id="scrape-status-indicator-text">Scraping em curso</span>
+            <span id="scrape-status-indicator-text" data-i18n="status.scraping">Scraping em curso</span>
           </span>
 
-          <button class="icon-btn" title="Ver Histórico" onclick="window.location.href='/history'">
+          <button class="icon-btn" type="button" title="Ver Histórico" aria-label="Ver histórico" onclick="window.location.href='/history'">
             <i class="fas fa-list-alt"></i>
           </button>
-          <button class="icon-btn" title="Configurações" onclick="window.location.href='/settings'">
+          <button class="icon-btn" type="button" title="Configurações" aria-label="Abrir configurações" onclick="window.location.href='/settings'">
             <i class="fas fa-cog"></i>
           </button>
           {% endblock %}
+          <select class="toolbar-select" id="language-switcher" aria-label="Idioma">
+            <option value="pt-BR">PT</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="icon-btn theme-toggle" id="theme-toggle" type="button" title="Alternar tema" aria-label="Alternar tema">
+            <i class="fas fa-moon"></i>
+          </button>
         </div>
       </div>
 
@@ -352,15 +371,15 @@
   <!-- ══════════════════════════════════
        MODAL: INICIAR SCRAPING
   ══════════════════════════════════ -->
-  <div id="scrape-modal" class="modal-overlay" style="display: none;" onclick="handleScrapeModalBackdrop(event)">
+  <div id="scrape-modal" class="modal-overlay" style="display: none;" onclick="handleScrapeModalBackdrop(event)" role="dialog" aria-modal="true" aria-labelledby="scrape-modal-title">
     <div class="modal-container">
 
       <div class="modal-header">
-        <h2 class="modal-title">
+        <h2 class="modal-title" id="scrape-modal-title">
           <i class="fas fa-play-circle"></i>
-          Iniciar Scraping
+          <span data-i18n="scrape.title">Iniciar Scraping</span>
         </h2>
-        <button class="modal-close" onclick="closeScrapeModal()">
+        <button class="modal-close" type="button" onclick="closeScrapeModal()" aria-label="Fechar modal">
           <i class="fas fa-times"></i>
         </button>
       </div>
@@ -370,16 +389,16 @@
         <!-- Passo 1: Configuração -->
         <div id="scrape-step-config">
           <div class="form-group">
-            <label class="form-label">
-              URL do Perfil do Médico
+            <label class="form-label" for="scrape-url">
+              <span data-i18n="scrape.profileUrl">URL do Perfil do Médico</span>
               <i class="fas fa-info-circle help-icon"
                 title="Cole a URL completa do perfil do médico no Doctoralia"></i>
             </label>
             <input type="url" id="scrape-url" class="form-control"
               placeholder="https://www.doctoralia.com.br/..."
-              oninput="clearScrapeError()">
+              oninput="clearScrapeError()" aria-describedby="scrape-url-hint scrape-url-error">
             <small class="form-help" id="scrape-url-error"
-              style="color: var(--apple-red); display: none;"></small>
+              style="color: var(--apple-red); display: none;" role="alert"></small>
             <small class="form-help" id="scrape-url-hint">
               Ex: https://www.doctoralia.com.br/medico/dr-joao-silva
             </small>
@@ -387,13 +406,13 @@
 
           <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
             <div class="form-group">
-              <label class="form-label">Plataforma</label>
+              <label class="form-label" for="scrape-platform" data-i18n="scrape.platform">Plataforma</label>
               <select id="scrape-platform" class="form-control">
                 <option value="doctoralia" selected>Doctoralia</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Máximo de Avaliações</label>
+              <label class="form-label" for="scrape-max-reviews" data-i18n="scrape.maxReviews">Máximo de Avaliações</label>
               <input type="number" id="scrape-max-reviews" class="form-control"
                 min="1" max="500" value="50" placeholder="Padrão: 50">
             </div>
@@ -402,21 +421,21 @@
           <div class="checkbox-wrapper" style="margin-top: 16px;">
             <input type="checkbox" id="scrape-include-analysis" checked>
             <label for="scrape-include-analysis" class="checkbox-label">
-              Incluir análise de sentimento
+              <span data-i18n="scrape.includeAnalysis">Incluir análise de sentimento</span>
             </label>
           </div>
 
           <div class="checkbox-wrapper">
             <input type="checkbox" id="scrape-generate-responses">
             <label for="scrape-generate-responses" class="checkbox-label">
-              Gerar respostas automáticas
-              <small class="text-tertiary">(local ou IA de terceiros, conforme configuração)</small>
+              <span data-i18n="scrape.generateResponses">Gerar respostas automáticas</span>
+              <small class="text-tertiary" data-i18n="scrape.generateHint">(local ou IA de terceiros, conforme configuração)</small>
             </label>
           </div>
 
           <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
             <div class="form-group">
-              <label class="form-label">Modo de Geração</label>
+              <label class="form-label" for="scrape-generation-mode" data-i18n="scrape.generationMode">Modo de Geração</label>
               <select id="scrape-generation-mode" class="form-control">
                 <option value="default">Usar padrão da plataforma</option>
                 <option value="local">Local</option>
@@ -424,10 +443,10 @@
                 <option value="gemini">Gemini</option>
                 <option value="claude">Claude</option>
               </select>
-              <small class="form-help">Só é enviado quando a geração automática estiver marcada.</small>
+              <small class="form-help" data-i18n="scrape.generationHelp">Só é enviado quando a geração automática estiver marcada.</small>
             </div>
             <div class="form-group">
-              <label class="form-label">Idioma</label>
+              <label class="form-label" for="scrape-language" data-i18n="scrape.language">Idioma</label>
               <select id="scrape-language" class="form-control">
                 <option value="pt">Português</option>
                 <option value="en">English</option>
@@ -443,9 +462,9 @@
             <div class="progress-icon">
               <i class="fas fa-paper-plane"></i>
             </div>
-            <h3 id="scrape-status-title">Enviando para a fila…</h3>
+            <h3 id="scrape-status-title" data-i18n="scrape.queueing">Enviando para a fila...</h3>
             <p id="scrape-status-message" class="text-secondary" style="margin-top: 6px;">
-              Conectando à API…
+              Conectando à API...
             </p>
           </div>
         </div>
@@ -458,12 +477,12 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" id="scrape-cancel-btn" onclick="closeScrapeModal()">
-          Cancelar
+        <button class="btn btn-secondary" type="button" id="scrape-cancel-btn" onclick="closeScrapeModal()">
+          <span data-i18n="common.cancel">Cancelar</span>
         </button>
-        <button class="btn btn-primary" id="scrape-start-btn" onclick="startScraping()">
+        <button class="btn btn-primary" type="button" id="scrape-start-btn" onclick="startScraping()">
           <i class="fas fa-play"></i>
-          Iniciar Scraping
+          <span data-i18n="scrape.start">Iniciar Scraping</span>
         </button>
       </div>
     </div>
@@ -477,20 +496,20 @@
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.45);
+      background: var(--overlay-backdrop);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1000;
-      animation: fadeIn 0.18s ease;
+      animation: fadeIn 0.18s var(--ease-out);
     }
 
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .modal-container {
-      background: var(--bg-primary);
+      background: var(--surface-raised);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-xl);
       width: 92%;
@@ -498,7 +517,7 @@
       max-height: 90vh;
       overflow: hidden;
       box-shadow: var(--shadow-xl);
-      animation: slideUp 0.25s cubic-bezier(0.34, 1.2, 0.64, 1);
+      animation: slideUp 0.25s var(--ease-out);
     }
 
     @keyframes slideUp {
@@ -589,7 +608,7 @@
 
     .progress-bar {
       height: 100%;
-      background: linear-gradient(90deg, var(--apple-blue), var(--apple-purple));
+      background: linear-gradient(90deg, var(--apple-blue), var(--apple-green));
       border-radius: var(--radius-full);
       transition: width 0.35s ease;
     }
@@ -621,12 +640,12 @@
     }
 
     .result-icon.success {
-      background: rgba(52, 199, 89, 0.12);
+      background: color-mix(in srgb, var(--apple-green) 14%, transparent);
       color: var(--apple-green);
     }
 
     .result-icon.error {
-      background: rgba(255, 59, 48, 0.12);
+      background: color-mix(in srgb, var(--apple-red) 14%, transparent);
       color: var(--apple-red);
     }
 
@@ -670,9 +689,229 @@
       return nativeFetch(resource, options);
     };
 
+    // ── Preferências: tema e idioma ─────────────────────
+    const dashboardTranslations = {
+      'pt-BR': {
+        'accessibility.skip': 'Pular para o conteúdo',
+        'brand.subtitle': 'Workspace de Reviews',
+        'workspace.title': 'Workspace',
+        'workspace.profiles': 'Perfis',
+        'workspace.pending': 'Pendentes',
+        'workspace.favorites': 'Favoritos',
+        'nav.central': 'Central',
+        'nav.overview': 'Overview',
+        'nav.profiles': 'Perfis',
+        'nav.responses': 'Respostas',
+        'nav.operations': 'Operações',
+        'nav.startScraping': 'Iniciar Scraping',
+        'nav.history': 'Histórico',
+        'nav.reports': 'Relatórios',
+        'nav.notifications': 'Notificações',
+        'nav.system': 'Conta e Sistema',
+        'nav.myArea': 'Minha Área',
+        'nav.health': 'Health Check',
+        'nav.settings': 'Configurações',
+        'nav.apiDocs': 'Documentação API',
+        'nav.logout': 'Sair',
+        'status.checking': 'Verificando API...',
+        'status.connected': 'API conectada',
+        'status.disconnected': 'API desconectada',
+        'status.unavailable': 'API indisponível',
+        'status.scraping': 'Scraping em curso',
+        'common.cancel': 'Cancelar',
+        'common.close': 'Fechar',
+        'scrape.title': 'Iniciar Scraping',
+        'scrape.profileUrl': 'URL do Perfil do Médico',
+        'scrape.platform': 'Plataforma',
+        'scrape.maxReviews': 'Máximo de Avaliações',
+        'scrape.includeAnalysis': 'Incluir análise de sentimento',
+        'scrape.generateResponses': 'Gerar respostas automáticas',
+        'scrape.generateHint': '(local ou IA de terceiros, conforme configuração)',
+        'scrape.generationMode': 'Modo de Geração',
+        'scrape.generationHelp': 'Só é enviado quando a geração automática estiver marcada.',
+        'scrape.language': 'Idioma',
+        'scrape.queueing': 'Enviando para a fila...',
+        'scrape.connecting': 'Conectando à API...',
+        'scrape.wait': 'Aguarde um momento...',
+        'scrape.start': 'Iniciar Scraping',
+        'scrape.urlRequired': 'Por favor, insira a URL do perfil do médico.',
+        'scrape.urlInvalid': 'URL inválida. Inclua http:// ou https://'
+      },
+      en: {
+        'accessibility.skip': 'Skip to content',
+        'brand.subtitle': 'Reviews Workspace',
+        'workspace.title': 'Workspace',
+        'workspace.profiles': 'Profiles',
+        'workspace.pending': 'Pending',
+        'workspace.favorites': 'Favorites',
+        'nav.central': 'Central',
+        'nav.overview': 'Overview',
+        'nav.profiles': 'Profiles',
+        'nav.responses': 'Responses',
+        'nav.operations': 'Operations',
+        'nav.startScraping': 'Start scraping',
+        'nav.history': 'History',
+        'nav.reports': 'Reports',
+        'nav.notifications': 'Notifications',
+        'nav.system': 'Account and System',
+        'nav.myArea': 'My Area',
+        'nav.health': 'Health Check',
+        'nav.settings': 'Settings',
+        'nav.apiDocs': 'API Docs',
+        'nav.logout': 'Sign out',
+        'status.checking': 'Checking API...',
+        'status.connected': 'API connected',
+        'status.disconnected': 'API disconnected',
+        'status.unavailable': 'API unavailable',
+        'status.scraping': 'Scraping in progress',
+        'common.cancel': 'Cancel',
+        'common.close': 'Close',
+        'scrape.title': 'Start Scraping',
+        'scrape.profileUrl': 'Doctor Profile URL',
+        'scrape.platform': 'Platform',
+        'scrape.maxReviews': 'Max Reviews',
+        'scrape.includeAnalysis': 'Include sentiment analysis',
+        'scrape.generateResponses': 'Generate automatic responses',
+        'scrape.generateHint': '(local or third-party AI, based on configuration)',
+        'scrape.generationMode': 'Generation Mode',
+        'scrape.generationHelp': 'Only sent when automatic generation is enabled.',
+        'scrape.language': 'Language',
+        'scrape.queueing': 'Sending to the queue...',
+        'scrape.connecting': 'Connecting to API...',
+        'scrape.wait': 'Please wait a moment...',
+        'scrape.start': 'Start Scraping',
+        'scrape.urlRequired': 'Please enter the doctor profile URL.',
+        'scrape.urlInvalid': 'Invalid URL. Include http:// or https://'
+      },
+      es: {
+        'accessibility.skip': 'Saltar al contenido',
+        'brand.subtitle': 'Workspace de Reseñas',
+        'workspace.title': 'Workspace',
+        'workspace.profiles': 'Perfiles',
+        'workspace.pending': 'Pendientes',
+        'workspace.favorites': 'Favoritos',
+        'nav.central': 'Central',
+        'nav.overview': 'Overview',
+        'nav.profiles': 'Perfiles',
+        'nav.responses': 'Respuestas',
+        'nav.operations': 'Operaciones',
+        'nav.startScraping': 'Iniciar scraping',
+        'nav.history': 'Historial',
+        'nav.reports': 'Informes',
+        'nav.notifications': 'Notificaciones',
+        'nav.system': 'Cuenta y Sistema',
+        'nav.myArea': 'Mi Área',
+        'nav.health': 'Health Check',
+        'nav.settings': 'Configuración',
+        'nav.apiDocs': 'Docs API',
+        'nav.logout': 'Salir',
+        'status.checking': 'Verificando API...',
+        'status.connected': 'API conectada',
+        'status.disconnected': 'API desconectada',
+        'status.unavailable': 'API no disponible',
+        'status.scraping': 'Scraping en curso',
+        'common.cancel': 'Cancelar',
+        'common.close': 'Cerrar',
+        'scrape.title': 'Iniciar Scraping',
+        'scrape.profileUrl': 'URL del Perfil Médico',
+        'scrape.platform': 'Plataforma',
+        'scrape.maxReviews': 'Máximo de Reseñas',
+        'scrape.includeAnalysis': 'Incluir análisis de sentimiento',
+        'scrape.generateResponses': 'Generar respuestas automáticas',
+        'scrape.generateHint': '(local o IA de terceros, según configuración)',
+        'scrape.generationMode': 'Modo de Generación',
+        'scrape.generationHelp': 'Solo se envía cuando la generación automática está activa.',
+        'scrape.language': 'Idioma',
+        'scrape.queueing': 'Enviando a la cola...',
+        'scrape.connecting': 'Conectando con la API...',
+        'scrape.wait': 'Espere un momento...',
+        'scrape.start': 'Iniciar Scraping',
+        'scrape.urlRequired': 'Ingrese la URL del perfil médico.',
+        'scrape.urlInvalid': 'URL inválida. Incluya http:// o https://'
+      }
+    };
+
+    function getDashboardLanguage() {
+      const saved = localStorage.getItem('dashboard-language');
+      return dashboardTranslations[saved] ? saved : 'pt-BR';
+    }
+
+    function t(key) {
+      const language = getDashboardLanguage();
+      return dashboardTranslations[language]?.[key] || dashboardTranslations['pt-BR'][key] || key;
+    }
+
+    function applyDashboardLanguage(language) {
+      const resolved = dashboardTranslations[language] ? language : 'pt-BR';
+      localStorage.setItem('dashboard-language', resolved);
+      document.documentElement.lang = resolved;
+      document.querySelectorAll('[data-i18n]').forEach((node) => {
+        const key = node.getAttribute('data-i18n');
+        if (key && dashboardTranslations[resolved]?.[key]) {
+          node.textContent = dashboardTranslations[resolved][key];
+        }
+      });
+      const switcher = document.getElementById('language-switcher');
+      if (switcher) switcher.value = resolved;
+    }
+
+    function applyDashboardTheme(theme) {
+      const resolved = theme === 'dark' ? 'dark' : 'light';
+      localStorage.setItem('dashboard-theme', resolved);
+      document.documentElement.dataset.theme = resolved;
+      const toggle = document.getElementById('theme-toggle');
+      if (toggle) {
+        const dark = resolved === 'dark';
+        toggle.setAttribute('aria-pressed', String(dark));
+        toggle.setAttribute('title', dark ? 'Usar tema claro' : 'Usar tema escuro');
+        toggle.innerHTML = `<i class="fas fa-${dark ? 'sun' : 'moon'}"></i>`;
+      }
+    }
+
+    function initializeDashboardPreferences() {
+      const savedTheme = localStorage.getItem('dashboard-theme');
+      const preferredTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      applyDashboardTheme(preferredTheme);
+      applyDashboardLanguage(getDashboardLanguage());
+
+      document.getElementById('theme-toggle')?.addEventListener('click', () => {
+        applyDashboardTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+      });
+      document.getElementById('language-switcher')?.addEventListener('change', (event) => {
+        applyDashboardLanguage(event.target.value);
+      });
+    }
+
+    function repairFormLabels(root = document) {
+      root.querySelectorAll('.form-group').forEach((group) => {
+        const label = group.querySelector('label.form-label');
+        const control = group.querySelector('input, select, textarea');
+        if (!label || !control) return;
+        if (!control.id) {
+          control.id = `field-${Math.random().toString(36).slice(2, 10)}`;
+        }
+        if (!label.htmlFor) {
+          label.htmlFor = control.id;
+        }
+      });
+    }
+
+    function hideDecorativeIcons(root = document) {
+      root.querySelectorAll('i.fas, i.fab, i.fa').forEach((icon) => {
+        icon.setAttribute('aria-hidden', 'true');
+      });
+    }
+
     // ── Sidebar mobile ──────────────────────────────────
     function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('open');
+      const sidebar = document.getElementById('sidebar');
+      const toggle = document.getElementById('mobileMenuToggle');
+      const scrim = document.getElementById('sidebarScrim');
+      const open = !sidebar.classList.contains('open');
+      sidebar.classList.toggle('open', open);
+      document.body.classList.toggle('sidebar-open', open && window.innerWidth <= 1024);
+      toggle.setAttribute('aria-expanded', String(open));
+      scrim.classList.toggle('visible', open);
     }
 
     document.addEventListener('click', function (e) {
@@ -681,6 +920,9 @@
       if (window.innerWidth <= 1024 && sidebar.classList.contains('open')) {
         if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
           sidebar.classList.remove('open');
+          document.body.classList.remove('sidebar-open');
+          toggle.setAttribute('aria-expanded', 'false');
+          document.getElementById('sidebarScrim').classList.remove('visible');
         }
       }
     });
@@ -745,16 +987,16 @@
 
         if (data.api && data.api.status === 'connected') {
           dot.className   = 'status-dot online';
-          label.textContent = 'API conectada';
+          label.textContent = t('status.connected');
           urlEl.textContent = data.api.api_url || '';
         } else {
           dot.className   = 'status-dot offline';
-          label.textContent = 'API desconectada';
+          label.textContent = t('status.disconnected');
           urlEl.textContent = data.api?.api_url || '';
         }
       } catch {
         dot.className   = 'status-dot offline';
-        label.textContent = 'API indisponível';
+        label.textContent = t('status.unavailable');
         urlEl.textContent = '';
       } finally {
         clearTimeout(timeoutId);
@@ -764,6 +1006,9 @@
 
     // Verificar a cada 30 s, e imediatamente ao carregar
     document.addEventListener('DOMContentLoaded', () => {
+      initializeDashboardPreferences();
+      repairFormLabels();
+      hideDecorativeIcons();
       checkApiStatus();
       hydrateSidebarWorkspace();
       _apiCheckTimer = setInterval(checkApiStatus, 30_000);
@@ -795,7 +1040,7 @@
       document.getElementById('scrape-step-progress').style.display = 'none';
       document.getElementById('scrape-step-results').style.display  = 'none';
       document.getElementById('scrape-start-btn').style.display     = 'flex';
-      document.getElementById('scrape-cancel-btn').textContent      = 'Cancelar';
+      document.getElementById('scrape-cancel-btn').textContent      = t('common.cancel');
       document.getElementById('scrape-url').value = '';
       document.getElementById('scrape-generation-mode').value = 'default';
       document.getElementById('scrape-language').value = 'pt';
@@ -847,11 +1092,11 @@
 
       // Validação inline
       if (!url) {
-        showScrapeError('Por favor, insira a URL do perfil do médico.');
+        showScrapeError(t('scrape.urlRequired'));
         return;
       }
       try { new URL(url); } catch {
-        showScrapeError('URL inválida. Inclua http:// ou https://');
+        showScrapeError(t('scrape.urlInvalid'));
         return;
       }
 
@@ -859,10 +1104,10 @@
       document.getElementById('scrape-step-config').style.display   = 'none';
       document.getElementById('scrape-step-progress').style.display = 'block';
       document.getElementById('scrape-start-btn').style.display     = 'none';
-      document.getElementById('scrape-cancel-btn').textContent      = 'Fechar';
+      document.getElementById('scrape-cancel-btn').textContent      = t('common.close');
 
-      document.getElementById('scrape-status-title').textContent   = 'Enviando para a fila…';
-      document.getElementById('scrape-status-message').textContent = 'Aguarde um momento…';
+      document.getElementById('scrape-status-title').textContent   = t('scrape.queueing');
+      document.getElementById('scrape-status-message').textContent = t('scrape.wait');
 
       try {
         const res = await fetch('/api/scrape', {
