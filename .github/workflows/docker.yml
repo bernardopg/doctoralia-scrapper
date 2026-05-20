@@ -58,7 +58,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=sha,prefix=sha-
+            type=sha,prefix=sha-,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -308,17 +308,21 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             docker compose logs
-          else
+          elif [[ -f docker-compose.ci.yml ]]; then
             docker compose -f docker-compose.yml -f docker-compose.ci.yml logs
+          else
+            docker compose logs || true
           fi
 
       - name: Stop services
         if: always()
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            docker compose down -v
-          else
+            docker compose down -v || true
+          elif [[ -f docker-compose.ci.yml ]]; then
             docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+          else
+            docker compose down -v || true
           fi
 
   all-docker-checks-passed:
