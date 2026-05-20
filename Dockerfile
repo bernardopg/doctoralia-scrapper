@@ -46,8 +46,9 @@ RUN mkdir -p data/logs data/responses data/temp logs
 # Pre-download NLTK data to avoid runtime network calls and slow startup
 RUN python -c "import nltk; nltk.download('vader_lexicon', quiet=True); nltk.download('punkt_tab', quiet=True)"
 
-# Install curl for health checks (minimal footprint)
+# Install curl for health checks and apply OS security patches (fixes libcap2, libsystemd0)
 RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
     apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 

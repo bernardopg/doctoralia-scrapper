@@ -6,6 +6,36 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-05-19
+
+### Security
+
+- **[CVE fix]** Eliminado taint path CodeQL `py/stack-trace-exposure` em `src/api/v1/main.py`: `_sanitize_schedule_run_response` agora retorna apenas constantes fixas (`SCHEDULE_RUN_SUCCESS_MESSAGE` / `SCHEDULE_RUN_FAILURE_MESSAGE`) na chave `message`, impedindo que dados derivados de exceções fluam para respostas HTTP externas. (CodeQL alert #1394)
+- **[Docker]** Adicionado `apt-get upgrade` na camada `base` do Dockerfile para aplicar patches de segurança do OS Debian 13.4: corrige `libcap2` (CVE-2026-4878) e `libsystemd0`/`libudev1` (CVE-2026-29111).
+
+### Changed
+
+- **[deps]** Atualizado `idna` de `3.14` para `3.15` (CVE-2026-45409: validação de labels DNS).
+- **[deps]** Atualizado `requests` de `2.33.1` para `2.34.2`.
+- **[deps]** Atualizado `lxml` de `6.1.0` para `6.1.1`.
+- **[deps]** Atualizado `selenium` de `4.43.0` para `4.44.0`.
+- **[deps]** Atualizado `webdriver-manager` de `4.0.2` para `4.1.1`.
+- **[deps]** Atualizado `uvicorn` de `0.46.0` para `0.47.0` (constraint relaxada de `<0.47` para `<0.48`).
+- **[deps]** Atualizado `black` de `26.3.1` para `26.5.1`.
+- **[deps]** Atualizado `authlib` de `1.6.11` para `1.7.2`.
+- **[deps]** Atualizado `types-psutil` de `7.2.2.20260508` para `7.2.2.20260518`.
+- **[deps]** Atualizado `types-requests` de `2.33.0.20260508` para `2.33.0.20260518`.
+- **[deps]** Atualizado `urllib3` de `2.6.3` para `2.7.0` (transitivo via `requests`).
+- **[deps]** Atualizado `cryptography` de `47.0.0` para `48.0.0` (transitivo).
+- **[deps]** Atualizado `pydantic` de `2.13.3` para `2.13.4` + `pydantic-core` de `2.46.3` para `2.46.4`.
+- **[deps]** Atualizado `mypy` de `1.20.2` para `2.1.0`.
+- **[actions]** Atualizado `codecov/codecov-action` de `v6.0.0` para `v6.0.1` (SHA: `e79a6962`) — corrige template injection (VULN-1652).
+- **[actions]** Atualizado `github/codeql-action` (`init`, `analyze`, `upload-sarif`) de SHA `68bde559` para `9e0d7b8d`.
+
+### Fixed
+
+- Testes `test_run_telegram_notification_schedule_sanitizes_success_result_with_custom_message` e `test_run_telegram_notification_schedule_handles_unexpected_result_shapes` atualizados para refletir o novo comportamento seguro da resposta `message`.
+
 ## [2.1.0] - 2026-04-24
 
 ### Added

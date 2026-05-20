@@ -317,9 +317,7 @@ def _sanitize_schedule_run_response(raw_response: dict[str, Any]) -> dict[str, A
     return {
         "success": success,
         "message": (
-            str(raw_response.get("message") or SCHEDULE_RUN_SUCCESS_MESSAGE)
-            if success
-            else SCHEDULE_RUN_FAILURE_MESSAGE
+            SCHEDULE_RUN_SUCCESS_MESSAGE if success else SCHEDULE_RUN_FAILURE_MESSAGE
         ),
         "result": safe_result,
     }

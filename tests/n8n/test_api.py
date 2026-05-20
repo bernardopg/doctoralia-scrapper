@@ -593,7 +593,8 @@ class TestTelegramNotificationEndpoints:
         assert response.status_code == 200
         response_body = response.json()
         assert response_body["success"] is True
-        assert response_body["message"] == "Custom success message"
+        # message is always a fixed constant regardless of service response (security: no taint from exc)
+        assert response_body["message"] == "Schedule executed successfully"
         assert response_body["result"] == {
             "sent": True,
             "schedule_id": "schedule-1",
@@ -619,7 +620,7 @@ class TestTelegramNotificationEndpoints:
         assert response.status_code == 200
         response_body = response.json()
         assert response_body["success"] is True
-        assert response_body["message"] == "Ok but with missing result"
+        assert response_body["message"] == "Schedule executed successfully"
         assert response_body["result"] == {}
 
         service.execute_schedule.return_value = {
@@ -636,7 +637,7 @@ class TestTelegramNotificationEndpoints:
         assert response.status_code == 200
         response_body = response.json()
         assert response_body["success"] is True
-        assert response_body["message"] == "Ok but result is a list"
+        assert response_body["message"] == "Schedule executed successfully"
         assert response_body["result"] == {}
 
     @patch("src.api.v1.main._get_telegram_schedule_service")
