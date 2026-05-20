@@ -76,7 +76,7 @@ from src.jobs.tasks import run_telegram_schedule_job, scrape_and_process
 from src.services.telegram_schedule_service import TelegramScheduleService
 
 # API metadata
-API_VERSION = "2.1.0"
+API_VERSION = "2.1.1"
 API_START_TIME = datetime.now()
 logger = logging.getLogger(__name__)
 
