@@ -7,24 +7,26 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v1.0.0)'
+        description: 'Existing tag to release (for example, v1.0.0)'
         required: true
         type: string
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  create-release:
-    name: Create GitHub Release
+  prepare:
+    name: Prepare Release
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.get_version.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
+      version_no_prefix: ${{ steps.version.outputs.version_no_prefix }}
+      tag_sha: ${{ steps.version.outputs.tag_sha }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
 
     steps:
       - name: Checkout code
@@ -32,96 +34,54 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get version
-        id: get_version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
-          PREV_TAG=$(git describe --tags --abbrev=0 ${VERSION}^ 2>/dev/null || echo "")
-
-          if [ -z "$PREV_TAG" ]; then
-            CHANGES=$(git log --pretty=format:"* %s (%h)" --no-merges)
-          else
-            CHANGES=$(git log ${PREV_TAG}..${VERSION} --pretty=format:"* %s (%h)" --no-merges)
-          fi
-
-          cat > CHANGELOG.txt << EOF
-          # Changelog
-
-          ## ${VERSION}
-
-          ${CHANGES}
-
-          ## Docker Images
-
-          \`\`\`bash
-          docker pull ghcr.io/${{ github.repository }}/api:${VERSION}
-          docker pull ghcr.io/${{ github.repository }}/worker:${VERSION}
-          \`\`\`
-
-          ## Installation
-
-          \`\`\`bash
-          pip install doctoralia-scrapper==${VERSION#v}
-          \`\`\`
-          EOF
-
-          echo "Generated changelog for ${VERSION}"
-
-      - name: Create GitHub Release
+      - name: Validate release tag
+        id: version
         env:
-          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${INPUT_VERSION}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release tag: ${VERSION}. Expected vMAJOR.MINOR.PATCH."
+            exit 1
+          fi
+
+          if ! git rev-parse --verify --quiet "refs/tags/${VERSION}" >/dev/null; then
+            echo "Tag ${VERSION} does not exist in the repository."
+            exit 1
+          fi
+
+          TAG_SHA="$(git rev-list -n 1 "${VERSION}")"
+          VERSION_NO_PREFIX="${VERSION#v}"
           IS_PRERELEASE=false
 
           if [[ "${VERSION}" == *-* ]]; then
             IS_PRERELEASE=true
           fi
 
-          if gh release view "${VERSION}" >/dev/null 2>&1; then
-            edit_args=(
-              release edit "${VERSION}"
-              --title "Release ${VERSION}"
-              --notes-file CHANGELOG.txt
-              --draft=false
-            )
+          {
+            echo "version=${VERSION}"
+            echo "version_no_prefix=${VERSION_NO_PREFIX}"
+            echo "tag_sha=${TAG_SHA}"
+            echo "is_prerelease=${IS_PRERELEASE}"
+          } >> "${GITHUB_OUTPUT}"
 
-            if [[ "${IS_PRERELEASE}" == true ]]; then
-              edit_args+=(--prerelease)
-            fi
-
-            gh "${edit_args[@]}"
-          else
-            create_args=(
-              release create "${VERSION}"
-              --title "Release ${VERSION}"
-              --notes-file CHANGELOG.txt
-            )
-
-            if [[ "${IS_PRERELEASE}" == true ]]; then
-              create_args+=(--prerelease)
-            fi
-
-            gh "${create_args[@]}"
-          fi
-
-  build-and-publish:
-    name: Build and Publish Package
+  build-package:
+    name: Build Package
     runs-on: ubuntu-latest
-    needs: create-release
+    needs: prepare
 
     steps:
-      - name: Checkout code
+      - name: Checkout release tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag_sha }}
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
@@ -133,55 +93,36 @@ jobs:
         with:
           version: "2.2.1"
 
-      - name: Update version in pyproject.toml
-        run: |
-          VERSION="${{ needs.create-release.outputs.version }}"
-          VERSION_NUM="${VERSION#v}"
-          poetry version ${VERSION_NUM}
+      - name: Set package version
+        run: poetry version ${{ needs.prepare.outputs.version_no_prefix }}
 
       - name: Build package
         run: poetry build
 
-      - name: Check PyPI token
-        id: check_pypi
-        run: |
-          if [ -n "$PYPI_TOKEN" ]; then
-            echo "has_token=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_token=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
-
-      - name: Publish to PyPI
-        if: ${{ !contains(needs.create-release.outputs.version, '-') && steps.check_pypi.outputs.has_token == 'true' }}
-        env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
-        run: poetry publish --skip-existing
-
-      - name: Upload Release Assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload "${{ needs.create-release.outputs.version }}" \
-            dist/*.whl \
-            dist/*.tar.gz \
-            --clobber
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
 
   build-docker:
     name: Build Release Docker Images
     runs-on: ubuntu-latest
-    needs: create-release
+    needs: prepare
     permissions:
       contents: read
       packages: write
     strategy:
+      fail-fast: false
       matrix:
         target: [api, worker]
 
     steps:
-      - name: Checkout code
+      - name: Checkout release tag
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag_sha }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # docker/setup-buildx-action v4
@@ -198,11 +139,13 @@ jobs:
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # docker/metadata-action v6
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.target }}
+          flavor: |
+            latest=false
           tags: |
-            type=semver,pattern={{version}},value=${{ needs.create-release.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.create-release.outputs.version }}
-            type=semver,pattern={{major}},value=${{ needs.create-release.outputs.version }}
-            type=raw,value=latest
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}},value=${{ needs.prepare.outputs.version }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # docker/build-push-action v7
@@ -216,33 +159,195 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-  notify:
-    name: Send Notifications
+      - name: Verify published Docker tags
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          VERSION_NO_PREFIX: ${{ needs.prepare.outputs.version_no_prefix }}
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.target }}
+        run: |
+          set -euo pipefail
+
+          docker buildx imagetools inspect "${IMAGE}:${VERSION}" >/dev/null
+          docker buildx imagetools inspect "${IMAGE}:${VERSION_NO_PREFIX}" >/dev/null
+
+  publish-pypi:
+    name: Publish to PyPI
     runs-on: ubuntu-latest
-    needs: [create-release, build-and-publish, build-docker]
-    if: always()
+    needs: [prepare, build-package, build-docker]
 
     steps:
-      - name: Check job status
-        id: check
+      - name: Checkout release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag_sha }}
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # actions/download-artifact v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Check PyPI publishing eligibility
+        id: pypi
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
-          if [[ "${{ needs.build-and-publish.result }}" == "success" ]] && \
-             [[ "${{ needs.build-docker.result }}" == "success" ]]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-          else
-            echo "status=failure" >> $GITHUB_OUTPUT
+          set -euo pipefail
+
+          if [[ "${{ needs.prepare.outputs.is_prerelease }}" == "true" ]]; then
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+            echo "Skipping PyPI publish for prerelease."
+            exit 0
           fi
+
+          if [[ -z "${PYPI_TOKEN}" ]]; then
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+            echo "Skipping PyPI publish because PYPI_TOKEN is not configured."
+            exit 0
+          fi
+
+          echo "publish=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Python
+        if: steps.pypi.outputs.publish == 'true'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # actions/setup-python v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        if: steps.pypi.outputs.publish == 'true'
+        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        with:
+          version: "2.2.1"
+
+      - name: Publish to PyPI
+        if: steps.pypi.outputs.publish == 'true'
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        run: poetry publish --skip-existing
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build-package, build-docker, publish-pypi]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # actions/checkout v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag_sha }}
+          fetch-depth: 0
+
+      - name: Download package artifacts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # actions/download-artifact v7
+        with:
+          name: dist
+          path: dist/
+
+      - name: Generate changelog
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          VERSION_NO_PREFIX: ${{ needs.prepare.outputs.version_no_prefix }}
+        run: |
+          set -euo pipefail
+
+          PREV_TAG="$(git describe --tags --abbrev=0 "${VERSION}^" 2>/dev/null || true)"
+
+          if [[ -z "${PREV_TAG}" ]]; then
+            CHANGES="$(git log --pretty=format:"* %s (%h)" --no-merges "${VERSION}")"
+          else
+            CHANGES="$(git log "${PREV_TAG}..${VERSION}" --pretty=format:"* %s (%h)" --no-merges)"
+          fi
+
+          cat > CHANGELOG.txt <<EOF
+          # Changelog
+
+          ## ${VERSION}
+
+          ${CHANGES}
+
+          ## Docker Images
+
+          \`\`\`bash
+          docker pull ghcr.io/${{ github.repository }}/api:${VERSION}
+          docker pull ghcr.io/${{ github.repository }}/worker:${VERSION}
+          \`\`\`
+
+          Also available without the v prefix:
+
+          \`\`\`bash
+          docker pull ghcr.io/${{ github.repository }}/api:${VERSION_NO_PREFIX}
+          docker pull ghcr.io/${{ github.repository }}/worker:${VERSION_NO_PREFIX}
+          \`\`\`
+
+          ## Installation
+
+          \`\`\`bash
+          pip install doctoralia-scrapper==${VERSION_NO_PREFIX}
+          \`\`\`
+          EOF
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            edit_args=(
+              release edit "${VERSION}"
+              --title "Release ${VERSION}"
+              --notes-file CHANGELOG.txt
+              --draft=false
+            )
+
+            if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              edit_args+=(--prerelease)
+            fi
+
+            gh "${edit_args[@]}"
+          else
+            create_args=(
+              release create "${VERSION}"
+              --title "Release ${VERSION}"
+              --notes-file CHANGELOG.txt
+              --verify-tag
+            )
+
+            if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              create_args+=(--prerelease --latest=false)
+            fi
+
+            gh "${create_args[@]}"
+          fi
+
+      - name: Upload Release Assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          gh release upload "${{ needs.prepare.outputs.version }}" \
+            dist/*.whl \
+            dist/*.tar.gz \
+            --clobber
 
       - name: Summary
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Version: ${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Status:** ${{ steps.check.outputs.status }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/${{ github.repository }}/api:${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/${{ github.repository }}/worker:${{ needs.create-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Release Summary"
+            echo ""
+            echo "### Version: ${{ needs.prepare.outputs.version }}"
+            echo ""
+            echo "**Status:** success"
+            echo ""
+            echo "### Docker Images"
+            echo "\`\`\`"
+            echo "ghcr.io/${{ github.repository }}/api:${{ needs.prepare.outputs.version }}"
+            echo "ghcr.io/${{ github.repository }}/worker:${{ needs.prepare.outputs.version }}"
+            echo "\`\`\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
