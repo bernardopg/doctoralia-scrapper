@@ -18,10 +18,12 @@ from src.api.v1._state import (
     SCHEDULE_RUN_FAILURE_MESSAGE,
     SCHEDULE_RUN_HEALTH_CHECK_ERROR,
     SCHEDULE_RUN_SUCCESS_MESSAGE,
-    get_telegram_schedule_service,
 )
 from src.api.v1.deps import require_api_key
-from src.jobs.queue import get_queue
+from src.api.v1.providers import (
+    get_job_queue_factory,
+    get_running_telegram_schedule_service,
+)
 from src.jobs.tasks import run_telegram_schedule_job
 
 router = APIRouter(tags=["Notifications"])
@@ -94,8 +96,9 @@ def _sanitize_schedule_run_response(raw_response: dict[str, Any]) -> dict[str, A
     response_model=TelegramNotificationScheduleListResponse,
     dependencies=[Depends(require_api_key)],
 )
-async def list_telegram_notification_schedules():
-    service = get_telegram_schedule_service(start_runner=True)
+async def list_telegram_notification_schedules(
+    service=Depends(get_running_telegram_schedule_service),
+):
     return {
         "schedules": service.list_schedules(),
         "summary": service.get_summary(),
@@ -109,9 +112,9 @@ async def list_telegram_notification_schedules():
 )
 async def create_telegram_notification_schedule(
     schedule: TelegramNotificationScheduleModel,
+    service=Depends(get_running_telegram_schedule_service),
 ):
     try:
-        service = get_telegram_schedule_service(start_runner=True)
         saved = service.save_schedule(schedule.model_dump())
         return {"success": True, "schedule": saved}
     except ValueError as exc:
@@ -130,9 +133,9 @@ async def create_telegram_notification_schedule(
 async def update_telegram_notification_schedule(
     schedule_id: str,
     schedule: TelegramNotificationScheduleModel,
+    service=Depends(get_running_telegram_schedule_service),
 ):
     try:
-        service = get_telegram_schedule_service(start_runner=True)
         if service.get_schedule(schedule_id) is None:
             raise HTTPException(status_code=404, detail="Schedule not found")
         saved = service.save_schedule(schedule.model_dump(), schedule_id=schedule_id)
@@ -150,8 +153,10 @@ async def update_telegram_notification_schedule(
     response_model=dict,
     dependencies=[Depends(require_api_key)],
 )
-async def delete_telegram_notification_schedule(schedule_id: str):
-    service = get_telegram_schedule_service(start_runner=True)
+async def delete_telegram_notification_schedule(
+    schedule_id: str,
+    service=Depends(get_running_telegram_schedule_service),
+):
     deleted = service.delete_schedule(schedule_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Schedule not found")
@@ -169,9 +174,10 @@ async def run_telegram_notification_schedule(
         default=True,
         description="When false, enqueue the execution in RQ and return immediately.",
     ),
+    service=Depends(get_running_telegram_schedule_service),
+    queue_factory=Depends(get_job_queue_factory),
 ):
     try:
-        service = get_telegram_schedule_service(start_runner=True)
         if not wait:
             schedule = service.get_schedule(schedule_id)
             if schedule is None:
@@ -197,7 +203,7 @@ async def run_telegram_notification_schedule(
 
             job_id = f"telegram-schedule-{uuid.uuid4()}"
             try:
-                q = get_queue()
+                q = queue_factory()
                 q.enqueue(
                     run_telegram_schedule_job,
                     schedule_id,
@@ -247,8 +253,8 @@ async def run_telegram_notification_schedule(
 )
 async def list_telegram_notification_history(
     limit: int = Query(default=50, ge=1, le=200),
+    service=Depends(get_running_telegram_schedule_service),
 ):
-    service = get_telegram_schedule_service(start_runner=True)
     return {"history": service.list_history(limit=limit)}
 
 
@@ -257,8 +263,10 @@ async def list_telegram_notification_history(
     response_model=TelegramNotificationRunResponse,
     dependencies=[Depends(require_api_key)],
 )
-async def send_test_telegram_notification(payload: TelegramNotificationTestRequest):
-    service = get_telegram_schedule_service(start_runner=True)
+async def send_test_telegram_notification(
+    payload: TelegramNotificationTestRequest,
+    service=Depends(get_running_telegram_schedule_service),
+):
     result = service.send_test_notification(
         message=payload.message,
         telegram_token=payload.telegram_token,

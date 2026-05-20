@@ -1,0 +1,8 @@
+services:
+  api:
+    image: ghcr.io/bernardopg/doctoralia-scrapper/api:${DOCKER_IMAGE_TAG:-main}
+    build: null
+
+  worker:
+    image: ghcr.io/bernardopg/doctoralia-scrapper/worker:${DOCKER_IMAGE_TAG:-main}
+    build: null

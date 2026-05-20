@@ -16,6 +16,7 @@ from src.api.v1._state import (
     increment_scrapes_metric,
 )
 from src.api.v1.deps import require_api_key, verify_webhook_signature
+from src.api.v1.providers import get_app_config, get_job_queue
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 
 router = APIRouter(tags=["Scraping"])
@@ -26,14 +27,15 @@ router = APIRouter(tags=["Scraping"])
     response_model=UnifiedResult,
     dependencies=[Depends(require_api_key)],
 )
-async def scrape_run(request: ScrapeRequest):
+async def scrape_run(
+    request: ScrapeRequest,
+    config=Depends(get_app_config),
+):
     start_time = datetime.now()
 
     try:
-        from config.settings import AppConfig
         from src.scraper import DoctoraliaScraper
 
-        config = AppConfig.load()
         scraper = DoctoraliaScraper(config)
         scraper_result = scraper.scrape_reviews(str(request.doctor_url))
 
@@ -160,8 +162,10 @@ async def webhook_scrape(
     request: WebhookRequest,
     req: Request,
     _: bool = Depends(verify_webhook_signature),
+    config=Depends(get_app_config),
+    q=Depends(get_job_queue),
 ):
-    from src.api.v1.routers.jobs import create_job
+    from src.api.v1.routers.jobs import enqueue_job
 
     job_request = JobCreateRequest(
         doctor_url=request.doctor_url,
@@ -175,7 +179,7 @@ async def webhook_scrape(
         idempotency_key=None,
     )
 
-    job_response = await create_job(job_request)
+    job_response = enqueue_job(job_request, config=config, q=q)
 
     return WebhookResponse(
         received=True,

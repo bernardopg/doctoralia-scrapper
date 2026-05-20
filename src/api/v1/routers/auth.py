@@ -9,8 +9,8 @@ from src.api.schemas.auth import (
     AuthStatusResponse,
     AuthUserModel,
 )
-from src.api.v1._state import load_config
 from src.api.v1.deps import require_api_key
+from src.api.v1.providers import get_app_config
 from src.auth import (
     get_dashboard_auth_state,
     hash_dashboard_password,
@@ -22,8 +22,10 @@ from src.auth import (
 router = APIRouter(tags=["Authentication"])
 
 
-def _build_auth_status_response(message: Optional[str] = None) -> AuthStatusResponse:
-    config = load_config()
+def _build_auth_status_response(
+    config,
+    message: Optional[str] = None,
+) -> AuthStatusResponse:
     auth_state = get_dashboard_auth_state(config)
     return AuthStatusResponse(
         success=True,
@@ -37,13 +39,15 @@ def _build_auth_status_response(message: Optional[str] = None) -> AuthStatusResp
 
 
 @router.get("/v1/auth/status", response_model=AuthStatusResponse)
-async def get_auth_status() -> AuthStatusResponse:
-    return _build_auth_status_response()
+async def get_auth_status(config=Depends(get_app_config)) -> AuthStatusResponse:
+    return _build_auth_status_response(config)
 
 
 @router.post("/v1/auth/login", response_model=AuthLoginResponse)
-async def login_dashboard_user(payload: AuthLoginRequest) -> AuthLoginResponse:
-    config = load_config()
+async def login_dashboard_user(
+    payload: AuthLoginRequest,
+    config=Depends(get_app_config),
+) -> AuthLoginResponse:
     auth_state = get_dashboard_auth_state(config)
 
     if not auth_state.enabled:
@@ -73,8 +77,8 @@ async def login_dashboard_user(payload: AuthLoginRequest) -> AuthLoginResponse:
 )
 async def change_dashboard_password(
     payload: AuthChangePasswordRequest,
+    config=Depends(get_app_config),
 ) -> AuthStatusResponse:
-    config = load_config()
     validation_error = validate_new_password(payload.new_password)
     if validation_error:
         raise HTTPException(
@@ -93,5 +97,6 @@ async def change_dashboard_password(
     )
     config.save()
     return _build_auth_status_response(
+        config,
         message="Dashboard password updated successfully",
     )

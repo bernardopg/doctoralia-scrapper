@@ -4,8 +4,9 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Depends
 
 from src.api.schemas.settings import SettingsModel, SettingsResponse
-from src.api.v1._state import is_masked_secret, load_config, mask_secret
+from src.api.v1._state import is_masked_secret, mask_secret
 from src.api.v1.deps import require_api_key
+from src.api.v1.providers import get_app_config
 
 router = APIRouter(tags=["Settings"])
 
@@ -279,9 +280,8 @@ def _validate_settings(settings: SettingsModel) -> dict:
     response_model=SettingsResponse,
     dependencies=[Depends(require_api_key)],
 )
-async def get_settings():
+async def get_settings(config=Depends(get_app_config)):
     try:
-        config = load_config()
         return SettingsResponse(
             success=True,
             message="Settings retrieved successfully",
@@ -300,9 +300,11 @@ async def get_settings():
     response_model=SettingsResponse,
     dependencies=[Depends(require_api_key)],
 )
-async def update_settings(settings: SettingsModel):
+async def update_settings(
+    settings: SettingsModel,
+    config=Depends(get_app_config),
+):
     try:
-        config = load_config()
         settings = _preserve_masked_settings(settings, config)
         validation = _validate_settings(settings)
         if not validation["valid"]:
@@ -430,8 +432,10 @@ async def update_settings(settings: SettingsModel):
     response_model=SettingsResponse,
     dependencies=[Depends(require_api_key)],
 )
-async def validate_settings_endpoint(settings: SettingsModel):
-    config = load_config()
+async def validate_settings_endpoint(
+    settings: SettingsModel,
+    config=Depends(get_app_config),
+):
     settings = _preserve_masked_settings(settings, config)
     validation = _validate_settings(settings)
     if validation["valid"]:

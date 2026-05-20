@@ -4,12 +4,12 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 import requests
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 
 from src.api.schemas.common import HealthResponse, ReadyComponent, ReadyResponse
-from src.api.v1._state import API_VERSION, load_config
-from src.jobs.queue import get_queue
+from src.api.v1._state import API_VERSION
+from src.api.v1.providers import get_app_config, get_job_queue_factory
 
 router = APIRouter(tags=["Health"])
 
@@ -37,9 +37,11 @@ async def health_check():
 
 
 @router.get("/v1/ready", response_model=ReadyResponse)
-async def readiness_check():
+async def readiness_check(
+    config=Depends(get_app_config),
+    queue_factory=Depends(get_job_queue_factory),
+):
     components: dict[str, ReadyComponent] = {}
-    config = load_config()
 
     redis_ok = False
     redis_error = None
@@ -65,7 +67,7 @@ async def readiness_check():
     try:
         from rq.registry import FailedJobRegistry
 
-        q = get_queue()
+        q = queue_factory()
         start = time.perf_counter()
         depth = q.count
         failed_registry = FailedJobRegistry(q.name, connection=q.connection)

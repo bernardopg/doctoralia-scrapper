@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, status
 from src.api.schemas.common import GeneratedResponsePreview
 from src.api.schemas.requests import GenerateResponseRequest
 from src.api.v1._helpers import raise_public_http_error
-from src.api.v1._state import increment_generation_metric, load_config
+from src.api.v1._state import increment_generation_metric
 from src.api.v1.deps import require_api_key
+from src.api.v1.providers import get_app_config
 
 router = APIRouter(tags=["Generation"])
 
@@ -14,10 +15,12 @@ router = APIRouter(tags=["Generation"])
     response_model=GeneratedResponsePreview,
     dependencies=[Depends(require_api_key)],
 )
-async def generate_single_response(request: GenerateResponseRequest):
+async def generate_single_response(
+    request: GenerateResponseRequest,
+    config=Depends(get_app_config),
+):
     from src.response_generator import ResponseGenerator
 
-    config = load_config()
     generator = ResponseGenerator(config, logger=None)
     review = {
         "id": request.review_id,

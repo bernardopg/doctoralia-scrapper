@@ -8,6 +8,7 @@ from src.api.schemas.settings import (
 )
 from src.api.v1._state import increment_analysis_metric
 from src.api.v1.deps import require_api_key
+from src.api.v1.providers import get_app_config
 
 router = APIRouter(tags=["Analysis"])
 
@@ -18,11 +19,9 @@ router = APIRouter(tags=["Analysis"])
     dependencies=[Depends(require_api_key)],
     tags=["Monitoring"],
 )
-async def get_statistics():
-    from config.settings import AppConfig
+async def get_statistics(config=Depends(get_app_config)):
     from src.services.stats import StatsService
 
-    config = AppConfig.load()
     svc = StatsService(config.data_dir)
     stats = svc.get_scraper_stats()
     return StatisticsResponse(**stats)

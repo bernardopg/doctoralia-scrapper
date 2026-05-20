@@ -313,7 +313,7 @@ class TestAuthentication:
 class TestTelegramNotificationEndpoints:
     """Test Telegram scheduling endpoints."""
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_list_telegram_notification_schedules(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -366,7 +366,7 @@ class TestTelegramNotificationEndpoints:
         assert payload["summary"]["total"] == 1
         assert payload["schedules"][0]["name"] == "Matinal"
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_create_telegram_notification_schedule_validation_error(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -386,7 +386,7 @@ class TestTelegramNotificationEndpoints:
         assert "Unsupported recurrence_type" not in str(response_body)
         assert "detail" not in response_body["error"]
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_not_found(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -405,8 +405,8 @@ class TestTelegramNotificationEndpoints:
         assert "Schedule abc not found" not in str(response_body)
         assert "detail" not in response_body["error"]
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
-    @patch("src.api.v1.routers.telegram.get_queue")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
+    @patch("src.jobs.queue.get_queue")
     def test_run_telegram_notification_schedule_async_queues_job(
         self, mock_get_queue, mock_get_service, client, mock_env, api_key
     ):
@@ -438,8 +438,8 @@ class TestTelegramNotificationEndpoints:
         queue.enqueue.assert_called_once()
         service.release_manual_execution.assert_not_called()
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
-    @patch("src.api.v1.routers.telegram.get_queue")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
+    @patch("src.jobs.queue.get_queue")
     def test_run_telegram_notification_schedule_async_returns_already_running(
         self, mock_get_queue, mock_get_service, client, mock_env, api_key
     ):
@@ -467,7 +467,7 @@ class TestTelegramNotificationEndpoints:
         }
         mock_get_queue.assert_not_called()
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_sanitizes_failed_result(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -516,7 +516,7 @@ class TestTelegramNotificationEndpoints:
             == "Health check failed"
         )
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_sanitizes_success_result_with_default_message(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -568,7 +568,7 @@ class TestTelegramNotificationEndpoints:
             },
         }
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_sanitizes_success_result_with_custom_message(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -601,7 +601,7 @@ class TestTelegramNotificationEndpoints:
             "schedule_name": "Matinal",
         }
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_run_telegram_notification_schedule_handles_unexpected_result_shapes(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -640,7 +640,7 @@ class TestTelegramNotificationEndpoints:
         assert response_body["message"] == "Schedule executed successfully"
         assert response_body["result"] == {}
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_list_telegram_notification_history(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -671,7 +671,7 @@ class TestTelegramNotificationEndpoints:
         assert payload["history"][0]["status"] == "sent"
         service.list_history.assert_called_once_with(limit=5)
 
-    @patch("src.api.v1.routers.telegram.get_telegram_schedule_service")
+    @patch("src.api.v1._state.get_telegram_schedule_service")
     def test_send_test_telegram_notification(
         self, mock_get_service, client, mock_env, api_key
     ):
@@ -780,7 +780,7 @@ class TestScrapeEndpoint:
 class TestAsyncJobs:
     """Test async job endpoints."""
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_create_job(self, mock_queue, client, mock_env, api_key):
         """Test job creation."""
         # Mock queue
@@ -805,7 +805,7 @@ class TestAsyncJobs:
     @patch("rq.registry.FailedJobRegistry")
     @patch("rq.registry.FinishedJobRegistry")
     @patch("rq.registry.StartedJobRegistry")
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_list_jobs(
         self,
         mock_queue,
@@ -903,7 +903,7 @@ class TestAsyncJobs:
     @patch("rq.registry.FailedJobRegistry")
     @patch("rq.registry.FinishedJobRegistry")
     @patch("rq.registry.StartedJobRegistry")
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_list_jobs_with_running_filter(
         self,
         mock_queue,
@@ -949,7 +949,7 @@ class TestAsyncJobs:
     @patch("rq.registry.FailedJobRegistry")
     @patch("rq.registry.FinishedJobRegistry")
     @patch("rq.registry.StartedJobRegistry")
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_list_jobs_failed_filter_includes_logical_failures(
         self,
         mock_queue,
@@ -1008,7 +1008,7 @@ class TestAsyncJobs:
         assert data[0]["status"] == "failed"
         assert data[0]["message"] == "Falha: validation error"
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_get_job_status(self, mock_queue, client, mock_env, api_key):
         """Test job status retrieval."""
         # Mock queue and job
@@ -1044,7 +1044,7 @@ class TestAsyncJobs:
         data = response.json()
         assert data["doctor"]["name"] == "Dr. Test"
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_get_job_status_returns_failed_finished_result(
         self, mock_queue, client, mock_env, api_key
     ):
@@ -1082,7 +1082,7 @@ class TestAsyncJobs:
         assert data["status"] == "failed"
         assert data["doctor"]["name"] == "Error"
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_get_job_status_queued_is_pending(
         self, mock_queue, client, mock_env, api_key
     ):
@@ -1106,7 +1106,7 @@ class TestAsyncJobs:
 
     def test_job_not_found(self, client, mock_env, api_key):
         """Test job not found error."""
-        with patch("src.api.v1.routers.jobs.get_queue") as mock_queue:
+        with patch("src.jobs.queue.get_queue") as mock_queue:
             mock_q = MagicMock()
             mock_q.fetch_job.return_value = None
             mock_queue.return_value = mock_q
@@ -1125,7 +1125,7 @@ class TestSettingsEndpoints:
         config = make_config(tmp_path)
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("src.api.v1.routers.settings.load_config", return_value=config):
+            with patch("config.settings.AppConfig.load", return_value=config):
                 response = client.get("/v1/settings", headers={"X-API-Key": api_key})
 
         assert response.status_code == 200
@@ -1161,7 +1161,7 @@ class TestSettingsEndpoints:
         }
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("src.api.v1.routers.settings.load_config", return_value=config):
+            with patch("config.settings.AppConfig.load", return_value=config):
                 response = client.put(
                     "/v1/settings",
                     json=payload,
@@ -1201,7 +1201,7 @@ class TestSettingsEndpoints:
         }
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("src.api.v1.routers.settings.load_config", return_value=config):
+            with patch("config.settings.AppConfig.load", return_value=config):
                 response = client.post(
                     "/v1/settings/validate",
                     json=invalid_payload,
@@ -1225,7 +1225,7 @@ class TestSettingsEndpoints:
         config = make_config(tmp_path)
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("src.api.v1.routers.generate.load_config", return_value=config):
+            with patch("config.settings.AppConfig.load", return_value=config):
                 with patch(
                     "src.response_generator.ResponseGenerator.generate_response_with_metadata",
                     return_value={
@@ -1275,7 +1275,7 @@ class TestWebhookSecurity:
 
     def test_webhook_without_signature(self, client):
         """Test webhook endpoint without signature."""
-        with patch("src.api.v1.routers.jobs.create_job") as mock_create:
+        with patch("src.api.v1.routers.jobs.enqueue_job") as mock_create:
             mock_result = MagicMock()
             mock_result.job_id = "job-123"
             mock_result.status = "queued"
@@ -1304,7 +1304,7 @@ class TestWebhookSecurity:
                 + hmac.new(b"secret123", message.encode(), hashlib.sha256).hexdigest()
             )
 
-            with patch("src.api.v1.routers.jobs.create_job") as mock_create:
+            with patch("src.api.v1.routers.jobs.enqueue_job") as mock_create:
                 mock_create.return_value = MagicMock(job_id="job-123", status="queued")
 
                 response = client.post(

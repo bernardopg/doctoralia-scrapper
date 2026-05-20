@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from src.api.v1._state import API_VERSION, read_metrics_snapshot
+from src.api.v1._state import API_VERSION
+from src.api.v1.providers import get_metrics_snapshot
 from src.api.v1.routers.health import get_api_start_time
 
 router = APIRouter(tags=["Metrics"])
@@ -17,8 +18,8 @@ def _percentile(data: list[int], pct: float) -> Optional[float]:
 
 
 @router.get("/v1/metrics")
-async def metrics_endpoint():
-    snapshot, redis_available = read_metrics_snapshot()
+async def metrics_endpoint(metrics_snapshot=Depends(get_metrics_snapshot)):
+    snapshot, redis_available = metrics_snapshot
     durations: list[int] = snapshot["request_durations_ms"]  # type: ignore[assignment]
     return {
         "version": API_VERSION,

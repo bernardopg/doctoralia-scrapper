@@ -6,10 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.api.schemas.common import UnifiedResult
 from src.api.schemas.requests import JobCreateRequest, JobResponse
-from src.api.v1._state import load_config
 from src.api.v1.deps import require_api_key
+from src.api.v1.providers import get_app_config, get_job_queue
 from src.integrations.n8n.normalize import make_unified_result
-from src.jobs.queue import get_queue
 from src.jobs.tasks import scrape_and_process
 
 router = APIRouter(tags=["Jobs"])
@@ -46,10 +45,17 @@ def _map_job_status(job: Any) -> str:
     dependencies=[Depends(require_api_key)],
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def create_job(request: JobCreateRequest) -> JobResponse:
+async def create_job(
+    request: JobCreateRequest,
+    config=Depends(get_app_config),
+    q=Depends(get_job_queue),
+) -> JobResponse:
+    return enqueue_job(request, config=config, q=q)
+
+
+def enqueue_job(request: JobCreateRequest, *, config, q) -> JobResponse:
     from typing import cast
 
-    config = load_config()
     if request.idempotency_key:
         r = redis.Redis.from_url(config.integrations.redis_url)
         existing_job_id = cast(
@@ -67,7 +73,6 @@ async def create_job(request: JobCreateRequest) -> JobResponse:
             )
 
     job_id = str(uuid.uuid4())
-    q = get_queue()
     q.enqueue(
         scrape_and_process,
         request.model_dump(),
@@ -90,10 +95,10 @@ async def create_job(request: JobCreateRequest) -> JobResponse:
 @router.get("/v1/jobs", dependencies=[Depends(require_api_key)])
 async def list_jobs(
     status_filter: Optional[str] = Query(default=None, alias="status"),
+    q=Depends(get_job_queue),
 ):
     from rq.registry import FailedJobRegistry, FinishedJobRegistry, StartedJobRegistry
 
-    q = get_queue()
     job_ids = set()
     normalized_filter = (status_filter or "").strip().lower()
     if normalized_filter == "queued":
@@ -143,8 +148,7 @@ async def list_jobs(
     response_model=UnifiedResult,
     dependencies=[Depends(require_api_key)],
 )
-async def get_job_status(job_id: str):
-    q = get_queue()
+async def get_job_status(job_id: str, q=Depends(get_job_queue)):
     job = q.fetch_job(job_id)
 
     if not job:

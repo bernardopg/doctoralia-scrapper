@@ -366,7 +366,7 @@ class TestScrapeEndpoints:
 
 
 class TestJobEndpoints:
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_create_job_success(
         self, mock_get_queue, client, mock_env, api_key, tmp_path
     ):
@@ -390,7 +390,7 @@ class TestJobEndpoints:
         assert data["status"] == "queued"
         queue.enqueue.assert_called_once()
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_create_job_without_auth_returns_401(
         self, mock_get_queue, client, mock_env
     ):
@@ -403,7 +403,7 @@ class TestJobEndpoints:
         )
         assert response.status_code == 401
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_create_job_with_idempotency_key_returns_existing(
         self, mock_get_queue, client, mock_env, api_key, tmp_path
     ):
@@ -432,7 +432,7 @@ class TestJobEndpoints:
         assert data["job_id"] == "existing-job-id-123"
         assert data["message"] == "Job already exists"
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_get_job_status_found(self, mock_get_queue, client, mock_env, api_key):
         from src.integrations.n8n.normalize import make_unified_result
 
@@ -462,7 +462,7 @@ class TestJobEndpoints:
 
         assert response.status_code == 200
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_get_job_status_not_found(self, mock_get_queue, client, mock_env, api_key):
         queue = MagicMock()
         queue.fetch_job.return_value = None
@@ -475,7 +475,7 @@ class TestJobEndpoints:
 
         assert response.status_code == 404
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_list_jobs(self, mock_get_queue, client, mock_env, api_key):
         mock_job = MagicMock()
         mock_job.id = "job-1"
@@ -1187,7 +1187,7 @@ class TestStatisticsEndpoint:
 
 
 class TestWebhookEndpoint:
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_webhook_scrape_without_secret_succeeds(
         self, mock_get_queue, client, tmp_path
     ):
@@ -1240,7 +1240,7 @@ class TestWebhookEndpoint:
 
         assert response.status_code == 401
 
-    @patch("src.api.v1.routers.jobs.get_queue")
+    @patch("src.jobs.queue.get_queue")
     def test_webhook_scrape_valid_signature(self, mock_get_queue, client, tmp_path):
         config = _make_full_config(tmp_path)
         queue = MagicMock()
@@ -1284,7 +1284,7 @@ class TestErrorHandling:
         assert response.status_code in (404, 405)
 
     def test_http_exception_returns_consistent_schema(self, client, mock_env, api_key):
-        with patch("src.api.v1.routers.jobs.get_queue") as mock_queue:
+        with patch("src.jobs.queue.get_queue") as mock_queue:
             mock_queue.return_value.fetch_job.return_value = None
             response = client.get(
                 "/v1/jobs/not-real",
