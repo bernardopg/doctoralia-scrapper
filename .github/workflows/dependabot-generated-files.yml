@@ -75,7 +75,7 @@ jobs:
 
       - name: Install Poetry
         if: steps.changes.outputs.should_sync == 'true'
-        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
         with:
           version: "2.2.1"
 

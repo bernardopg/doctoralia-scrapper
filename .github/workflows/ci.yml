@@ -33,7 +33,7 @@ jobs:
           cache: "pip"
 
       - name: Install Poetry
-        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
         with:
           version: "2.2.1"
           virtualenvs-create: true
@@ -97,7 +97,7 @@ jobs:
           cache: "pip"
 
       - name: Install Poetry
-        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
         with:
           version: "2.2.1"
 
@@ -123,7 +123,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Poetry
-        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
         with:
           version: "2.2.1"
 
@@ -146,7 +146,7 @@ jobs:
       # TruffleHog: scan PR diffs when base and head differ
       - name: Check for secrets (PR diff)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha != github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51 # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -156,7 +156,7 @@ jobs:
       # Fallback: PR full scan when base and head are identical (e.g., re-runs)
       - name: Check for secrets (PR full scan)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha == github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -164,7 +164,7 @@ jobs:
       # TruffleHog: scan push diffs when before SHA is valid and differs
       - name: Check for secrets (push diff)
         if: github.event_name == 'push' && github.event.before != '' && github.event.before != github.sha && !startsWith(github.event.before, '000000')
-        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51 # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.before }}
@@ -174,7 +174,7 @@ jobs:
       # Fallback: push full scan when no valid diff available (e.g., new branch)
       - name: Check for secrets (push full scan)
         if: github.event_name == 'push' && (github.event.before == '' || github.event.before == github.sha || startsWith(github.event.before, '000000'))
-        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -182,7 +182,7 @@ jobs:
       # TruffleHog: fallback for manual triggers or other events
       - name: "Check for secrets (manual full scan)"
         if: github.event_name == 'workflow_dispatch'
-        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@d411fff7b8879a62509f3fa98c07f247ac089a51 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -219,7 +219,7 @@ jobs:
           cache: "pip"
 
       - name: Install Poetry
-        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
         with:
           version: "2.2.1"
 
@@ -272,7 +272,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install Poetry
-        uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
         with:
           version: "2.2.1"
 
