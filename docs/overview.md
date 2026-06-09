@@ -24,7 +24,7 @@ Este repositório não tenta resolver só a coleta. Ele resolve a rotina inteira
 | `src/api/v1/main.py` | Interface HTTP, jobs, settings, metrics e notificações |
 | `src/jobs/tasks.py` | Pipeline executado pelo worker |
 | `src/services/telegram_schedule_service.py` | Scheduler Telegram Redis-backed |
-| `src/dashboard.py` | Workspace Flask para operação diária |
+| `src/dashboard/` | Workspace Flask para operação diária |
 | Redis / RQ | Fila, métricas, histórico e schedules |
 | Selenium | Browser remoto para scraping |
 
@@ -69,7 +69,7 @@ Hoje Redis é uma peça central e não apenas fila.
 | Diretório | Conteúdo |
 |---|---|
 | `src/` | código principal |
-| `config/` | settings e templates |
+| `src/config/` | settings e templates |
 | `templates/` | páginas HTML do dashboard |
 | `static/` | CSS e assets do dashboard |
 | `data/` | snapshots, notificações, relatórios e arquivos gerados |

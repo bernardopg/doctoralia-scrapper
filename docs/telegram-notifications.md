@@ -23,7 +23,7 @@ O projeto já possui um scheduler Telegram funcional, persistido em Redis e aces
 | Camada | Arquivo / rota |
 |---|---|
 | Dashboard | `/notifications/telegram/schedule` |
-| Proxy Flask | `src/dashboard.py` |
+| Proxy Flask | `src/dashboard/` |
 | API FastAPI | `/v1/notifications/telegram/*` |
 | Serviço principal | `src/services/telegram_schedule_service.py` |
 | Schemas | `src/api/schemas/notifications.py` |

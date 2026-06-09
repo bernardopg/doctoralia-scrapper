@@ -38,7 +38,7 @@ Se quiser rodar a stack inteira com menos atrito, prefira Docker. Use este guia 
 
 ## Padrões que o projeto já segue
 
-- imports internos absolutos: `from src...` e `from config...`
+- imports internos absolutos: `from src...`
 - type hints em código novo
 - documentação atualizada junto de features relevantes
 - testes obrigatórios para lógica não trivial
@@ -76,7 +76,7 @@ Se tocar em notificações, revise:
 - `src/services/telegram_schedule_service.py`
 - `src/api/schemas/notifications.py`
 - `src/api/v1/main.py`
-- `src/dashboard.py`
+- `src/dashboard/`
 - `docs/telegram-notifications.md`
 
 ### Workspace do dashboard

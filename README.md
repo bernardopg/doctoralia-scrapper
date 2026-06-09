@@ -181,7 +181,7 @@ O `README` agora é só a entrada. A documentação foi reorganizada em formato 
 
 ## Convenções técnicas
 
-- Imports internos padronizados em formato absoluto: `from src...` e `from config...`
+- Imports internos padronizados em formato absoluto: `from src...`
 - Dependências gerenciadas por `poetry`
 - Formatação com `black` e `isort`
 - Testes com `pytest`
@@ -191,7 +191,7 @@ O `README` agora é só a entrada. A documentação foi reorganizada em formato 
 - Rate limiting global da API REST ainda não existe como middleware completo.
 - O scheduler recorrente depende da API estar de pé.
 - A troca de senha do dashboard hoje valida apenas o mínimo de caracteres no backend; complexidade adicional ainda é recomendação de UX, não requisito de servidor.
-- Ainda há espaço para subir coverage em `src/scraper.py`, `src/response_generator.py`, `src/telegram_notifier.py` e `src/dashboard.py`.
+- Ainda há espaço para subir coverage em `src/scraper.py`, `src/response_generator.py`, `src/telegram_notifier.py` e `src/dashboard/`.
 
 ## Licença
 

@@ -69,7 +69,7 @@ make info              # Environment info (Python, Git, system)
 **Entry Points**:
 - `main.py` - CLI interface for all operations (scrape, generate, analyze, daemon, api, dashboard)
 - `src/api/v1/main.py` - FastAPI application (REST endpoints)
-- `src/dashboard.py` - Flask dashboard for monitoring
+- `src/dashboard/` - Flask dashboard for monitoring (package)
 - `scripts/daemon.py` - Scheduled continuous scraping controller
 
 **Scraping Layer**:
@@ -113,7 +113,7 @@ make info              # Environment info (Python, Git, system)
 - `.env` - Secrets (API_KEY, WEBHOOK_SIGNING_SECRET, TELEGRAM_TOKEN, OPENAI_API_KEY, REDIS_URL, SELENIUM_REMOTE_URL)
 - `.env.example` - Template for environment variables
 
-**Settings Module**: `config/settings.py` (AppConfig class) loads and validates configuration
+**Settings Module**: `src/config/settings.py` (AppConfig class) loads and validates configuration
 
 ### Important Patterns
 
@@ -175,7 +175,7 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 5. Add tests
 
 **Extending Response Templates**:
-- Edit `config/templates.py` or JSON templates in `config/`
+- Edit `src/config/templates.py` or JSON templates in `src/config/`
 - Templates support variables: `{doctor_name}`, `{review_text}`, `{sentiment}`, etc.
 - See `docs/templates.md` for full documentation
 
@@ -220,10 +220,13 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 │   │   ├── queue.py          # RQ interface
 │   │   └── tasks.py          # Background tasks
 │   ├── integrations/n8n/     # n8n normalization
+│   ├── dashboard/            # Flask dashboard (app, auth, pages, services, ...)
+│   ├── config/               # settings, templates, config.json
+│   │   ├── settings.py       # AppConfig loader
+│   │   ├── config.json       # Main config (gitignored)
+│   │   └── templates.py      # Response templates
+│   ├── static/               # CSS, icons, favicons
 │   └── telegram_notifier.py  # Notifications
-├── config/
-│   ├── config.json           # Main config
-│   └── templates.py          # Response templates
 ├── scripts/
 │   ├── daemon.py             # Scheduled scraping
 │   ├── system_diagnostic.py  # System health

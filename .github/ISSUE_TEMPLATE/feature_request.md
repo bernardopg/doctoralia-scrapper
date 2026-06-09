@@ -59,8 +59,8 @@ python main.py scrape --specialties "cardiologia,dermatologia,pediatria" --batch
 
 - [ ] `src/scraper.py` - Lógica de scraping
 - [ ] `src/api.py` - Endpoints da API
-- [ ] `src/dashboard.py` - Interface web
-- [ ] `config/settings.py` - Configurações
+- [ ] `src/dashboard/` - Interface web
+- [ ] `src/config/settings.py` - Configurações
 - [ ] `scripts/` - Scripts de automação
 
 ### Estimativa de Complexidade

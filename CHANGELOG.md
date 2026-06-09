@@ -6,6 +6,12 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+### Changed
+
+- **[refactor]** Layout consolidado sob `src/`: `config/` movido para `src/config/` e `static/` para `src/static/`.
+- **[refactor]** `src/dashboard.py` (monólito de ~1647 linhas) dividido no pacote `src/dashboard/` com módulos focados (`app`, `auth`, `pages`, `reports`, `notifications`, `services`, `workspace`, `api_proxy`, `user_profile`); adicionado `__main__.py` para `python -m src.dashboard`.
+- **[chore]** Removido código morto legado (`src/dashboard.py` e `config/` raiz) e padronizada a qualidade: isort, black, flake8 (ignora `E203`), mypy limpo e `nosec B104` nos binds `0.0.0.0` intencionais.
+
 ## [2.1.1] - 2026-05-19
 
 ### Security

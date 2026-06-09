@@ -6,12 +6,13 @@ Inventário das entregas principais que já estão maduras para o escopo atual d
 
 - Stack Docker funcional com `api`, `worker`, `dashboard`, `redis`, `selenium` e `n8n`.
 - Health checks e limites de recursos definidos para os serviços principais.
-- Configuração local compartilhada entre API, worker e dashboard via `config/`.
+- Configuração local compartilhada entre API, worker e dashboard via `src/config/`.
 - Redis consolidado como backbone operacional para fila, métricas e notificações.
 
 ## API e processamento
 
 - API FastAPI com execução síncrona e assíncrona.
+- API v1 separada em routers por domínio, com `main.py` reduzido a composition root, middleware isolado e providers injetáveis para configuração, fila, métricas e scheduler Telegram.
 - Jobs em Redis/RQ com persistência de snapshots em `data/`.
 - Health, readiness, statistics, settings e métricas Redis-backed.
 - Webhook dedicado para integrações n8n.
