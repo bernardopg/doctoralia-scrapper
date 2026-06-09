@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#146C94"/>
+      <stop offset="100%" stop-color="#0d4f6e"/>
+    </linearGradient>
+    <linearGradient id="dot-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#168C61"/>
+      <stop offset="100%" stop-color="#0f6347"/>
+    </linearGradient>
+    <filter id="dot-glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="112" ry="112" fill="url(#bg-grad)"/>
+
+  <!-- ECG / heartbeat wave path -->
+  <!-- Baseline: y=256, wave spans x=64 to x=448 -->
+  <path
+    d="M 64 256
+       L 144 256
+       L 168 210
+       L 192 302
+       L 220 140
+       L 248 372
+       L 268 220
+       L 288 256
+       L 320 256
+       L 336 256"
+    fill="none"
+    stroke="white"
+    stroke-width="22"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.95"
+  />
+
+  <!-- Data point: circle at the peak transition -->
+  <circle cx="368" cy="256" r="44" fill="url(#dot-grad)" filter="url(#dot-glow)"/>
+
+  <!-- Data point inner highlight -->
+  <circle cx="357" cy="245" r="14" fill="white" opacity="0.35"/>
+
+  <!-- Tail line after dot -->
+  <path
+    d="M 412 256 L 448 256"
+    fill="none"
+    stroke="white"
+    stroke-width="22"
+    stroke-linecap="round"
+    opacity="0.95"
+  />
+</svg>

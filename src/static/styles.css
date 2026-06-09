@@ -1279,6 +1279,25 @@ code {
   }
 }
 
+/* ── Dark mode: autofill browser override ── */
+:root[data-theme="dark"] input:-webkit-autofill,
+:root[data-theme="dark"] input:-webkit-autofill:hover,
+:root[data-theme="dark"] input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface-raised) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
+  border-color: var(--border-color) !important;
+}
+
+/* ── Dark mode: scrollbar track ── */
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+}
+
+:root[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
