@@ -6,6 +6,10 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+### Security
+
+- **[CVE fix]** Atualizado `starlette` de `0.52.1` para `1.2.1`, corrigindo a falta de validação do header `Host` que envenena `request.url.path` e pode burlar checagens de segurança baseadas em path (Dependabot, 2x medium). Compatível com FastAPI 0.136 (`starlette>=0.46.0`, sem teto).
+
 ### Changed
 
 - **[refactor]** Layout consolidado sob `src/`: `config/` movido para `src/config/` e `static/` para `src/static/`.
