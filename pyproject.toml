@@ -97,6 +97,7 @@ werkzeug = "^3.1.6"
 redis = ">=6.4,<8.0"
 rq = "^2.7.0"
 flake8 = "^7.3.0"
+starlette = ">=1.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.4.0"
