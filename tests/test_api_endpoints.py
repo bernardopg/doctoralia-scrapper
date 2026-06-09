@@ -15,7 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from config.settings import (
+from src.api.v1.main import app
+from src.config.settings import (
     APIConfig,
     AppConfig,
     DelayConfig,
@@ -29,7 +30,6 @@ from config.settings import (
     URLConfig,
     UserProfileConfig,
 )
-from src.api.v1.main import app
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -60,7 +60,7 @@ def dynamic_app_config_from_env():
             generation=SimpleNamespace(mode=os.getenv("GENERATION_MODE", "local")),
         )
 
-    with patch("config.settings.AppConfig.load", side_effect=_build_config):
+    with patch("src.config.settings.AppConfig.load", side_effect=_build_config):
         yield
 
 
@@ -205,7 +205,7 @@ class TestScrapeEndpoints:
         }
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.scraper.DoctoraliaScraper",
                 return_value=mock_scraper_instance,
@@ -237,7 +237,7 @@ class TestScrapeEndpoints:
         )
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.scraper.DoctoraliaScraper",
                 return_value=mock_scraper_instance,
@@ -283,7 +283,7 @@ class TestScrapeEndpoints:
         }
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.scraper.DoctoraliaScraper",
                 return_value=mock_scraper_instance,
@@ -333,7 +333,7 @@ class TestScrapeEndpoints:
         }
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.scraper.DoctoraliaScraper",
                 return_value=mock_scraper_instance,
@@ -374,7 +374,7 @@ class TestJobEndpoints:
         queue = MagicMock()
         mock_get_queue.return_value = queue
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/jobs",
                 json={
@@ -412,7 +412,7 @@ class TestJobEndpoints:
         mock_redis.get.return_value = b"existing-job-id-123"
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.api.v1.routers.jobs.redis.Redis.from_url", return_value=mock_redis
             ),
@@ -533,7 +533,7 @@ class TestGenerationEndpoints:
         }
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.response_generator.ResponseGenerator",
                 return_value=mock_generator,
@@ -576,7 +576,7 @@ class TestGenerationEndpoints:
         )
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.response_generator.ResponseGenerator",
                 return_value=mock_generator,
@@ -601,7 +601,7 @@ class TestGenerationEndpoints:
         )
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch(
                 "src.response_generator.ResponseGenerator",
                 return_value=mock_generator,
@@ -737,7 +737,7 @@ class TestSettingsEndpoints:
     ):
         config = _make_full_config(tmp_path)
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.get(
                 "/v1/settings",
                 headers={"X-API-Key": api_key},
@@ -761,7 +761,7 @@ class TestSettingsEndpoints:
         config = _make_full_config(tmp_path)
         config.save = MagicMock()
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.put(
                 "/v1/settings",
                 json={
@@ -857,7 +857,7 @@ class TestSettingsEndpoints:
     def test_validate_settings_valid(self, client, mock_env, api_key, tmp_path):
         config = _make_full_config(tmp_path)
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/settings/validate",
                 json={
@@ -953,7 +953,7 @@ class TestSettingsEndpoints:
     ):
         config = _make_full_config(tmp_path)
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/settings/validate",
                 json={
@@ -1045,7 +1045,7 @@ class TestAuthEndpoints:
         config = _make_full_config(tmp_path)
         config.security.api_key = ""
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.get("/v1/auth/status")
 
         assert response.status_code == 200
@@ -1056,7 +1056,7 @@ class TestAuthEndpoints:
         config = _make_full_config(tmp_path)
         config.security.api_key = ""
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/auth/login",
                 json={"username": "admin", "password": "anything"},
@@ -1083,7 +1083,7 @@ class TestAuthEndpoints:
         config = _make_full_config(tmp_path)
         config.save = MagicMock()
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/auth/change-password",
                 headers={"X-API-Key": api_key},
@@ -1100,7 +1100,7 @@ class TestAuthEndpoints:
     ):
         config = _make_full_config(tmp_path)
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/auth/change-password",
                 headers={"X-API-Key": api_key},
@@ -1134,7 +1134,7 @@ class TestStatisticsEndpoint:
         mock_service.get_scraper_stats.return_value = mock_stats
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch("src.services.stats.StatsService", return_value=mock_service),
         ):
             response = client.get(
@@ -1167,7 +1167,7 @@ class TestStatisticsEndpoint:
         mock_service.get_scraper_stats.return_value = mock_stats
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch("src.services.stats.StatsService", return_value=mock_service),
         ):
             response = client.get(
@@ -1204,7 +1204,7 @@ class TestWebhookEndpoint:
             return None
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch("src.api.v1.deps._load_secret", side_effect=_fake_load_secret),
         ):
             response = client.post(
@@ -1225,7 +1225,7 @@ class TestWebhookEndpoint:
         config = _make_full_config(tmp_path)
 
         with (
-            patch("config.settings.AppConfig.load", return_value=config),
+            patch("src.config.settings.AppConfig.load", return_value=config),
             patch.dict(
                 "os.environ",
                 {"WEBHOOK_SIGNING_SECRET": "test-webhook-secret"},
@@ -1257,7 +1257,7 @@ class TestWebhookEndpoint:
             secret.encode(), message.encode(), hashlib.sha256
         ).hexdigest()
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/hooks/n8n/scrape",
                 content=body,

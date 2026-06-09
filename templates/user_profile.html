@@ -1085,7 +1085,7 @@
 
 {% block scripts %}
 <script>
-  const dashboardMinPasswordLength = Number({{ dashboard_min_password_length | tojson }}) || 8;
+  const dashboardMinPasswordLength = Number('{{ dashboard_min_password_length | tojson }}') || 8;
   const userProfileState = {
     profile: {
       display_name: '',

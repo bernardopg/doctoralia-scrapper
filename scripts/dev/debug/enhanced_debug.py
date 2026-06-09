@@ -5,7 +5,7 @@ Teste do enhanced scraper para debugging
 
 import asyncio
 
-from config.settings import AppConfig
+from src.config.settings import AppConfig
 from src.enhanced_scraper import EnhancedDoctoraliaScraper
 from src.health_checker import HealthChecker
 from src.logger import setup_logger

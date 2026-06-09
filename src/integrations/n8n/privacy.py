@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 
 def _load_privacy_config():
     try:
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
 
         return AppConfig.load().privacy
     except Exception:

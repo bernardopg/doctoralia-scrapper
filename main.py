@@ -13,11 +13,19 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Adicionar o diretório src ao path para imports
+from scripts.daemon import DaemonController
+from scripts.health_check import HealthChecker as LegacyHealthChecker
+from scripts.system_diagnostic import SystemDiagnostic
+from src.api.v1.main import start_api
+from src.config.settings import AppConfig
+from src.dashboard import start_dashboard
+from src.env_validator import EnvironmentValidationError, EnvironmentValidator
+from src.health_checker import HealthChecker  # Async health checker
+from src.response_generator import ResponseGenerator
+from src.scraper import DoctoraliaScraper
+from src.telegram_notifier import TelegramNotifier
+
 project_root = Path(__file__).parent
-src_path = project_root / "src"
-if str(src_path) not in sys.path:
-    sys.path.insert(0, str(src_path))
 
 # Ensure logs directory exists before configuring logging to avoid FileNotFoundError
 logs_dir = project_root / "logs"
@@ -26,18 +34,6 @@ try:
 except Exception:
     # If we cannot create the directory (e.g., permission issues), continue with stdout only
     pass
-
-from config.settings import AppConfig
-from scripts.daemon import DaemonController
-from scripts.health_check import HealthChecker as LegacyHealthChecker
-from scripts.system_diagnostic import SystemDiagnostic
-from src.api.v1.main import start_api
-from src.dashboard import start_dashboard
-from src.env_validator import EnvironmentValidationError, EnvironmentValidator
-from src.health_checker import HealthChecker  # Async health checker
-from src.response_generator import ResponseGenerator
-from src.scraper import DoctoraliaScraper
-from src.telegram_notifier import TelegramNotifier
 
 # Configurar logging
 logging.basicConfig(

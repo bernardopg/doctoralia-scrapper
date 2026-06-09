@@ -13,15 +13,26 @@
       document.documentElement.dataset.theme = theme;
     })();
   </script>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.svg">
   <link rel="stylesheet" href="/static/styles.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   {% block head %}{% endblock %}
   <style>
     /* ── Utility classes ausentes no styles.css ── */
-    .text-secondary { color: var(--text-secondary); }
-    .text-tertiary  { color: var(--text-tertiary); }
-    .text-error     { color: var(--apple-red); }
+    .text-secondary {
+      color: var(--text-secondary);
+    }
+
+    .text-tertiary {
+      color: var(--text-tertiary);
+    }
+
+    .text-error {
+      color: var(--apple-red);
+    }
 
     /* ── API Status pill no rodapé da sidebar ── */
     .sidebar-status {
@@ -43,8 +54,15 @@
       transition: background 0.3s;
     }
 
-    .status-dot.online  { background: var(--apple-green); box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-green) 22%, transparent); }
-    .status-dot.offline { background: var(--apple-red);   box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-red) 22%, transparent); }
+    .status-dot.online {
+      background: var(--apple-green);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-green) 22%, transparent);
+    }
+
+    .status-dot.offline {
+      background: var(--apple-red);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-red) 22%, transparent);
+    }
 
     .status-label {
       font-size: 12px;
@@ -71,7 +89,9 @@
       margin-bottom: 8px;
     }
 
-    .nav-item.nav-action i { color: var(--apple-blue); }
+    .nav-item.nav-action i {
+      color: var(--apple-blue);
+    }
 
     .nav-item.nav-action:hover {
       background: color-mix(in srgb, var(--apple-blue) 15%, var(--bg-primary));
@@ -143,8 +163,13 @@
     }
 
     /* ── Modal backdrop close ── */
-    .modal-overlay { cursor: default; }
-    .modal-container { cursor: auto; }
+    .modal-overlay {
+      cursor: default;
+    }
+
+    .modal-container {
+      cursor: auto;
+    }
 
     /* ── Link para histórico após scraping ── */
     .result-action-link {
@@ -162,12 +187,33 @@
       transition: opacity var(--transition-fast);
     }
 
-    .result-action-link:hover { opacity: 0.85; }
+    .result-action-link:hover {
+      opacity: 0.85;
+    }
 
     .nav-item .nav-badge-muted {
       background: var(--bg-tertiary);
       color: var(--text-secondary);
     }
+
+    /* ── Logo sidebar ── */
+    .sidebar-logo-img {
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+    }
+
+    .sidebar-brand-img {
+      height: 36px;
+      width: auto;
+      max-width: 160px;
+      object-fit: contain;
+    }
+
+    .sidebar-brand-dark { display: none; }
+
+    [data-theme="dark"] .sidebar-brand-light { display: none; }
+    [data-theme="dark"] .sidebar-brand-dark  { display: block; }
   </style>
 </head>
 
@@ -182,14 +228,9 @@
 
       <!-- Logo -->
       <div class="sidebar-header">
-        <a href="/" class="sidebar-logo">
-          <span class="brand-mark" aria-hidden="true">
-            <i class="fas fa-heart-pulse"></i>
-          </span>
-          <div class="sidebar-logo-text">
-            <span class="sidebar-logo-title">Doctoralia</span>
-            <span class="sidebar-logo-subtitle" data-i18n="brand.subtitle">Workspace de Reviews</span>
-          </div>
+        <a href="/" class="sidebar-logo sidebar-logo-img">
+          <img src="/static/logo.svg" alt="Doctoralia Scrapper" class="sidebar-brand-img sidebar-brand-light" width="160" height="36">
+          <img src="/static/logo-dark.svg" alt="Doctoralia Scrapper" class="sidebar-brand-img sidebar-brand-dark" width="160" height="36">
         </a>
       </div>
 
@@ -250,7 +291,8 @@
             <i class="fas fa-chart-line"></i>
             <span data-i18n="nav.reports">Relatórios</span>
           </a>
-          <a href="/notifications/telegram/schedule" class="nav-item {% if request.path.startswith('/notifications/telegram') %}active{% endif %}">
+          <a href="/notifications/telegram/schedule"
+            class="nav-item {% if request.path.startswith('/notifications/telegram') %}active{% endif %}">
             <i class="fab fa-telegram"></i>
             <span data-i18n="nav.notifications">Notificações</span>
           </a>
@@ -278,7 +320,8 @@
           <a href="#" class="nav-item" onclick="openApiDocs(); return false;">
             <i class="fas fa-book-open"></i>
             <span data-i18n="nav.apiDocs">Documentação API</span>
-            <i class="fas fa-external-link-alt" style="font-size:11px; margin-left:auto; color:var(--text-tertiary);"></i>
+            <i class="fas fa-external-link-alt"
+              style="font-size:11px; margin-left:auto; color:var(--text-tertiary);"></i>
           </a>
         </div>
 
@@ -286,7 +329,8 @@
 
       <!-- Rodapé: status da API + usuário -->
       <div class="sidebar-footer">
-        <div class="sidebar-status" id="api-status-bar" title="Status da conexão com a API" role="status" aria-live="polite">
+        <div class="sidebar-status" id="api-status-bar" title="Status da conexão com a API" role="status"
+          aria-live="polite">
           <div class="status-dot" id="api-status-dot"></div>
           <div style="flex:1; min-width:0;">
             <div class="status-label" id="api-status-label" data-i18n="status.checking">Verificando API...</div>
@@ -298,7 +342,8 @@
           </button>
         </div>
 
-        <a href="/me" class="sidebar-user {% if request.path.startswith('/me') %}active{% endif %}" id="sidebar-user-link" title="Abrir minha área">
+        <a href="/me" class="sidebar-user {% if request.path.startswith('/me') %}active{% endif %}"
+          id="sidebar-user-link" title="Abrir minha área">
           <div class="sidebar-user-avatar">
             <span id="sidebar-user-avatar-text">{{ ((dashboard_user_name or 'A')[:1])|upper }}</span>
           </div>
@@ -321,7 +366,8 @@
     </aside>
 
     <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" onclick="toggleSidebar()" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" onclick="toggleSidebar()"
+      aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">
       <i class="fas fa-bars"></i>
     </button>
     <div class="sidebar-scrim" id="sidebarScrim" aria-hidden="true"></div>
@@ -343,10 +389,12 @@
             <span id="scrape-status-indicator-text" data-i18n="status.scraping">Scraping em curso</span>
           </span>
 
-          <button class="icon-btn" type="button" title="Ver Histórico" aria-label="Ver histórico" onclick="window.location.href='/history'">
+          <button class="icon-btn" type="button" title="Ver Histórico" aria-label="Ver histórico"
+            onclick="window.location.href='/history'">
             <i class="fas fa-list-alt"></i>
           </button>
-          <button class="icon-btn" type="button" title="Configurações" aria-label="Abrir configurações" onclick="window.location.href='/settings'">
+          <button class="icon-btn" type="button" title="Configurações" aria-label="Abrir configurações"
+            onclick="window.location.href='/settings'">
             <i class="fas fa-cog"></i>
           </button>
           {% endblock %}
@@ -355,7 +403,8 @@
             <option value="en">EN</option>
             <option value="es">ES</option>
           </select>
-          <button class="icon-btn theme-toggle" id="theme-toggle" type="button" title="Alternar tema" aria-label="Alternar tema">
+          <button class="icon-btn theme-toggle" id="theme-toggle" type="button" title="Alternar tema"
+            aria-label="Alternar tema">
             <i class="fas fa-moon"></i>
           </button>
         </div>
@@ -371,7 +420,8 @@
   <!-- ══════════════════════════════════
        MODAL: INICIAR SCRAPING
   ══════════════════════════════════ -->
-  <div id="scrape-modal" class="modal-overlay" style="display: none;" onclick="handleScrapeModalBackdrop(event)" role="dialog" aria-modal="true" aria-labelledby="scrape-modal-title">
+  <div id="scrape-modal" class="modal-overlay" style="display: none;" onclick="handleScrapeModalBackdrop(event)"
+    role="dialog" aria-modal="true" aria-labelledby="scrape-modal-title">
     <div class="modal-container">
 
       <div class="modal-header">
@@ -391,14 +441,12 @@
           <div class="form-group">
             <label class="form-label" for="scrape-url">
               <span data-i18n="scrape.profileUrl">URL do Perfil do Médico</span>
-              <i class="fas fa-info-circle help-icon"
-                title="Cole a URL completa do perfil do médico no Doctoralia"></i>
+              <i class="fas fa-info-circle help-icon" title="Cole a URL completa do perfil do médico no Doctoralia"></i>
             </label>
-            <input type="url" id="scrape-url" class="form-control"
-              placeholder="https://www.doctoralia.com.br/..."
+            <input type="url" id="scrape-url" class="form-control" placeholder="https://www.doctoralia.com.br/..."
               oninput="clearScrapeError()" aria-describedby="scrape-url-hint scrape-url-error">
-            <small class="form-help" id="scrape-url-error"
-              style="color: var(--apple-red); display: none;" role="alert"></small>
+            <small class="form-help" id="scrape-url-error" style="color: var(--apple-red); display: none;"
+              role="alert"></small>
             <small class="form-help" id="scrape-url-hint">
               Ex: https://www.doctoralia.com.br/medico/dr-joao-silva
             </small>
@@ -412,9 +460,10 @@
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="scrape-max-reviews" data-i18n="scrape.maxReviews">Máximo de Avaliações</label>
-              <input type="number" id="scrape-max-reviews" class="form-control"
-                min="1" max="500" value="50" placeholder="Padrão: 50">
+              <label class="form-label" for="scrape-max-reviews" data-i18n="scrape.maxReviews">Máximo de
+                Avaliações</label>
+              <input type="number" id="scrape-max-reviews" class="form-control" min="1" max="500" value="50"
+                placeholder="Padrão: 50">
             </div>
           </div>
 
@@ -429,13 +478,15 @@
             <input type="checkbox" id="scrape-generate-responses">
             <label for="scrape-generate-responses" class="checkbox-label">
               <span data-i18n="scrape.generateResponses">Gerar respostas automáticas</span>
-              <small class="text-tertiary" data-i18n="scrape.generateHint">(local ou IA de terceiros, conforme configuração)</small>
+              <small class="text-tertiary" data-i18n="scrape.generateHint">(local ou IA de terceiros, conforme
+                configuração)</small>
             </label>
           </div>
 
           <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
             <div class="form-group">
-              <label class="form-label" for="scrape-generation-mode" data-i18n="scrape.generationMode">Modo de Geração</label>
+              <label class="form-label" for="scrape-generation-mode" data-i18n="scrape.generationMode">Modo de
+                Geração</label>
               <select id="scrape-generation-mode" class="form-control">
                 <option value="default">Usar padrão da plataforma</option>
                 <option value="local">Local</option>
@@ -443,7 +494,8 @@
                 <option value="gemini">Gemini</option>
                 <option value="claude">Claude</option>
               </select>
-              <small class="form-help" data-i18n="scrape.generationHelp">Só é enviado quando a geração automática estiver marcada.</small>
+              <small class="form-help" data-i18n="scrape.generationHelp">Só é enviado quando a geração automática
+                estiver marcada.</small>
             </div>
             <div class="form-group">
               <label class="form-label" for="scrape-language" data-i18n="scrape.language">Idioma</label>
@@ -506,7 +558,15 @@
       animation: fadeIn 0.18s var(--ease-out);
     }
 
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
 
     .modal-container {
       background: var(--surface-raised);
@@ -521,8 +581,15 @@
     }
 
     @keyframes slideUp {
-      from { transform: translateY(24px) scale(0.98); opacity: 0; }
-      to   { transform: translateY(0)    scale(1);    opacity: 1; }
+      from {
+        transform: translateY(24px) scale(0.98);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
     }
 
     .modal-header {
@@ -543,7 +610,9 @@
       margin: 0;
     }
 
-    .modal-title i { color: var(--apple-blue); }
+    .modal-title i {
+      color: var(--apple-blue);
+    }
 
     .modal-close {
       background: var(--bg-tertiary);
@@ -594,8 +663,17 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.65; transform: scale(0.95); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.65;
+        transform: scale(0.95);
+      }
     }
 
     .progress-bar-container {
@@ -916,7 +994,7 @@
 
     document.addEventListener('click', function (e) {
       const sidebar = document.getElementById('sidebar');
-      const toggle  = document.getElementById('mobileMenuToggle');
+      const toggle = document.getElementById('mobileMenuToggle');
       if (window.innerWidth <= 1024 && sidebar.classList.contains('open')) {
         if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
           sidebar.classList.remove('open');
@@ -929,13 +1007,13 @@
 
     // ── Documentação API ────────────────────────────────
     function openApiDocs() {
-      const configuredDocsUrl = {{ api_docs_url | tojson }};
+      const configuredDocsUrl = JSON.parse('{{ api_docs_url | tojson | safe }}');
       if (configuredDocsUrl) {
         window.open(configuredDocsUrl, '_blank', 'noopener,noreferrer');
         return;
       }
 
-      const apiPort = Number({{ api_port | tojson }});
+      const apiPort = Number(JSON.parse('{{ api_port | tojson | safe }}'));
       window.open(
         `${window.location.protocol}//${window.location.hostname}:${apiPort}/docs`,
         '_blank',
@@ -972,30 +1050,30 @@
     }
 
     async function checkApiStatus() {
-      const dot     = document.getElementById('api-status-dot');
-      const label   = document.getElementById('api-status-label');
-      const urlEl   = document.getElementById('api-status-url');
-      const icon    = document.getElementById('api-status-refresh-icon');
+      const dot = document.getElementById('api-status-dot');
+      const label = document.getElementById('api-status-label');
+      const urlEl = document.getElementById('api-status-url');
+      const icon = document.getElementById('api-status-refresh-icon');
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 4000);
 
       icon.classList.add('fa-spin');
 
       try {
-        const res  = await fetch('/api/health', { signal: controller.signal });
+        const res = await fetch('/api/health', { signal: controller.signal });
         const data = await res.json();
 
         if (data.api && data.api.status === 'connected') {
-          dot.className   = 'status-dot online';
+          dot.className = 'status-dot online';
           label.textContent = t('status.connected');
           urlEl.textContent = data.api.api_url || '';
         } else {
-          dot.className   = 'status-dot offline';
+          dot.className = 'status-dot offline';
           label.textContent = t('status.disconnected');
           urlEl.textContent = data.api?.api_url || '';
         }
       } catch {
-        dot.className   = 'status-dot offline';
+        dot.className = 'status-dot offline';
         label.textContent = t('status.unavailable');
         urlEl.textContent = '';
       } finally {
@@ -1036,11 +1114,11 @@
 
     async function showScrapeModal(prefillUrl = null) {
       // Reset
-      document.getElementById('scrape-step-config').style.display   = 'block';
+      document.getElementById('scrape-step-config').style.display = 'block';
       document.getElementById('scrape-step-progress').style.display = 'none';
-      document.getElementById('scrape-step-results').style.display  = 'none';
-      document.getElementById('scrape-start-btn').style.display     = 'flex';
-      document.getElementById('scrape-cancel-btn').textContent      = t('common.cancel');
+      document.getElementById('scrape-step-results').style.display = 'none';
+      document.getElementById('scrape-start-btn').style.display = 'flex';
+      document.getElementById('scrape-cancel-btn').textContent = t('common.cancel');
       document.getElementById('scrape-url').value = '';
       document.getElementById('scrape-generation-mode').value = 'default';
       document.getElementById('scrape-language').value = 'pt';
@@ -1062,33 +1140,33 @@
     }
 
     function clearScrapeError() {
-      const err  = document.getElementById('scrape-url-error');
+      const err = document.getElementById('scrape-url-error');
       const hint = document.getElementById('scrape-url-hint');
-      const inp  = document.getElementById('scrape-url');
-      err.style.display  = 'none';
+      const inp = document.getElementById('scrape-url');
+      err.style.display = 'none';
       hint.style.display = '';
       inp.style.borderColor = '';
     }
 
     function showScrapeError(msg) {
-      const err  = document.getElementById('scrape-url-error');
+      const err = document.getElementById('scrape-url-error');
       const hint = document.getElementById('scrape-url-hint');
-      const inp  = document.getElementById('scrape-url');
-      err.textContent    = msg;
-      err.style.display  = '';
+      const inp = document.getElementById('scrape-url');
+      err.textContent = msg;
+      err.style.display = '';
       hint.style.display = 'none';
       inp.style.borderColor = 'var(--apple-red)';
       inp.focus();
     }
 
     async function startScraping() {
-      const url              = document.getElementById('scrape-url').value.trim();
-      const platform         = document.getElementById('scrape-platform').value;
-      const maxReviews       = document.getElementById('scrape-max-reviews').value;
-      const includeAnalysis  = document.getElementById('scrape-include-analysis').checked;
+      const url = document.getElementById('scrape-url').value.trim();
+      const platform = document.getElementById('scrape-platform').value;
+      const maxReviews = document.getElementById('scrape-max-reviews').value;
+      const includeAnalysis = document.getElementById('scrape-include-analysis').checked;
       const generateResponses = document.getElementById('scrape-generate-responses').checked;
-      const generationMode   = document.getElementById('scrape-generation-mode').value;
-      const language         = document.getElementById('scrape-language').value;
+      const generationMode = document.getElementById('scrape-generation-mode').value;
+      const language = document.getElementById('scrape-language').value;
 
       // Validação inline
       if (!url) {
@@ -1101,12 +1179,12 @@
       }
 
       // Ir para passo 2
-      document.getElementById('scrape-step-config').style.display   = 'none';
+      document.getElementById('scrape-step-config').style.display = 'none';
       document.getElementById('scrape-step-progress').style.display = 'block';
-      document.getElementById('scrape-start-btn').style.display     = 'none';
-      document.getElementById('scrape-cancel-btn').textContent      = t('common.close');
+      document.getElementById('scrape-start-btn').style.display = 'none';
+      document.getElementById('scrape-cancel-btn').textContent = t('common.close');
 
-      document.getElementById('scrape-status-title').textContent   = t('scrape.queueing');
+      document.getElementById('scrape-status-title').textContent = t('scrape.queueing');
       document.getElementById('scrape-status-message').textContent = t('scrape.wait');
 
       try {
@@ -1130,7 +1208,7 @@
 
         // Passo 3: resultado
         document.getElementById('scrape-step-progress').style.display = 'none';
-        document.getElementById('scrape-step-results').style.display  = 'block';
+        document.getElementById('scrape-step-results').style.display = 'block';
 
         const content = document.getElementById('scrape-results-content');
 
@@ -1174,7 +1252,7 @@
 
       } catch (err) {
         document.getElementById('scrape-step-progress').style.display = 'none';
-        document.getElementById('scrape-step-results').style.display  = 'block';
+        document.getElementById('scrape-step-results').style.display = 'block';
         document.getElementById('scrape-results-content').innerHTML = `
           <div class="result-card">
             <div class="result-header">

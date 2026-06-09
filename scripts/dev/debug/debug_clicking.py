@@ -47,7 +47,7 @@ def debug_clicking_phase():
         )
 
         # Create scraper instance
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
 
         config = AppConfig.load()
         scraper = DoctoraliaScraper(config)

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import time
@@ -42,46 +43,45 @@ def test_load_secret_prefers_config_and_falls_back_to_env():
         )
     )
 
-    with patch("config.settings.AppConfig.load", return_value=config):
+    with patch("src.config.settings.AppConfig.load", return_value=config):
         with patch.dict("os.environ", {"API_KEY": "env-api-key"}, clear=True):
             assert _load_secret("api_key", "API_KEY") == "config-api-key"
 
     config_empty = SimpleNamespace(
         security=SimpleNamespace(api_key="", webhook_signing_secret="")
     )
-    with patch("config.settings.AppConfig.load", return_value=config_empty):
+    with patch("src.config.settings.AppConfig.load", return_value=config_empty):
         with patch.dict("os.environ", {"API_KEY": "env-api-key"}, clear=True):
             assert _load_secret("api_key", "API_KEY") == "env-api-key"
 
-    with patch("config.settings.AppConfig.load", side_effect=RuntimeError("no config")):
+    with patch(
+        "src.config.settings.AppConfig.load", side_effect=RuntimeError("no config")
+    ):
         with patch.dict("os.environ", {"API_KEY": "env-api-key"}, clear=True):
             assert _load_secret("api_key", "API_KEY") == "env-api-key"
 
 
-@pytest.mark.asyncio
-async def test_require_api_key_allows_dev_mode_without_secret():
+def test_require_api_key_allows_dev_mode_without_secret():
     with patch("src.api.v1.deps._load_secret", return_value=None):
-        assert await require_api_key(None) is True
+        assert asyncio.run(require_api_key(None)) is True
 
 
-@pytest.mark.asyncio
-async def test_require_api_key_rejects_missing_and_invalid_keys():
+def test_require_api_key_rejects_missing_and_invalid_keys():
     with patch("src.api.v1.deps._load_secret", return_value="expected-secret"):
         with pytest.raises(HTTPException) as missing:
-            await require_api_key(None)
+            asyncio.run(require_api_key(None))
         assert missing.value.status_code == 401
         assert missing.value.detail == "API key required"
 
         with pytest.raises(HTTPException) as invalid:
-            await require_api_key("wrong-secret")
+            asyncio.run(require_api_key("wrong-secret"))
         assert invalid.value.status_code == 401
         assert invalid.value.detail == "Invalid API key"
 
 
-@pytest.mark.asyncio
-async def test_require_api_key_accepts_bearer_token():
+def test_require_api_key_accepts_bearer_token():
     with patch("src.api.v1.deps._load_secret", return_value="expected-secret"):
-        assert await require_api_key("Bearer expected-secret") is True
+        assert asyncio.run(require_api_key("Bearer expected-secret")) is True
 
 
 def test_create_webhook_signature_returns_empty_when_secret_missing():
@@ -101,28 +101,25 @@ def test_create_webhook_signature_hashes_payload_when_secret_exists():
     assert signature == f"sha256={expected}"
 
 
-@pytest.mark.asyncio
-async def test_verify_webhook_signature_allows_when_secret_missing():
+def test_verify_webhook_signature_allows_when_secret_missing():
     request = _build_request(b'{"doctor_url":"https://example.com"}', {})
 
     with patch("src.api.v1.deps._load_secret", return_value=""):
-        assert await verify_webhook_signature(request) is True
+        assert asyncio.run(verify_webhook_signature(request)) is True
 
 
-@pytest.mark.asyncio
-async def test_verify_webhook_signature_rejects_missing_headers():
+def test_verify_webhook_signature_rejects_missing_headers():
     request = _build_request(b'{"doctor_url":"https://example.com"}', {})
 
     with patch("src.api.v1.deps._load_secret", return_value="secret123"):
         with pytest.raises(HTTPException) as exc:
-            await verify_webhook_signature(request)
+            asyncio.run(verify_webhook_signature(request))
 
     assert exc.value.status_code == 401
     assert exc.value.detail == "Missing signature headers"
 
 
-@pytest.mark.asyncio
-async def test_verify_webhook_signature_rejects_invalid_or_stale_timestamp():
+def test_verify_webhook_signature_rejects_invalid_or_stale_timestamp():
     body = b'{"doctor_url":"https://example.com"}'
 
     invalid_request = _build_request(
@@ -131,7 +128,7 @@ async def test_verify_webhook_signature_rejects_invalid_or_stale_timestamp():
     )
     with patch("src.api.v1.deps._load_secret", return_value="secret123"):
         with pytest.raises(HTTPException) as invalid:
-            await verify_webhook_signature(invalid_request)
+            asyncio.run(verify_webhook_signature(invalid_request))
     assert invalid.value.detail == "Invalid timestamp"
 
     stale_ts = str(time.time() - 301)
@@ -141,12 +138,11 @@ async def test_verify_webhook_signature_rejects_invalid_or_stale_timestamp():
     )
     with patch("src.api.v1.deps._load_secret", return_value="secret123"):
         with pytest.raises(HTTPException) as stale:
-            await verify_webhook_signature(stale_request)
+            asyncio.run(verify_webhook_signature(stale_request))
     assert stale.value.detail == "Request timestamp too old"
 
 
-@pytest.mark.asyncio
-async def test_verify_webhook_signature_rejects_invalid_signature():
+def test_verify_webhook_signature_rejects_invalid_signature():
     body = b'{"doctor_url":"https://example.com"}'
     timestamp = str(time.time())
     request = _build_request(
@@ -156,14 +152,13 @@ async def test_verify_webhook_signature_rejects_invalid_signature():
 
     with patch("src.api.v1.deps._load_secret", return_value="secret123"):
         with pytest.raises(HTTPException) as exc:
-            await verify_webhook_signature(request)
+            asyncio.run(verify_webhook_signature(request))
 
     assert exc.value.status_code == 401
     assert exc.value.detail == "Invalid signature"
 
 
-@pytest.mark.asyncio
-async def test_verify_webhook_signature_accepts_valid_signature():
+def test_verify_webhook_signature_accepts_valid_signature():
     body = b'{"doctor_url":"https://example.com"}'
     timestamp = str(time.time())
     expected = hmac.new(
@@ -175,4 +170,4 @@ async def test_verify_webhook_signature_accepts_valid_signature():
     )
 
     with patch("src.api.v1.deps._load_secret", return_value="secret123"):
-        assert await verify_webhook_signature(request) is True
+        assert asyncio.run(verify_webhook_signature(request)) is True

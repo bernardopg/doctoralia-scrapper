@@ -12,7 +12,7 @@ import schedule
 # Adicionar diretório pai ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.settings import AppConfig  # noqa: E402
+from src.config.settings import AppConfig  # noqa: E402
 from src.logger import setup_logger  # noqa: E402
 from src.response_generator import ResponseGenerator  # noqa: E402
 from src.telegram_notifier import TelegramNotifier  # noqa: E402

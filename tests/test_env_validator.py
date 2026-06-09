@@ -31,7 +31,7 @@ def _make_config():
 
 
 def test_get_config_fallback_reads_values_from_app_config():
-    with patch("config.settings.AppConfig.load", return_value=_make_config()):
+    with patch("src.config.settings.AppConfig.load", return_value=_make_config()):
         assert EnvironmentValidator._get_config_fallback("API_KEY") == "config-api-key"
         assert (
             EnvironmentValidator._get_config_fallback("WEBHOOK_SIGNING_SECRET")
@@ -49,7 +49,7 @@ def test_get_config_fallback_reads_values_from_app_config():
 
 
 def test_get_var_prefers_environment_over_config():
-    with patch("config.settings.AppConfig.load", return_value=_make_config()):
+    with patch("src.config.settings.AppConfig.load", return_value=_make_config()):
         with patch.dict("os.environ", {"REDIS_URL": "redis://env-redis:6379/9"}):
             value = EnvironmentValidator._get_var("REDIS_URL")
 
@@ -57,7 +57,9 @@ def test_get_var_prefers_environment_over_config():
 
 
 def test_validate_for_service_raises_when_required_values_are_missing():
-    with patch("config.settings.AppConfig.load", side_effect=RuntimeError("no config")):
+    with patch(
+        "src.config.settings.AppConfig.load", side_effect=RuntimeError("no config")
+    ):
         with patch.dict("os.environ", {}, clear=True):
             with pytest.raises(EnvironmentValidationError) as exc:
                 EnvironmentValidator.validate_for_service("api")
@@ -73,7 +75,7 @@ def test_validate_for_service_loads_required_and_optional_values():
         "API_KEY": "env-api-key",
         "WEBHOOK_SIGNING_SECRET": "env-webhook-secret",
     }
-    with patch("config.settings.AppConfig.load", return_value=_make_config()):
+    with patch("src.config.settings.AppConfig.load", return_value=_make_config()):
         with patch.dict("os.environ", env, clear=True):
             loaded = EnvironmentValidator.validate_for_service("api")
 
@@ -92,7 +94,7 @@ def test_validate_all_collects_every_required_variable():
         "REDIS_URL": "redis://env-redis:6379/0",
         "SELENIUM_REMOTE_URL": "http://selenium-env:4444/wd/hub",
     }
-    with patch("config.settings.AppConfig.load", return_value=_make_config()):
+    with patch("src.config.settings.AppConfig.load", return_value=_make_config()):
         with patch.dict("os.environ", env, clear=True):
             loaded = EnvironmentValidator.validate_all()
 
@@ -107,7 +109,7 @@ def test_print_startup_validation_success_masks_sensitive_values(capsys):
         "API_KEY": "1234567890",
         "WEBHOOK_SIGNING_SECRET": "abcdef123456",
     }
-    with patch("config.settings.AppConfig.load", return_value=_make_config()):
+    with patch("src.config.settings.AppConfig.load", return_value=_make_config()):
         with patch.dict("os.environ", env, clear=True):
             EnvironmentValidator.print_startup_validation("api")
 
@@ -119,7 +121,9 @@ def test_print_startup_validation_success_masks_sensitive_values(capsys):
 
 
 def test_print_startup_validation_failure_exits(capsys):
-    with patch("config.settings.AppConfig.load", side_effect=RuntimeError("no config")):
+    with patch(
+        "src.config.settings.AppConfig.load", side_effect=RuntimeError("no config")
+    ):
         with patch.dict("os.environ", {}, clear=True):
             with pytest.raises(SystemExit) as exc:
                 EnvironmentValidator.print_startup_validation("worker")

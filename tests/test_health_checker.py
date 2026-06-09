@@ -2,9 +2,8 @@
 Testes para o health checker
 """
 
+import asyncio
 from unittest.mock import AsyncMock, Mock, patch
-
-import pytest
 
 from src.health_checker import HealthChecker, HealthStatus
 from tests.fixtures import MockConfig
@@ -21,34 +20,31 @@ class TestHealthChecker:
         assert checker is not None
         assert checker.config == config
 
-    @pytest.mark.asyncio
-    async def test_check_memory(self) -> None:
+    def test_check_memory(self) -> None:
         """Testa verificação de memória"""
         config = MockConfig()
         checker = HealthChecker(config)
 
-        result = await checker.check_memory()
+        result = asyncio.run(checker.check_memory())
 
         assert isinstance(result, HealthStatus)
         assert result.name == "memory"
         assert result.status in ["healthy", "degraded", "unhealthy"]
         assert result.response_time_ms >= 0
 
-    @pytest.mark.asyncio
-    async def test_check_disk_space(self) -> None:
+    def test_check_disk_space(self) -> None:
         """Testa verificação de espaço em disco"""
         config = MockConfig()
         checker = HealthChecker(config)
 
-        result = await checker.check_disk_space()
+        result = asyncio.run(checker.check_disk_space())
 
         assert isinstance(result, HealthStatus)
         assert result.name == "disk_space"
         assert result.status in ["healthy", "degraded", "unhealthy"]
         assert result.response_time_ms >= 0
 
-    @pytest.mark.asyncio
-    async def test_check_webdriver_mock(self) -> None:
+    def test_check_webdriver_mock(self) -> None:
         """Testa verificação do webdriver com mock"""
         config = MockConfig()
         checker = HealthChecker(config)
@@ -57,7 +53,7 @@ class TestHealthChecker:
             mock_instance = Mock()
             mock_driver.return_value = mock_instance
 
-            result = await checker.check_webdriver()
+            result = asyncio.run(checker.check_webdriver())
 
             assert isinstance(result, HealthStatus)
             assert result.name == "webdriver"
@@ -68,8 +64,7 @@ class TestHealthChecker:
             # Verifica se o driver foi fechado
             mock_instance.quit.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_check_all(self) -> None:
+    def test_check_all(self) -> None:
         """Testa verificação completa de todos os componentes"""
         config = MockConfig()
         checker = HealthChecker(config)
@@ -81,7 +76,7 @@ class TestHealthChecker:
                 name="webdriver", status="healthy", response_time_ms=100.0
             )
 
-            result = await checker.check_all()
+            result = asyncio.run(checker.check_all())
 
             assert isinstance(result, dict)
             assert len(result) >= 2  # Pelo menos memory e disk_space
@@ -90,8 +85,7 @@ class TestHealthChecker:
                 assert isinstance(status, HealthStatus)
                 assert status.status in ["healthy", "degraded", "unhealthy"]
 
-    @pytest.mark.asyncio
-    async def test_check_network_failure(self) -> None:
+    def test_check_network_failure(self) -> None:
         """Testa comportamento em caso de falha de rede"""
         config = MockConfig()
         checker = HealthChecker(config)
@@ -99,7 +93,7 @@ class TestHealthChecker:
         with patch("requests.get") as mock_get:
             mock_get.side_effect = Exception("Network error")
 
-            result = await checker.check_network()
+            result = asyncio.run(checker.check_network())
 
             assert isinstance(result, HealthStatus)
             assert result.name == "network"

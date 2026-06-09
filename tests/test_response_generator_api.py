@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from src.response_generator import DEFAULT_SYSTEM_PROMPT, ResponseGenerator
+from src.response_generator import ResponseGenerator
 
 
 def _make_generation_config(**overrides):

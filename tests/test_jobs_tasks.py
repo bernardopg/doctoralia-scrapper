@@ -47,7 +47,7 @@ def test_scrape_and_process_persists_snapshot_with_generated_responses(tmp_path)
         "model": {"provider": "local"},
     }
 
-    with patch("config.settings.AppConfig.load", return_value=config):
+    with patch("src.config.settings.AppConfig.load", return_value=config):
         with patch("src.scraper.DoctoraliaScraper") as mock_scraper_cls:
             with patch(
                 "src.jobs.tasks._run_response_generation", return_value=generation_data
@@ -201,7 +201,7 @@ def test_run_response_generation_marks_errors_and_local_fallback():
     request_data = {"generation_mode": "openai", "language": "pt-BR"}
     doctor_data = {"name": "Dra. Ana", "specialty": "Ginecologia"}
 
-    with patch("config.settings.AppConfig.load", return_value=config):
+    with patch("src.config.settings.AppConfig.load", return_value=config):
         with patch("src.response_generator.ResponseGenerator", return_value=generator):
             result = _run_response_generation(reviews, request_data, doctor_data)
 

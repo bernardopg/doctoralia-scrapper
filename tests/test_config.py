@@ -3,8 +3,8 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import config.settings as settings_module
-from config.settings import (
+import src.config.settings as settings_module
+from src.config.settings import (
     APIConfig,
     AppConfig,
     DelayConfig,
@@ -119,12 +119,12 @@ class TestAppConfig:
 
     def test_config_file_exists(self):
         """Verifica se o arquivo de configuração existe"""
-        config_path = Path("config/config.json")
-        assert config_path.exists() or Path("config/config.example.json").exists()
+        config_path = Path("src/config/config.json")
+        assert config_path.exists() or Path("src/config/config.example.json").exists()
 
     def test_config_json_format(self):
         """Verifica se o arquivo de configuração está em formato JSON válido"""
-        config_path = Path("config/config.json")
+        config_path = Path("src/config/config.json")
         if config_path.exists():
             with open(config_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -148,7 +148,7 @@ class TestAppConfig:
 
         config.save()
 
-        saved_file = tmp_path / "config" / "config.json"
+        saved_file = tmp_path / "src" / "config" / "config.json"
         saved_data = json.loads(saved_file.read_text(encoding="utf-8"))
 
         assert saved_data["telegram"]["enabled"] is True
@@ -174,7 +174,7 @@ class TestAppConfig:
 
     def test_load_reads_extended_settings_sections(self, tmp_path):
         """Carrega segredos, integrações, privacidade, delays e URLs do arquivo."""
-        config_dir = tmp_path / "config"
+        config_dir = tmp_path / "src" / "config"
         config_dir.mkdir(parents=True)
         (tmp_path / "data" / "logs").mkdir(parents=True)
 
@@ -266,7 +266,7 @@ class TestAppConfig:
             json.dumps(config_payload), encoding="utf-8"
         )
 
-        fake_settings_file = tmp_path / "config" / "settings.py"
+        fake_settings_file = tmp_path / "src" / "config" / "settings.py"
         env_overrides = {
             "API_KEY": "env-api-key",
             "WEBHOOK_SIGNING_SECRET": "env-webhook-secret",

@@ -6,7 +6,7 @@ from typing import List
 import pytest
 
 import main as cli_main  # noqa: E402
-from config.settings import (
+from src.config.settings import (
     APIConfig,
     AppConfig,
     DelayConfig,

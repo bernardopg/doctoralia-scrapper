@@ -398,7 +398,7 @@ async def update_settings(
             config.urls.profile_url = settings.urls.profile_url
 
         if "user_profile" in provided_sections:
-            from config.settings import FavoriteProfileConfig
+            from src.config.settings import FavoriteProfileConfig
 
             config.user_profile.display_name = settings.user_profile.display_name
             config.user_profile.username = settings.user_profile.username

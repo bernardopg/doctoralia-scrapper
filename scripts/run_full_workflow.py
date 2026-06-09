@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List
 
-from config.settings import AppConfig
+from src.config.settings import AppConfig
 from src.logger import setup_logger
 from src.response_generator import ResponseGenerator
 from src.scraper import DoctoraliaScraper

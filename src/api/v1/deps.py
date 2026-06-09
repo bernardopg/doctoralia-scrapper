@@ -17,7 +17,7 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 def _load_secret(field: str, env_name: str) -> Optional[str]:
     try:
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
 
         config = AppConfig.load()
         return getattr(config.security, field) or os.getenv(env_name)

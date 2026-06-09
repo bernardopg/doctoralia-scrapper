@@ -95,7 +95,7 @@ def test_extraction_directly():
             return
 
         # Create scraper instance to test extraction functions
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
 
         config = AppConfig.load()
         scraper = DoctoraliaScraper(config)

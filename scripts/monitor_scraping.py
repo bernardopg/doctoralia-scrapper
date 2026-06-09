@@ -14,7 +14,7 @@ import psutil
 # Adicionar o diretório raiz do projeto ao path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from config.settings import AppConfig  # noqa: E402
+from src.config.settings import AppConfig  # noqa: E402
 from src.logger import setup_logger  # noqa: E402
 
 

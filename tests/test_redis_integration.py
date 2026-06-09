@@ -55,7 +55,7 @@ def real_redis_client(real_redis_url: str):
 def test_get_redis_connection_uses_real_redis(real_redis_client, real_redis_url: str):
     config = SimpleNamespace(integrations=SimpleNamespace(redis_url=real_redis_url))
 
-    with patch("config.settings.AppConfig.load", return_value=config):
+    with patch("src.config.settings.AppConfig.load", return_value=config):
         connection = get_redis_connection()
 
     assert connection.ping() is True
@@ -65,7 +65,7 @@ def test_get_redis_connection_uses_real_redis(real_redis_client, real_redis_url:
 def test_get_queue_enqueues_job_in_real_redis(real_redis_client, real_redis_url: str):
     config = SimpleNamespace(integrations=SimpleNamespace(redis_url=real_redis_url))
 
-    with patch("config.settings.AppConfig.load", return_value=config):
+    with patch("src.config.settings.AppConfig.load", return_value=config):
         queue = get_queue("doctoralia-integration")
         job = queue.enqueue(redis_echo, "ok-from-redis")
 

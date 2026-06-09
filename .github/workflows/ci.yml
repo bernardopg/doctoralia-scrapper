@@ -54,13 +54,13 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run Black
-        run: poetry run black --check src/ tests/ config/ scripts/
+        run: poetry run black --check src/ tests/ scripts/
 
       - name: Run isort
-        run: poetry run isort --check-only src/ tests/ config/ scripts/
+        run: poetry run isort --check-only src/ tests/ scripts/
 
       - name: Run Flake8
-        run: poetry run flake8 src/ config/ scripts/ --extend-ignore=E203,W503,E501
+        run: poetry run flake8 src/ scripts/ --extend-ignore=E203,W503,E501
 
       - name: Run MyPy
         run: poetry run mypy src/ --ignore-missing-imports

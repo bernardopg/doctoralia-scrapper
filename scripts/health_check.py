@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 def _load_app_config():
     """Load AppConfig with a safe fallback when running as a script."""
     try:
-        from config.settings import AppConfig  # type: ignore
+        from src.config.settings import AppConfig  # type: ignore
     except ModuleNotFoundError:  # pragma: no cover
         # Add project root to path for direct script execution
         sys.path.append(str(Path(__file__).parent.parent))

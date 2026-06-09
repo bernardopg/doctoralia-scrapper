@@ -52,7 +52,7 @@ class EnvironmentValidator:
     @staticmethod
     def _get_config_fallback(var: str) -> str:
         try:
-            from config.settings import AppConfig
+            from src.config.settings import AppConfig
 
             config = AppConfig.load()
             dashboard_auth_enabled = getattr(

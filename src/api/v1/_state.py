@@ -50,7 +50,7 @@ _telegram_schedule_service_url: Optional[str] = None
 
 
 def load_config():
-    from config.settings import AppConfig
+    from src.config.settings import AppConfig
 
     return AppConfig.load()
 

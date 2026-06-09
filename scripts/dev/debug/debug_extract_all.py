@@ -63,7 +63,7 @@ def test_extract_all_reviews():
             print(f"Could not click 'Veja Mais': {e}")
 
         # Create scraper instance
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
 
         config = AppConfig.load()
         scraper = DoctoraliaScraper(config)

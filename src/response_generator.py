@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from config.templates import QUALITY_KEYWORDS, RESPONSE_TEMPLATES
+from src.config.templates import QUALITY_KEYWORDS, RESPONSE_TEMPLATES
 
 DEFAULT_SYSTEM_PROMPT = (
     "Voce gera respostas curtas e profissionais para avaliacoes publicas de pacientes "

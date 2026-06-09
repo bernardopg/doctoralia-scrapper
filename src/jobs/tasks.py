@@ -181,7 +181,7 @@ def _run_response_generation(
     doctor_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Generate responses for reviews and return generation data."""
-    from config.settings import AppConfig
+    from src.config.settings import AppConfig
     from src.response_generator import ResponseGenerator
 
     config = AppConfig.load()
@@ -254,7 +254,7 @@ def scrape_and_process(
 
     try:
         # Import scraper and config
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
         from src.scraper import DoctoraliaScraper
 
         # Initialize scraper with required config

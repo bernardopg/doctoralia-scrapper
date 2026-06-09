@@ -24,7 +24,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./config:/app/config
+      - ./src/config:/app/src/config
     networks:
       - doctoralia-net
     restart: unless-stopped
@@ -68,7 +68,7 @@ services:
       # only when a scraping task is actually executed.
     volumes:
       - ./data:/app/data
-      - ./config:/app/config
+      - ./src/config:/app/src/config
     networks:
       - doctoralia-net
     restart: unless-stopped
@@ -192,7 +192,7 @@ services:
       - "5000:5000"
     volumes:
       - ./data:/app/data
-      - ./config:/app/config
+      - ./src/config:/app/src/config
     networks:
       - doctoralia-net
     restart: unless-stopped
@@ -236,7 +236,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/app/data
-      - ./config:/app/config
+      - ./src/config:/app/src/config
     networks:
       - doctoralia-net
 

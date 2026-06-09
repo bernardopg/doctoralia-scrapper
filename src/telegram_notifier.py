@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from config.telegram_templates import TelegramTemplates
+from src.config.telegram_templates import TelegramTemplates
 
 
 class TelegramNotifier:

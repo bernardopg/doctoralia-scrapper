@@ -12,7 +12,7 @@ def get_redis_connection():
     """Get Redis connection."""
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     try:
-        from config.settings import AppConfig
+        from src.config.settings import AppConfig
 
         redis_url = AppConfig.load().integrations.redis_url or redis_url
     except Exception:  # nosec B110

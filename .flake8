@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 120
-extend-ignore = E501,W503
+extend-ignore = E501,W503,E203
 exclude = .git,__pycache__,.venv,venv,env,.mypy_cache,.pytest_cache,build,dist,*.egg-info,.tox,.eggs
 per-file-ignores =
     __init__.py:F401

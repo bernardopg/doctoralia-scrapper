@@ -11,6 +11,9 @@
       document.documentElement.dataset.theme = theme;
     })();
   </script>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.svg">
   <link rel="stylesheet" href="/static/styles.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
@@ -61,6 +64,17 @@
       gap: 12px;
       margin-bottom: 28px;
     }
+
+    .login-brand-img {
+      height: 49px;
+      width: auto;
+      max-width: 220px;
+      object-fit: contain;
+    }
+
+    .login-brand-dark { display: none; }
+    [data-theme="dark"] .login-brand-light { display: none; }
+    [data-theme="dark"] .login-brand-dark  { display: block; }
 
     .login-kicker {
       font-size: 12px;
@@ -193,11 +207,8 @@
   <div class="login-shell">
     <section class="login-hero">
       <div class="login-brand">
-        <span class="brand-mark" aria-hidden="true"><i class="fas fa-heart-pulse"></i></span>
-        <div>
-          <div class="login-kicker">Doctoralia</div>
-          <strong>Reviews Workspace</strong>
-        </div>
+        <img src="/static/logo.svg" alt="Doctoralia Scrapper" class="login-brand-img login-brand-light" width="220" height="49">
+        <img src="/static/logo-dark.svg" alt="Doctoralia Scrapper" class="login-brand-img login-brand-dark" width="220" height="49">
       </div>
       <h1 data-i18n="login.heroTitle">Workspace protegido com sessão autenticada.</h1>
       <p>

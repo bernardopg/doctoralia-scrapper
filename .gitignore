@@ -100,7 +100,7 @@ logs/
 .DS_Store
 
 # Arquivos de configuração sensíveis
-config/config.json
+src/config/config.json
 
 .pytest_cache/
 .mypy_cache/*.bak

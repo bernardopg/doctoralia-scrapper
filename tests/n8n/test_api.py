@@ -13,7 +13,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from config.settings import (
+from src.api.v1.deps import create_webhook_signature
+from src.api.v1.main import app
+from src.config.settings import (
     APIConfig,
     AppConfig,
     DelayConfig,
@@ -27,8 +29,6 @@ from config.settings import (
     URLConfig,
     UserProfileConfig,
 )
-from src.api.v1.deps import create_webhook_signature
-from src.api.v1.main import app
 
 
 @pytest.fixture
@@ -59,7 +59,7 @@ def dynamic_app_config_from_env():
         )
 
     with patch(
-        "config.settings.AppConfig.load",
+        "src.config.settings.AppConfig.load",
         side_effect=_build_config,
     ):
         yield
@@ -244,7 +244,7 @@ class TestAuthentication:
         config.security.api_key = "bootstrap-secret"
         config.user_profile.username = "admin"
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.get("/v1/auth/status")
 
         assert response.status_code == 200
@@ -260,7 +260,7 @@ class TestAuthentication:
         config.security.api_key = "bootstrap-secret"
         config.user_profile.username = "admin"
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             success = client.post(
                 "/v1/auth/login",
                 json={"username": "admin", "password": "bootstrap-secret"},
@@ -283,7 +283,7 @@ class TestAuthentication:
         config.user_profile.username = "admin"
         config.save = MagicMock()
 
-        with patch("config.settings.AppConfig.load", return_value=config):
+        with patch("src.config.settings.AppConfig.load", return_value=config):
             response = client.post(
                 "/v1/auth/change-password",
                 headers={"X-API-Key": "bootstrap-secret"},
@@ -1125,7 +1125,7 @@ class TestSettingsEndpoints:
         config = make_config(tmp_path)
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("config.settings.AppConfig.load", return_value=config):
+            with patch("src.config.settings.AppConfig.load", return_value=config):
                 response = client.get("/v1/settings", headers={"X-API-Key": api_key})
 
         assert response.status_code == 200
@@ -1161,7 +1161,7 @@ class TestSettingsEndpoints:
         }
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("config.settings.AppConfig.load", return_value=config):
+            with patch("src.config.settings.AppConfig.load", return_value=config):
                 response = client.put(
                     "/v1/settings",
                     json=payload,
@@ -1201,7 +1201,7 @@ class TestSettingsEndpoints:
         }
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("config.settings.AppConfig.load", return_value=config):
+            with patch("src.config.settings.AppConfig.load", return_value=config):
                 response = client.post(
                     "/v1/settings/validate",
                     json=invalid_payload,
@@ -1225,7 +1225,7 @@ class TestSettingsEndpoints:
         config = make_config(tmp_path)
 
         with patch("src.api.v1.deps._load_secret", return_value=api_key):
-            with patch("config.settings.AppConfig.load", return_value=config):
+            with patch("src.config.settings.AppConfig.load", return_value=config):
                 with patch(
                     "src.response_generator.ResponseGenerator.generate_response_with_metadata",
                     return_value={

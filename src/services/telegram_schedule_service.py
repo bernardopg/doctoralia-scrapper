@@ -21,7 +21,7 @@ import redis
 import requests
 from croniter import croniter  # type: ignore[import-untyped]
 
-from config.settings import AppConfig
+from src.config.settings import AppConfig
 from src.integrations.n8n.normalize import extract_scraper_result
 from src.jobs.queue import get_redis_connection
 from src.response_generator import ResponseGenerator

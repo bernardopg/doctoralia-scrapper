@@ -920,7 +920,7 @@ if __name__ == "__main__":
         "https://www.doctoralia.com.br/bruna-pinto-gomes/ginecologista/belo-horizonte"
     )
     # Import config for testing
-    from config.settings import AppConfig
+    from src.config.settings import AppConfig
 
     config_instance = AppConfig.load()
     scraper = DoctoraliaScraper(config_instance, default_logger)
