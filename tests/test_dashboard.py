@@ -76,7 +76,7 @@ def test_health_check_page_route(client):
     assert response.status_code == 200
 
 
-@patch("src.dashboard.DashboardApp._get_api_health")
+@patch("src.dashboard.services.DashboardServices.get_api_health")
 def test_api_health_route(mock_get_api_health, client):
     mock_get_api_health.return_value = {"status": "ok"}
     response = client.get("/api/health")
@@ -86,7 +86,7 @@ def test_api_health_route(mock_get_api_health, client):
     assert data["api"] == {"status": "ok"}
 
 
-@patch("src.dashboard.DashboardApp._get_api_statistics")
+@patch("src.dashboard.services.DashboardServices.get_api_statistics")
 def test_api_stats_route_api_success(mock_get_api_stats, client):
     mock_get_api_stats.return_value = {"total": 10}
     response = client.get("/api/stats")
@@ -96,8 +96,8 @@ def test_api_stats_route_api_success(mock_get_api_stats, client):
     assert data["data"] == {"total": 10}
 
 
-@patch("src.dashboard.DashboardApp._get_api_statistics")
-@patch("src.dashboard.DashboardApp._get_scraper_stats")
+@patch("src.dashboard.services.DashboardServices.get_api_statistics")
+@patch("src.dashboard.services.DashboardServices.get_scraper_stats")
 def test_api_stats_route_fallback(mock_get_scraper_stats, mock_get_api_stats, client):
     mock_get_api_stats.return_value = None
     mock_get_scraper_stats.return_value = {"total": 5}
@@ -108,7 +108,7 @@ def test_api_stats_route_fallback(mock_get_scraper_stats, mock_get_api_stats, cl
     assert data["data"] == {"total": 5}
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_scrape_route(mock_call_api, client):
     mock_call_api.return_value = {"task_id": "123"}
     response = client.post("/api/scrape", json={"doctor_url": "http://test.com"})
@@ -132,14 +132,14 @@ def test_proxy_scrape_route(mock_call_api, client):
     )
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_scrape_route_api_unavailable(mock_call_api, client):
     mock_call_api.return_value = None
     response = client.post("/api/scrape", json={"doctor_url": "http://test.com"})
     assert response.status_code == 503
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_scrape_route_accepts_legacy_url_field(mock_call_api, client):
     mock_call_api.return_value = {"task_id": "123"}
     response = client.post("/api/scrape", json={"url": "http://test.com"})
@@ -161,7 +161,7 @@ def test_proxy_scrape_route_accepts_legacy_url_field(mock_call_api, client):
     )
 
 
-@patch("src.dashboard.DashboardApp._get_api_metrics")
+@patch("src.dashboard.services.DashboardServices.get_api_metrics")
 def test_api_performance_route_api_success(mock_get_api_metrics, client):
     mock_get_api_metrics.return_value = {"latency": 100}
     response = client.get("/api/performance")
@@ -171,7 +171,7 @@ def test_api_performance_route_api_success(mock_get_api_metrics, client):
     assert data["data"] == {"latency": 100}
 
 
-@patch("src.dashboard.DashboardApp._get_recent_activities")
+@patch("src.dashboard.services.DashboardServices.get_recent_activities")
 def test_api_recent_activity_route(mock_get_recent_activities, client):
     mock_get_recent_activities.return_value = [{"id": 1}]
     response = client.get("/api/recent-activity")
@@ -180,7 +180,7 @@ def test_api_recent_activity_route(mock_get_recent_activities, client):
     assert data == [{"id": 1}]
 
 
-@patch("src.dashboard.requests.request")
+@patch("src.dashboard.services.requests.request")
 def test_call_api_uses_runtime_settings_for_url_and_api_key(mock_request, tmp_path):
     response = MagicMock()
     response.status_code = 200
@@ -194,7 +194,7 @@ def test_call_api_uses_runtime_settings_for_url_and_api_key(mock_request, tmp_pa
         data_dir=str(tmp_path),
     )
     dashboard = DashboardApp(config=config, logger=MagicMock())
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(
             api=SimpleNamespace(port=9100),
             integrations=SimpleNamespace(
@@ -205,18 +205,18 @@ def test_call_api_uses_runtime_settings_for_url_and_api_key(mock_request, tmp_pa
         )
     )
 
-    data = dashboard._call_api("/v1/settings")
+    data = dashboard.svc.call_api("/v1/settings")
 
     assert data == {"success": True}
     mock_request.assert_called_once_with(
         "GET",
         "http://api.internal:9100/v1/settings",
         headers={"X-API-Key": "config-api-key"},
-        timeout=dashboard.api_timeout,
+        timeout=dashboard.svc.api_timeout,
     )
 
 
-@patch("src.dashboard.DashboardApp._get_trend_data")
+@patch("src.dashboard.services.DashboardServices.get_trend_data")
 def test_api_trends_route(mock_get_trend_data, client):
     mock_get_trend_data.return_value = {
         "dates": ["2025-10-01", "2025-10-02"],
@@ -272,23 +272,38 @@ def test_get_trend_data_aggregates_reviews_per_day(tmp_path):
     config = SimpleNamespace(data_dir=str(tmp_path))
     dashboard = DashboardApp(config=config, logger=MagicMock())
 
-    trends = dashboard._get_trend_data()
+    trends = dashboard.svc.get_trend_data()
 
     assert trends["dates"] == ["2025-10-01", "2025-10-02"]
     assert trends["reviews"] == [7, 3]
     assert trends["scrapes"] == [2, 1]
 
 
-@patch("src.dashboard.DashboardApp._handle_quality_analysis")
-def test_api_quality_analysis_route(mock_handle_quality_analysis, client):
-    mock_handle_quality_analysis.return_value = {"score": 90}
-    response = client.post("/api/quality-analysis", json={"text": "test"})
+def test_api_quality_analysis_route(tmp_path):
+    dashboard = DashboardApp(
+        config=SimpleNamespace(data_dir=str(tmp_path)), logger=MagicMock()
+    )
+    dashboard.app.config.update({"TESTING": True})
+    mock_analysis = MagicMock()
+    mock_analysis.score.to_dict.return_value = {"total": 90}
+    mock_analysis.strengths = []
+    mock_analysis.weaknesses = []
+    mock_analysis.suggestions = []
+    mock_analysis.keywords = []
+    mock_analysis.sentiment = "positive"
+    mock_analysis.readability_score = 85.0
+    dashboard.svc.quality_analyzer = MagicMock()
+    dashboard.svc.quality_analyzer.analyze_response.return_value = mock_analysis
+    client = dashboard.app.test_client()
+    response = client.post(
+        "/api/quality-analysis", json={"response": "Texto de resposta"}
+    )
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data == {"score": 90}
+    assert data["score"] == {"total": 90}
 
 
-@patch("src.dashboard.ScraperFactory.get_supported_platforms")
+@patch("src.dashboard.api_proxy.ScraperFactory.get_supported_platforms")
 def test_api_platforms_route(mock_get_supported_platforms, client):
     mock_get_supported_platforms.return_value = ["doctoralia", "test"]
     response = client.get("/api/platforms")
@@ -297,7 +312,7 @@ def test_api_platforms_route(mock_get_supported_platforms, client):
     assert data == {"platforms": ["doctoralia", "test"]}
 
 
-@patch("src.dashboard.DashboardApp._get_recent_logs")
+@patch("src.dashboard.services.DashboardServices.get_recent_logs")
 def test_api_logs_route(mock_get_recent_logs, client):
     mock_get_recent_logs.return_value = ["log1", "log2"]
     response = client.get("/api/logs?lines=10")
@@ -307,7 +322,7 @@ def test_api_logs_route(mock_get_recent_logs, client):
     mock_get_recent_logs.assert_called_once_with(10)
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_task_status_route(mock_call_api, client):
     mock_call_api.return_value = {"status": "running"}
     response = client.get("/api/tasks/123")
@@ -317,7 +332,7 @@ def test_proxy_task_status_route(mock_call_api, client):
     mock_call_api.assert_called_once_with("/v1/jobs/123")
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_list_tasks_route(mock_call_api, client):
     mock_call_api.return_value = [{"id": "123"}]
     response = client.get("/api/tasks?status=running")
@@ -327,7 +342,7 @@ def test_proxy_list_tasks_route(mock_call_api, client):
     mock_call_api.assert_called_once_with("/v1/jobs?status=running")
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_get_settings_route(mock_call_api, client):
     mock_call_api.return_value = {"setting": "value"}
     response = client.get("/api/settings")
@@ -337,7 +352,7 @@ def test_proxy_get_settings_route(mock_call_api, client):
     mock_call_api.assert_called_once_with("/v1/settings")
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_update_settings_route(mock_call_api, client):
     mock_call_api.return_value = {"status": "updated"}
     response = client.put("/api/settings", json={"setting": "new_value"})
@@ -349,7 +364,7 @@ def test_proxy_update_settings_route(mock_call_api, client):
     )
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_validate_settings_route(mock_call_api, client):
     mock_call_api.return_value = {"valid": True}
     response = client.post("/api/settings/validate", json={"setting": "value"})
@@ -361,7 +376,7 @@ def test_proxy_validate_settings_route(mock_call_api, client):
     )
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_generate_response_route(mock_call_api, client):
     mock_call_api.return_value = {"review_id": "review-1", "text": "Resposta pronta"}
     response = client.post(
@@ -378,7 +393,7 @@ def test_proxy_generate_response_route(mock_call_api, client):
     )
 
 
-@patch("src.dashboard.DashboardApp._request_api_with_status")
+@patch("src.dashboard.services.DashboardServices.request_api_with_status")
 def test_notification_proxy_preserves_api_status(mock_request_api_with_status, client):
     mock_request_api_with_status.return_value = (
         {"error": {"message": "Token inválido"}},
@@ -397,7 +412,7 @@ def test_notification_proxy_preserves_api_status(mock_request_api_with_status, c
     )
 
 
-@patch("src.dashboard.DashboardApp._request_api_with_status")
+@patch("src.dashboard.services.DashboardServices.request_api_with_status")
 def test_notification_schedule_list_proxy_returns_upstream_payload(
     mock_request_api_with_status, client
 ):
@@ -417,7 +432,7 @@ def test_notification_schedule_list_proxy_returns_upstream_payload(
     assert data["schedules"][0]["name"] == "Relatório"
 
 
-@patch("src.dashboard.DashboardApp._request_api_with_status")
+@patch("src.dashboard.services.DashboardServices.request_api_with_status")
 def test_notification_schedule_run_proxy_uses_async_backend_mode(
     mock_request_api_with_status, client
 ):
@@ -440,7 +455,7 @@ def test_notification_schedule_run_proxy_uses_async_backend_mode(
     )
 
 
-@patch("src.dashboard.DashboardApp._get_user_profile_settings")
+@patch("src.dashboard.services.DashboardServices.get_user_profile_settings")
 def test_workspace_overview_route(mock_user_profile, tmp_path):
     mock_user_profile.return_value = {
         "display_name": "Dra. Ana",
@@ -452,8 +467,8 @@ def test_workspace_overview_route(mock_user_profile, tmp_path):
         logger=MagicMock(),
     )
     dashboard.app.config.update({"TESTING": True})
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.get_overview.return_value = {
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.get_overview.return_value = {
         "summary": {"total_scrapes": 4},
         "favorite_profiles": [],
         "recent_scrapes": [],
@@ -470,7 +485,7 @@ def test_workspace_overview_route(mock_user_profile, tmp_path):
     assert data["user_profile"]["username"] == "dra-ana"
 
 
-@patch("src.dashboard.DashboardApp._update_remote_settings")
+@patch("src.dashboard.services.DashboardServices.update_remote_settings")
 def test_update_user_profile_route(mock_update_remote_settings, client):
     mock_update_remote_settings.return_value = {
         "user_profile": {
@@ -495,8 +510,8 @@ def test_update_user_profile_route(mock_update_remote_settings, client):
     mock_update_remote_settings.assert_called_once()
 
 
-@patch("src.dashboard.DashboardApp._update_remote_settings")
-@patch("src.dashboard.DashboardApp._get_user_profile_settings")
+@patch("src.dashboard.services.DashboardServices.update_remote_settings")
+@patch("src.dashboard.services.DashboardServices.get_user_profile_settings")
 def test_toggle_favorite_profile_route_adds_item(
     mock_get_user_profile_settings, mock_update_remote_settings, client
 ):
@@ -541,8 +556,8 @@ def test_workspace_history_route(tmp_path):
         logger=MagicMock(),
     )
     dashboard.app.config.update({"TESTING": True})
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.get_history.return_value = {
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.get_history.return_value = {
         "summary": {"total_snapshots": 2},
         "entries": [{"filename": "test.json"}],
         "filters": [],
@@ -562,8 +577,8 @@ def test_workspace_history_delete_route(tmp_path):
         logger=MagicMock(),
     )
     dashboard.app.config.update({"TESTING": True})
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.delete_snapshot.return_value = {
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.delete_snapshot.return_value = {
         "filename": "test.json",
         "deleted_size_human": "22 KB",
     }
@@ -585,8 +600,8 @@ def test_workspace_history_prune_route(tmp_path):
         logger=MagicMock(),
     )
     dashboard.app.config.update({"TESTING": True})
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.prune_outdated_snapshots.return_value = {
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.prune_outdated_snapshots.return_value = {
         "deleted_count": 3,
         "deleted_size_human": "66 KB",
     }
@@ -600,7 +615,7 @@ def test_workspace_history_prune_route(tmp_path):
     assert data["result"]["deleted_count"] == 3
 
 
-@patch("src.dashboard.DashboardApp._get_user_profile_settings")
+@patch("src.dashboard.services.DashboardServices.get_user_profile_settings")
 def test_workspace_reports_route(mock_user_profile, tmp_path):
     mock_user_profile.return_value = {
         "display_name": "Dra. Ana",
@@ -612,8 +627,8 @@ def test_workspace_reports_route(mock_user_profile, tmp_path):
         logger=MagicMock(),
     )
     dashboard.app.config.update({"TESTING": True})
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.get_reports.return_value = {
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.get_reports.return_value = {
         "summary": {"total_files": 8},
         "timeline": {"dates": [], "scrapes": [], "reviews": [], "unanswered": []},
         "top_profiles": [],
@@ -635,7 +650,7 @@ def test_workspace_reports_route(mock_user_profile, tmp_path):
 # -------------------------------------------------------------------
 
 
-@patch("src.dashboard.DashboardApp._get_data_files")
+@patch("src.dashboard.services.DashboardServices.get_data_files")
 def test_api_reports_files_route(mock_get_data_files, client):
     mock_get_data_files.return_value = [
         {"name": "20251001_doctor_a.json", "size": 1234}
@@ -646,7 +661,7 @@ def test_api_reports_files_route(mock_get_data_files, client):
     assert data == {"files": [{"name": "20251001_doctor_a.json", "size": 1234}]}
 
 
-@patch("src.dashboard.DashboardApp._get_report_summary")
+@patch("src.dashboard.services.DashboardServices.get_report_summary")
 def test_api_reports_summary_route(mock_get_report_summary, client):
     mock_get_report_summary.return_value = {
         "total_files": 5,
@@ -661,7 +676,7 @@ def test_api_reports_summary_route(mock_get_report_summary, client):
     assert data["unique_doctors"] == 3
 
 
-@patch("src.dashboard.DashboardApp._get_export_data")
+@patch("src.dashboard.services.DashboardServices.get_export_data")
 def test_api_reports_export_json(mock_get_export_data, client):
     mock_get_export_data.return_value = [{"doctor_name": "Dr. Test"}]
     response = client.get("/api/reports/export/json")
@@ -672,7 +687,7 @@ def test_api_reports_export_json(mock_get_export_data, client):
     assert data == [{"doctor_name": "Dr. Test"}]
 
 
-@patch("src.dashboard.DashboardApp._get_export_data")
+@patch("src.dashboard.services.DashboardServices.get_export_data")
 def test_api_reports_export_csv(mock_get_export_data, client):
     mock_get_export_data.return_value = [
         {
@@ -736,7 +751,7 @@ def test_get_report_summary_with_real_data(tmp_path):
     config = SimpleNamespace(data_dir=str(tmp_path))
     dashboard = DashboardApp(config=config, logger=MagicMock())
 
-    summary = dashboard._get_report_summary()
+    summary = dashboard.svc.get_report_summary()
 
     assert summary["total_files"] == 2
     assert summary["today_files"] == 1
@@ -751,7 +766,7 @@ def test_get_data_files_with_real_data(tmp_path):
     config = SimpleNamespace(data_dir=str(tmp_path))
     dashboard = DashboardApp(config=config, logger=MagicMock())
 
-    files = dashboard._get_data_files()
+    files = dashboard.svc.get_data_files()
 
     assert len(files) == 1
     assert files[0]["name"] == "20251001_12_doctor_test.json"
@@ -777,7 +792,7 @@ def test_get_scraper_stats_via_stats_service(tmp_path):
     config = SimpleNamespace(data_dir=str(tmp_path))
     dashboard = DashboardApp(config=config, logger=MagicMock())
 
-    stats = dashboard._get_scraper_stats()
+    stats = dashboard.svc.get_scraper_stats()
 
     assert stats["total_scraped_doctors"] == 1
     assert stats["total_reviews"] == 10
@@ -785,21 +800,21 @@ def test_get_scraper_stats_via_stats_service(tmp_path):
     assert stats["platform_stats"]["doctoralia"]["doctors"] == 1
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_get_settings_api_unavailable(mock_call_api, client):
     mock_call_api.return_value = None
     response = client.get("/api/settings")
     assert response.status_code == 503
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_update_settings_api_unavailable(mock_call_api, client):
     mock_call_api.return_value = None
     response = client.put("/api/settings", json={"setting": "val"})
     assert response.status_code == 503
 
 
-@patch("src.dashboard.DashboardApp._call_api")
+@patch("src.dashboard.services.DashboardServices.call_api")
 def test_proxy_validate_settings_api_unavailable(mock_call_api, client):
     mock_call_api.return_value = None
     response = client.post("/api/settings/validate", json={"setting": "val"})

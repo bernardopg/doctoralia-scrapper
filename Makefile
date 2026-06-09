@@ -191,7 +191,7 @@ clean-redis-jobs: ## Remove jobs antigos e workers órfãos do Redis/RQ
 # Comandos Priority 4 - Dashboard e API
 dashboard: ## Inicia dashboard web (Priority 4)
 	@echo "$(BLUE)Iniciando dashboard web...$(NC)"
-	PYTHONPATH=. $(PYTHON) src/dashboard.py
+	PYTHONPATH=. $(PYTHON) -m src.dashboard
 
 api: ## Inicia API REST (Priority 4)
 	@echo "$(BLUE)Iniciando API REST...$(NC)"

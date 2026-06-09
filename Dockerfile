@@ -36,7 +36,6 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     rm -rf /wheels
 
 COPY src ./src
-COPY config ./config
 COPY templates ./templates
 COPY static ./static
 
@@ -72,7 +71,7 @@ FROM base AS dashboard
 EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:5000/api/health || exit 1
-# Use start_dashboard() which runs without debug mode (python src/dashboard.py uses debug=True)
+# Use start_dashboard() which runs without debug mode
 CMD ["python", "-c", "from src.dashboard import start_dashboard; start_dashboard(host='0.0.0.0')"]
 
 # Test runner with dev-only dependencies.

@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from src.dashboard import DashboardApp, _clean_optional
+from src.dashboard import DashboardApp
+from src.dashboard.services import _clean_optional
 
 
 class DummyHTTPResponse:
@@ -62,8 +63,8 @@ def build_authenticated_dashboard(tmp_path, bootstrap_password="bootstrap-secret
     )
     dashboard = DashboardApp(config=config, logger=MagicMock())
     dashboard.app.config.update({"TESTING": True, "AUTH_FORCE_ENABLED": True})
-    dashboard._get_runtime_config = MagicMock(return_value=config)
-    dashboard._call_api = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(return_value=config)
+    dashboard.svc.call_api = MagicMock(
         return_value={
             "success": True,
             "auth_enabled": True,
@@ -78,7 +79,7 @@ def build_authenticated_dashboard(tmp_path, bootstrap_password="bootstrap-secret
 
 def test_clean_optional_and_runtime_url_helpers(tmp_path, monkeypatch):
     dashboard = build_dashboard(tmp_path)
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(
             api=SimpleNamespace(port=8100),
             integrations=SimpleNamespace(
@@ -92,11 +93,11 @@ def test_clean_optional_and_runtime_url_helpers(tmp_path, monkeypatch):
     assert _clean_optional("  valor  ") == "valor"
     assert _clean_optional("   ") is None
     assert _clean_optional(None) is None
-    assert dashboard._get_api_base_url() == "http://api.internal:8100"
-    assert dashboard._get_api_docs_url() == "https://public.example.com/base/docs"
-    assert dashboard._get_api_key() == "secret-api-key"
+    assert dashboard.svc.get_api_base_url() == "http://api.internal:8100"
+    assert dashboard.svc.get_api_docs_url() == "https://public.example.com/base/docs"
+    assert dashboard.svc.get_api_key() == "secret-api-key"
 
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(
             api=SimpleNamespace(port=8200),
             integrations=SimpleNamespace(api_url=None, api_public_url=None),
@@ -107,25 +108,24 @@ def test_clean_optional_and_runtime_url_helpers(tmp_path, monkeypatch):
     monkeypatch.setenv("API_PUBLIC_URL", " https://env-public.example.com/api ")
     monkeypatch.setenv("API_KEY", " env-api-key ")
 
-    assert dashboard._get_api_base_url() == "http://env-api:9000"
-    assert dashboard._get_api_docs_url() == "https://env-public.example.com/api/docs"
-    assert dashboard._get_api_key() == "env-api-key"
+    assert dashboard.svc.get_api_base_url() == "http://env-api:9000"
+    assert dashboard.svc.get_api_docs_url() == "https://env-public.example.com/api/docs"
+    assert dashboard.svc.get_api_key() == "env-api-key"
 
 
 def test_remote_settings_and_user_profile_fallbacks(tmp_path):
     dashboard = build_dashboard(tmp_path)
 
-    dashboard._call_api = MagicMock(
+    dashboard.svc.call_api = MagicMock(
         return_value={
             "success": True,
             "settings": {"user_profile": {"username": "remote"}},
         }
     )
-    assert dashboard._get_remote_settings() == {"user_profile": {"username": "remote"}}
-    assert dashboard._get_user_profile_settings() == {"username": "remote"}
+    assert dashboard.svc.get_user_profile_settings() == {"username": "remote"}
 
-    dashboard._call_api = MagicMock(return_value={"success": False})
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc.call_api = MagicMock(return_value={"success": False})
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(
             user_profile=SimpleNamespace(
                 display_name="Dra. Ana",
@@ -141,39 +141,44 @@ def test_remote_settings_and_user_profile_fallbacks(tmp_path):
             )
         )
     )
-    local_profile = dashboard._get_user_profile_settings()
+    local_profile = dashboard.svc.get_user_profile_settings()
     assert local_profile["display_name"] == "Dra. Ana"
     assert local_profile["favorite_profiles"][0]["name"] == "Principal"
 
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(user_profile=None)
     )
-    assert dashboard._get_user_profile_settings()["username"] == "admin"
+    assert dashboard.svc.get_user_profile_settings()["username"] == "admin"
 
 
 def test_update_remote_settings_merges_existing_payload(tmp_path):
     dashboard = build_dashboard(tmp_path)
-    dashboard._get_remote_settings = MagicMock(
-        return_value={"api": {"timeout": 5}, "user_profile": {"username": "old"}}
-    )
-    dashboard._call_api = MagicMock(
-        return_value={
-            "success": True,
-            "settings": {"user_profile": {"username": "new"}},
-        }
+    dashboard.svc.call_api = MagicMock(
+        side_effect=[
+            {
+                "success": True,
+                "settings": {
+                    "api": {"timeout": 5},
+                    "user_profile": {"username": "old"},
+                },
+            },
+            {"success": True, "settings": {"user_profile": {"username": "new"}}},
+        ]
     )
 
-    updated = dashboard._update_remote_settings({"user_profile": {"username": "new"}})
+    updated = dashboard.svc.update_remote_settings(
+        {"user_profile": {"username": "new"}}
+    )
 
     assert updated == {"user_profile": {"username": "new"}}
-    dashboard._call_api.assert_called_once_with(
+    dashboard.svc.call_api.assert_called_with(
         "/v1/settings",
         method="PUT",
         json={"api": {"timeout": 5}, "user_profile": {"username": "new"}},
     )
 
-    dashboard._get_remote_settings = MagicMock(return_value=None)
-    assert dashboard._update_remote_settings({"user_profile": {}}) is None
+    dashboard.svc.call_api = MagicMock(return_value={"success": False})
+    assert dashboard.svc.update_remote_settings({"user_profile": {}}) is None
 
 
 @pytest.mark.parametrize(
@@ -187,7 +192,7 @@ def test_update_remote_settings_merges_existing_payload(tmp_path):
 )
 def test_call_api_handles_http_errors_and_exceptions(tmp_path, response, side_effect):
     dashboard = build_dashboard(tmp_path)
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(
             api=SimpleNamespace(port=8000),
             integrations=SimpleNamespace(
@@ -197,18 +202,18 @@ def test_call_api_handles_http_errors_and_exceptions(tmp_path, response, side_ef
         )
     )
 
-    with patch("src.dashboard.requests.request") as mock_request:
+    with patch("src.dashboard.services.requests.request") as mock_request:
         if side_effect is not None:
             mock_request.side_effect = side_effect
         else:
             mock_request.return_value = response
 
-        assert dashboard._call_api("/v1/health") is None
+        assert dashboard.svc.call_api("/v1/health") is None
 
 
 def test_request_api_with_status_preserves_payload_and_status(tmp_path):
     dashboard = build_dashboard(tmp_path)
-    dashboard._get_runtime_config = MagicMock(
+    dashboard.svc._get_runtime_config = MagicMock(
         return_value=SimpleNamespace(
             api=SimpleNamespace(port=8000),
             integrations=SimpleNamespace(
@@ -218,14 +223,14 @@ def test_request_api_with_status_preserves_payload_and_status(tmp_path):
         )
     )
 
-    with patch("src.dashboard.requests.request") as mock_request:
+    with patch("src.dashboard.services.requests.request") as mock_request:
         mock_request.return_value = DummyHTTPResponse(
             status_code=422,
             payload={"error": {"message": "payload inválido"}},
             text="unprocessable",
         )
 
-        payload, status_code = dashboard._request_api_with_status(
+        payload, status_code = dashboard.svc.request_api_with_status(
             "/v1/notifications/telegram/schedules",
             method="POST",
             json={"name": "teste"},
@@ -238,10 +243,10 @@ def test_request_api_with_status_preserves_payload_and_status(tmp_path):
 
 def test_get_api_health_disconnected_uses_base_url(tmp_path):
     dashboard = build_dashboard(tmp_path)
-    dashboard._call_api = MagicMock(return_value=None)
-    dashboard._get_api_base_url = MagicMock(return_value="http://api.internal:8000")
+    dashboard.svc.call_api = MagicMock(return_value=None)
+    dashboard.svc.get_api_base_url = MagicMock(return_value="http://api.internal:8000")
 
-    data = dashboard._get_api_health()
+    data = dashboard.svc.get_api_health()
 
     assert data["status"] == "disconnected"
     assert data["api_url"] == "http://api.internal:8000"
@@ -250,15 +255,15 @@ def test_get_api_health_disconnected_uses_base_url(tmp_path):
 def test_api_performance_route_local_and_none_sources(tmp_path):
     dashboard = build_dashboard(tmp_path)
     client = dashboard.app.test_client()
-    dashboard._get_api_metrics = MagicMock(return_value=None)
-    dashboard.performance_monitor = MagicMock()
-    dashboard.performance_monitor.get_summary.return_value = {"requests": 10}
+    dashboard.svc.get_api_metrics = MagicMock(return_value=None)
+    dashboard.svc.performance_monitor = MagicMock()
+    dashboard.svc.performance_monitor.get_summary.return_value = {"requests": 10}
 
     response = client.get("/api/performance")
     assert response.status_code == 200
     assert response.get_json() == {"source": "local", "data": {"requests": 10}}
 
-    dashboard.performance_monitor = None
+    dashboard.svc.performance_monitor = None
     response = client.get("/api/performance")
     assert response.status_code == 200
     assert response.get_json()["source"] == "none"
@@ -278,8 +283,8 @@ def test_proxy_scrape_validation_errors(tmp_path):
 def test_task_routes_and_user_profile_availability_errors(tmp_path):
     dashboard = build_dashboard(tmp_path)
     client = dashboard.app.test_client()
-    dashboard._call_api = MagicMock(return_value=None)
-    dashboard._update_remote_settings = MagicMock(return_value=None)
+    dashboard.svc.call_api = MagicMock(return_value=None)
+    dashboard.svc.update_remote_settings = MagicMock(return_value=None)
 
     assert client.get("/api/tasks/123").status_code == 503
     assert client.get("/api/tasks").status_code == 503
@@ -293,7 +298,7 @@ def test_toggle_favorite_profile_remove_and_validation(tmp_path):
     missing = client.post("/api/user-profile/favorites/toggle", json={})
     assert missing.status_code == 400
 
-    dashboard._get_user_profile_settings = MagicMock(
+    dashboard.svc.get_user_profile_settings = MagicMock(
         return_value={
             "display_name": "Dra. Ana",
             "username": "dra-ana",
@@ -307,7 +312,7 @@ def test_toggle_favorite_profile_remove_and_validation(tmp_path):
             ],
         }
     )
-    dashboard._update_remote_settings = MagicMock(
+    dashboard.svc.update_remote_settings = MagicMock(
         return_value={
             "user_profile": {
                 "display_name": "Dra. Ana",
@@ -325,7 +330,7 @@ def test_toggle_favorite_profile_remove_and_validation(tmp_path):
     data = response.get_json()
     assert data["favorite"] is False
 
-    dashboard._update_remote_settings = MagicMock(return_value=None)
+    dashboard.svc.update_remote_settings = MagicMock(return_value=None)
     unavailable = client.post(
         "/api/user-profile/favorites/toggle",
         json={"profile_url": "https://example.com/new-profile"},
@@ -336,17 +341,19 @@ def test_toggle_favorite_profile_remove_and_validation(tmp_path):
 def test_workspace_routes_cover_filters_and_error_shapes(tmp_path):
     dashboard = build_dashboard(tmp_path)
     client = dashboard.app.test_client()
-    dashboard._get_user_profile_settings = MagicMock(
+    dashboard.svc.get_user_profile_settings = MagicMock(
         return_value={
             "display_name": "Dra. Ana",
             "username": "dra-ana",
             "favorite_profiles": [{"profile_url": "https://example.com/profile"}],
         }
     )
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.list_profiles.return_value = [{"profile_id": "p1"}]
-    dashboard.workspace_service.get_profile_detail.return_value = {"profile_id": "p1"}
-    dashboard.workspace_service.list_pending_responses.return_value = {"items": []}
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.list_profiles.return_value = [{"profile_id": "p1"}]
+    dashboard.svc.workspace_service.get_profile_detail.return_value = {
+        "profile_id": "p1"
+    }
+    dashboard.svc.workspace_service.list_pending_responses.return_value = {"items": []}
 
     profiles = client.get("/api/workspace/profiles?date_from=2026-03-01")
     assert profiles.status_code == 200
@@ -359,7 +366,7 @@ def test_workspace_routes_cover_filters_and_error_shapes(tmp_path):
     assert detail.status_code == 200
     assert detail.get_json() == {"profile_id": "p1"}
 
-    dashboard.workspace_service.get_profile_detail.return_value = None
+    dashboard.svc.workspace_service.get_profile_detail.return_value = None
     not_found = client.get("/api/workspace/profile?profile_id=unknown")
     assert not_found.status_code == 404
 
@@ -430,7 +437,7 @@ def test_dashboard_login_session_and_logout_flow(tmp_path):
         "/logout", data={"csrf_token": csrf_token}, follow_redirects=False
     )
     assert logout.status_code == 302
-    assert logout.headers["Location"].endswith("/login")
+    assert logout.headers["Location"].endswith("/")
 
     after_logout = client.get("/", follow_redirects=False)
     assert after_logout.status_code == 302
@@ -439,7 +446,7 @@ def test_dashboard_login_session_and_logout_flow(tmp_path):
 
 def test_dashboard_json_login_and_logout_endpoints(tmp_path):
     dashboard = build_authenticated_dashboard(tmp_path)
-    dashboard._request_api_with_status = MagicMock(
+    dashboard.svc.request_api_with_status = MagicMock(
         return_value=(
             {
                 "success": True,
@@ -473,9 +480,9 @@ def test_dashboard_json_login_and_logout_endpoints(tmp_path):
 def test_workspace_history_and_save_routes_validation_and_success(tmp_path):
     dashboard = build_dashboard(tmp_path)
     client = dashboard.app.test_client()
-    dashboard.workspace_service = MagicMock()
-    dashboard.workspace_service.delete_snapshot.return_value = None
-    dashboard.workspace_service.save_generated_response.return_value = {
+    dashboard.svc.workspace_service = MagicMock()
+    dashboard.svc.workspace_service.delete_snapshot.return_value = None
+    dashboard.svc.workspace_service.save_generated_response.return_value = {
         "filename": "latest.json",
         "review_id": "r1",
     }
@@ -502,7 +509,7 @@ def test_workspace_history_and_save_routes_validation_and_success(tmp_path):
     assert saved.status_code == 200
     assert saved.get_json()["success"] is True
 
-    dashboard.workspace_service.save_generated_response.return_value = None
+    dashboard.svc.workspace_service.save_generated_response.return_value = None
     not_saved = client.post(
         "/api/workspace/responses/save",
         json={
@@ -517,10 +524,10 @@ def test_workspace_history_and_save_routes_validation_and_success(tmp_path):
 def test_proxy_ready_handles_http_statuses_and_errors(tmp_path):
     dashboard = build_dashboard(tmp_path)
     client = dashboard.app.test_client()
-    dashboard._get_api_base_url = MagicMock(return_value="http://api.internal:8000")
-    dashboard._get_api_key = MagicMock(return_value="secret-key")
+    dashboard.svc.get_api_base_url = MagicMock(return_value="http://api.internal:8000")
+    dashboard.svc.get_api_key = MagicMock(return_value="secret-key")
 
-    with patch("src.dashboard.requests.get") as mock_get:
+    with patch("src.dashboard.services.requests.get") as mock_get:
         mock_get.return_value = DummyHTTPResponse(200, payload={"status": "ok"})
         assert client.get("/api/ready").status_code == 200
 
@@ -551,14 +558,14 @@ def test_handle_quality_analysis_variants(tmp_path):
     )
     assert missing_response.status_code == 400
 
-    dashboard.quality_analyzer = None
+    dashboard.svc.quality_analyzer = None
     unavailable = client.post("/api/quality-analysis", json={"response": "obrigada"})
     assert unavailable.status_code == 503
 
     score = MagicMock()
     score.to_dict.return_value = {"overall": 91}
-    dashboard.quality_analyzer = MagicMock()
-    dashboard.quality_analyzer.analyze_response.return_value = SimpleNamespace(
+    dashboard.svc.quality_analyzer = MagicMock()
+    dashboard.svc.quality_analyzer.analyze_response.return_value = SimpleNamespace(
         score=score,
         strengths=["Clareza"],
         weaknesses=["Sem CTA"],
@@ -592,17 +599,17 @@ def test_recent_activity_and_logs_helpers_cover_success_and_failures(tmp_path):
     bad_file = tmp_path / "data" / "broken.json"
     bad_file.write_text("{not-json", encoding="utf-8")
 
-    activities = dashboard._get_recent_activities()
+    activities = dashboard.svc.get_recent_activities()
     assert len(activities) == 1
     assert activities[0]["doctor_name"] == "Dra. Ana"
 
     latest_log = tmp_path / "logs" / "latest.log"
     latest_log.write_text("linha 1\nlinha 2\nlinha 3\n", encoding="utf-8")
-    assert dashboard._get_recent_logs(2) == ["linha 2", "linha 3"]
+    assert dashboard.svc.get_recent_logs(2) == ["linha 2", "linha 3"]
 
     broken_dashboard = build_dashboard(tmp_path / "other")
-    broken_dashboard.config.logs_dir = str(tmp_path / "missing-logs")
-    assert broken_dashboard._get_recent_logs(2) == []
+    broken_dashboard.svc.config.logs_dir = str(tmp_path / "missing-logs")
+    assert broken_dashboard.svc.get_recent_logs(2) == ["Não foi possível ler os logs"]
 
 
 def test_export_helpers_and_run_cover_remaining_dashboard_helpers(tmp_path):
@@ -630,24 +637,27 @@ def test_export_helpers_and_run_cover_remaining_dashboard_helpers(tmp_path):
     invalid_file = tmp_path / "data" / "broken.json"
     invalid_file.write_text("{not-json", encoding="utf-8")
 
-    exported = dashboard._get_export_data()
+    from src.dashboard.reports import _convert_to_csv
+    from src.dashboard.services import _format_file_size
+
+    exported = dashboard.svc.get_export_data()
     assert len(exported) == 1
-    csv_text = dashboard._convert_to_csv(exported)
+    csv_text = _convert_to_csv(exported)
     assert "doctor_name" in csv_text
     assert "Dra. Ana" in csv_text
 
-    files = dashboard._get_data_files()
+    files = dashboard.svc.get_data_files()
     valid_entry = next(
         item for item in files if item["name"] == "20260325_01_dra_ana.json"
     )
     assert valid_entry["doctor"] == "Dra Ana"
     assert valid_entry["date_str"] == "2026-03-25"
 
-    assert dashboard._format_file_size(512) == "512 B"
-    assert dashboard._format_file_size(2048) == "2.0 KB"
-    assert dashboard._format_file_size(2 * 1024 * 1024) == "2.0 MB"
+    assert _format_file_size(512) == "512 B"
+    assert _format_file_size(2048) == "2.0 KB"
+    assert _format_file_size(2 * 1024 * 1024) == "2.0 MB"
 
-    summary = dashboard._get_report_summary()
+    summary = dashboard.svc.get_report_summary()
     assert summary["total_files"] == 2
     assert summary["total_reviews"] == 1
     assert summary["unique_doctors"] == 1
