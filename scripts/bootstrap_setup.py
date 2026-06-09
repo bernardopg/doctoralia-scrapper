@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import depois do path insert para evitar E402
-from config.settings import AppConfig  # noqa: E402
+from src.config.settings import AppConfig  # noqa: E402
 
 
 def print_banner() -> None:
@@ -30,7 +30,7 @@ def setup_directories(config: AppConfig) -> None:
         config.data_dir / "extractions",
         config.data_dir / "responses",
         config.data_dir / "logs",
-        config.base_dir / "config",
+        config.base_dir / "src" / "config",
     ]
 
     for directory in directories:

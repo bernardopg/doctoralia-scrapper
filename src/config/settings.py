@@ -86,7 +86,7 @@ class DelayConfig:
 class APIConfig:
     """Configurações da API REST"""
 
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104
     port: int = 8000
     debug: bool = False
     workers: int = 1
@@ -180,21 +180,23 @@ class AppConfig:
     privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
     urls: URLConfig = field(default_factory=URLConfig)
     base_dir: Path = field(
-        default_factory=lambda: Path(__file__).resolve().parent.parent
+        default_factory=lambda: Path(__file__).resolve().parent.parent.parent
     )
     data_dir: Path = field(
-        default_factory=lambda: Path(__file__).resolve().parent.parent / "data"
+        default_factory=lambda: Path(__file__).resolve().parent.parent.parent / "data"
     )
     logs_dir: Path = field(
-        default_factory=lambda: Path(__file__).resolve().parent.parent / "data" / "logs"
+        default_factory=lambda: Path(__file__).resolve().parent.parent.parent
+        / "data"
+        / "logs"
     )
     generation: GenerationConfig = field(default_factory=GenerationConfig)
     user_profile: UserProfileConfig = field(default_factory=UserProfileConfig)
 
     @classmethod
     def load(cls) -> "AppConfig":
-        base_dir = Path(__file__).parent.parent
-        config_file = base_dir / "config" / "config.json"
+        base_dir = Path(__file__).parent.parent.parent
+        config_file = base_dir / "src" / "config" / "config.json"
 
         # Valores padrão
         telegram = TelegramConfig()
@@ -313,7 +315,7 @@ class AppConfig:
 
                 api_data = data.get("api", {})
                 api = APIConfig(
-                    host=api_data.get("host", "0.0.0.0"),
+                    host=api_data.get("host", "0.0.0.0"),  # nosec B104
                     port=api_data.get("port", 8000),
                     debug=api_data.get("debug", _env_bool("DEBUG", False)),
                     workers=api_data.get("workers", 1),
@@ -517,8 +519,8 @@ class AppConfig:
         )
 
     def save(self) -> None:
-        config_file = self.base_dir / "config" / "config.json"
-        config_file.parent.mkdir(exist_ok=True)
+        config_file = self.base_dir / "src" / "config" / "config.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
             "telegram": {
