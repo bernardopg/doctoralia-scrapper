@@ -19,14 +19,15 @@ from src.auth import verify_dashboard_login
 from src.dashboard.services import DashboardServices
 
 
-def _safe_next_url(candidate: str | None) -> str:
+def _validate_redirect_target(candidate: str | None) -> str | None:
+    """Return the target if it is a safe same-site relative path, else None."""
     if not candidate:
-        return "/"
+        return None
     parsed = urlparse(candidate)
     if parsed.scheme or parsed.netloc:
-        return "/"
+        return None
     if not candidate.startswith("/"):
-        return "/"
+        return None
     return candidate
 
 
@@ -43,25 +44,30 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
             return redirect(url_for("pages.index"))
 
         if svc.is_authenticated(_app_cfg()):
-            return redirect(_safe_next_url(request.args.get("next")))
+            next_raw = request.args.get("next")
+            safe_next = _validate_redirect_target(next_raw)
+            if safe_next:
+                return redirect(safe_next)
+            return redirect(url_for("pages.index"))
 
         error_message = None
-        next_target = _safe_next_url(
-            request.values.get("next") or request.args.get("next")
-        )
+        next_raw = request.values.get("next") or request.args.get("next")
+        next_target = _validate_redirect_target(next_raw)
 
         if request.method == "POST":
             username = (request.form.get("username") or "").strip()
             password = request.form.get("password") or ""
             if verify_dashboard_login(svc._get_runtime_config(), username, password):
                 svc.login_session_user()
-                return redirect(next_target or url_for("pages.index"))
+                if next_target:
+                    return redirect(next_target)
+                return redirect(url_for("pages.index"))
             error_message = "Credenciais inválidas."
 
         return render_template(
             "login.html",
             login_error=error_message,
-            next_target=next_target,
+            next_target=next_target or "/",
             login_username_hint=auth_state.username,
             bootstrap_password_enabled=auth_state.bootstrap_password_enabled,
         )
