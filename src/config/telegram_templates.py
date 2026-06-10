@@ -117,6 +117,11 @@ class TelegramTemplates:
         )
         without_replies = max(0, total_reviews - with_replies)
 
+        status_line = (
+            "🎯 *Há comentários prontos para resposta!*"
+            if without_replies > 0
+            else "✅ *Todos os comentários já possuem resposta.*"
+        )
         return f"""🏥 *Doctoralia — Scraping Concluído*
 
 👨‍⚕️ *Médico:* {doctor_name}
@@ -127,7 +132,7 @@ class TelegramTemplates:
 📁 *Arquivo:* `{save_path.name}`
 🗓️ *Data:* {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
 
-{("🎯 *Há comentários prontos para resposta!*" if without_replies > 0 else "✅ *Todos os comentários já possuem resposta.*")}"""
+{status_line}"""
 
     @staticmethod
     def responses_generated(responses: List[Dict[str, Any]]) -> str:

@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -482,8 +483,8 @@ class AppConfig:
                         user_data.get("favorite_profiles", [])
                     ),
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logging.debug("Failed to load user profile settings: %s", exc)
         else:
             telegram_token = _clean_optional(
                 os.getenv("TELEGRAM_TOKEN") or os.getenv("TELEGRAM_BOT_TOKEN")

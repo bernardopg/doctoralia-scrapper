@@ -26,7 +26,10 @@ RESPONSE_TEMPLATES = {
         "explicar_detalhes": "Fico contente que minhas explicações tenham sido claras e detalhadas.",
         "profissional": "É gratificante saber que percebeu o profissionalismo no atendimento.",
         "pontual": "Prezo sempre pela pontualidade e atenção com cada paciente.",
-        "competente": "Meu compromisso é sempre oferecer um atendimento de qualidade e baseado nas melhores práticas médicas.",
+        "competente": (
+            "Meu compromisso é sempre oferecer um atendimento de qualidade "
+            "e baseado nas melhores práticas médicas."
+        ),
         "cuidadosa": "Estarei sempre aqui para cuidar com atenção e responsabilidade.",
         "eficiente": "Meu compromisso é sempre oferecer um cuidado eficiente e de excelência.",
     },
