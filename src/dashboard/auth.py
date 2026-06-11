@@ -20,13 +20,32 @@ from src.dashboard.services import DashboardServices
 
 
 def _validate_redirect_target(candidate: str | None) -> str | None:
-    """Return the target if it is a safe same-site relative path, else None."""
+    """Return the target only if it is a safe same-site relative path, else None.
+
+    Hardened against open-redirect bypasses:
+    - rejects absolute URLs (scheme/netloc)
+    - rejects protocol-relative (``//host``) and backslash tricks (``/\\host``)
+      that browsers normalize to an external host
+    - rejects control characters / whitespace that can smuggle a new target
+    - requires a path rooted at a single ``/``
+    """
     if not candidate:
+        return None
+    # Control chars / whitespace (incl. NUL, CR, LF, tab) can be used to smuggle
+    # a different effective target; reject outright.
+    if any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in candidate):
+        return None
+    if candidate.strip() != candidate:
+        return None
+    # Backslashes are normalized to "/" by browsers -> "/\evil.com" becomes
+    # "//evil.com". Treat them as forbidden.
+    if "\\" in candidate:
         return None
     parsed = urlparse(candidate)
     if parsed.scheme or parsed.netloc:
         return None
-    if not candidate.startswith("/"):
+    # Must be a path rooted at exactly one slash. "//host" is protocol-relative.
+    if not candidate.startswith("/") or candidate.startswith("//"):
         return None
     return candidate
 

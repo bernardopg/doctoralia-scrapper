@@ -132,14 +132,9 @@ class DashboardApp:
         return False
 
     def _safe_next_url(self, candidate: Optional[str]) -> str:
-        if not candidate:
-            return "/"
-        parsed = urlparse(candidate)
-        if parsed.scheme or parsed.netloc:
-            return "/"
-        if not candidate.startswith("/"):
-            return "/"
-        return candidate
+        # Delegate to the single hardened validator to avoid drift between the
+        # two open-redirect guards.
+        return auth_bp._validate_redirect_target(candidate) or "/"
 
     def _register_before_request(self) -> None:
         svc = self.svc
