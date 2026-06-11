@@ -54,7 +54,7 @@ Este repositório organiza uma rotina operacional completa para reviews do Docto
 
 ## Como a stack funciona
 
-![Workflow principal do projeto](docs/assets/schema01.png)
+![Workflow principal do projeto](docs/assets/schena01.png)
 
 ## Início rápido
 
