@@ -6,15 +6,30 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-11
+
 ### Security
 
+- **[CodeQL fix]** Endurecida a validação de open-redirect em `src/dashboard/auth.py` (`_validate_redirect_target`), eliminando os alertas `py/url-redirection-from-remote-source` #1416 (`:50`) e #1417 (`:63`). Agora rejeita URLs protocol-relative (`//host`), truques de backslash (`/\host` que o browser normaliza para `//host`), caracteres de controle/whitespace (CR/LF/NUL/tab) e exige path enraizado em um único `/`. `src/dashboard/app.py::_safe_next_url` passou a delegar ao mesmo validador, evitando divergência entre os dois guards.
 - **[CVE fix]** Atualizado `starlette` de `0.52.1` para `1.2.1`, corrigindo a falta de validação do header `Host` que envenena `request.url.path` e pode burlar checagens de segurança baseadas em path (Dependabot, 2x medium). Compatível com FastAPI 0.136 (`starlette>=0.46.0`, sem teto).
 
 ### Changed
 
+- **[deps]** Atualizado `redis` de `7.4.0` para `8.0.0` (constraint `<8.0` → `<9.0`); compatível com `rq>=2.7` (`redis>6`) e com os comandos usados (`hincrby`, `pipeline`, `zremrangebyscore`, `hgetall`, `lrange`, `zcard`, `get`, `setex`, `incr`). (Dependabot #131)
+- **[deps]** Atualizado o grupo `python-minor-and-patch` (Dependabot #130) e demais dependências de desenvolvimento/transitivas: `cryptography`, `click`, `coverage`, `croniter`, `ipython`, `jedi`, `regex`, `rich`, `tomlkit`, `tqdm`, `virtualenv`, `watchfiles`, `filelock`, `identify`, `markdown-it-py`, entre outras.
+- **[ci]** Substituído `safety check` (deprecated desde 2024-06-01, exige autenticação) por `pip-audit` no scan de vulnerabilidades de dependências (CI + Makefile).
+- **[ci]** Adicionado Python 3.13 à matriz de testes; `black` `target-version` ampliado para `py310`–`py314`.
+- **[ci]** Novo workflow `auto-merge.yml`: habilita squash auto-merge em todo PR não-draft do próprio repositório direcionado a `main`. Branch protection na `main` agora exige `All Checks Passed`, `All Docker Checks Passed` e `Analyze Python` antes do merge.
+- **[deps]** `flask-cors` fixado em `^6.0.5` (6.0.4 foi *yanked* por quebrar mypy em blueprints).
 - **[refactor]** Layout consolidado sob `src/`: `config/` movido para `src/config/` e `static/` para `src/static/`.
 - **[refactor]** `src/dashboard.py` (monólito de ~1647 linhas) dividido no pacote `src/dashboard/` com módulos focados (`app`, `auth`, `pages`, `reports`, `notifications`, `services`, `workspace`, `api_proxy`, `user_profile`); adicionado `__main__.py` para `python -m src.dashboard`.
 - **[chore]** Removido código morto legado (`src/dashboard.py` e `config/` raiz) e padronizada a qualidade: isort, black, flake8 (ignora `E203`), mypy limpo e `nosec B104` nos binds `0.0.0.0` intencionais.
+
+### Fixed
+
+- **[docker]** Corrigido o build Docker que falhava com `"/static": not found`: removido o `COPY static ./static` quebrado (assets já chegam via `COPY src ./src`) e ajustado `static_folder` do dashboard para `src/static/`.
+- **[ci]** Removido o campo inválido `exclude-paths` de `.github/dependabot.yml` (não existe no schema v2, fazia o bloco `pip` ser ignorado).
+- **[build]** `make install-dev` não tenta mais instalar o inexistente `requirements-dev.txt`.
 
 ## [2.1.1] - 2026-05-19
 
@@ -144,7 +159,9 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.0...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.2.0...HEAD
+- [2.2.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.1...v2.2.0
+- [2.1.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.0...v2.1.1
 - [2.1.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.0.1...v2.1.0
 - [2.0.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/2.0.0...v2.0.1
 - [1.2.0-rc.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v1.1.1...v1.2.0-rc.1
