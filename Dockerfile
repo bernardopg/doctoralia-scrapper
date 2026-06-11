@@ -37,7 +37,6 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 
 COPY src ./src
 COPY templates ./templates
-COPY static ./static
 
 # Create necessary directories
 RUN mkdir -p data/logs data/responses data/temp logs

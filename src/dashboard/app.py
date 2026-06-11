@@ -48,7 +48,7 @@ class DashboardApp:
         self.app = Flask(
             __name__,
             template_folder=str(Path(__file__).parent.parent.parent / "templates"),
-            static_folder=str(Path(__file__).parent.parent.parent / "static"),
+            static_folder=str(Path(__file__).parent.parent / "static"),
         )
         CORS(self.app)
 
