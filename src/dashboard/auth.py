@@ -20,14 +20,11 @@ from src.dashboard.services import DashboardServices
 
 
 def _validate_redirect_target(candidate: str | None) -> str | None:
-    """Return the target only if it is a safe same-site relative path, else None.
+    """Resolve an allowed dashboard path to a server-generated URL.
 
-    Hardened against open-redirect bypasses:
-    - rejects absolute URLs (scheme/netloc)
-    - rejects protocol-relative (``//host``) and backslash tricks (``/\\host``)
-      that browsers normalize to an external host
-    - rejects control characters / whitespace that can smuggle a new target
-    - requires a path rooted at a single ``/``
+    Redirect responses never receive request data directly. A candidate must be
+    a clean relative URL whose path is explicitly mapped to a registered page;
+    the returned value is always produced by Flask's ``url_for``.
     """
     if not candidate:
         return None
@@ -47,7 +44,26 @@ def _validate_redirect_target(candidate: str | None) -> str | None:
     # Must be a path rooted at exactly one slash. "//host" is protocol-relative.
     if not candidate.startswith("/") or candidate.startswith("//"):
         return None
-    return candidate
+
+    if parsed.path == "/":
+        return url_for("pages.index")
+    if parsed.path == "/settings":
+        return url_for("pages.settings")
+    if parsed.path == "/profiles":
+        return url_for("pages.profiles")
+    if parsed.path == "/responses":
+        return url_for("pages.responses")
+    if parsed.path == "/me":
+        return url_for("pages.me")
+    if parsed.path == "/history":
+        return url_for("pages.history")
+    if parsed.path == "/reports":
+        return url_for("pages.reports")
+    if parsed.path == "/notifications/telegram/schedule":
+        return url_for("pages.notifications_telegram_schedule")
+    if parsed.path == "/health-check":
+        return url_for("pages.health_check_page")
+    return None
 
 
 def create_blueprint(svc: DashboardServices) -> Blueprint:

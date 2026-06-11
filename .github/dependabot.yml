@@ -4,6 +4,10 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     target-branch: "main"
+    # Poetry is the source of truth. requirements.txt is generated from the
+    # lockfile and must not be updated as an independent manifest.
+    exclude-paths:
+      - "requirements.txt"
     schedule:
       interval: "weekly"
       day: "monday"

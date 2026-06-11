@@ -6,6 +6,7 @@ import pytest
 import requests
 
 from src.dashboard import DashboardApp
+from src.dashboard.auth import _validate_redirect_target
 from src.dashboard.services import _clean_optional
 
 
@@ -391,6 +392,50 @@ def test_dashboard_auth_redirects_and_keeps_public_health_route(tmp_path):
 
     public_health = client.get("/api/health")
     assert public_health.status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("candidate", "expected"),
+    [
+        ("/reports", "/reports"),
+        ("/reports?period=week", "/reports"),
+        ("https://evil.example/reports", None),
+        ("//evil.example/reports", None),
+        ("/\\evil.example", None),
+        ("/reports\r\nLocation: https://evil.example", None),
+        ("/missing", None),
+        ("/api/stats", None),
+    ],
+)
+def test_dashboard_redirect_targets_are_canonical_and_allowlisted(
+    tmp_path, candidate, expected
+):
+    dashboard = build_authenticated_dashboard(tmp_path)
+
+    with dashboard.app.test_request_context("/login"):
+        assert _validate_redirect_target(candidate) == expected
+
+
+def test_dashboard_login_redirects_to_allowlisted_page(tmp_path):
+    dashboard = build_authenticated_dashboard(tmp_path)
+    client = dashboard.app.test_client()
+
+    with client.session_transaction() as session_state:
+        session_state["csrf_token"] = "test-csrf-token"
+
+    response = client.post(
+        "/login",
+        data={
+            "username": "admin",
+            "password": "bootstrap-secret",
+            "csrf_token": "test-csrf-token",
+            "next": "/reports?period=week",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/reports")
 
 
 def test_dashboard_login_session_and_logout_flow(tmp_path):
