@@ -1,0 +1,60 @@
+name: Auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  enable-automerge:
+    name: Enable auto-merge
+    # Only same-repo PRs targeting main, not drafts. Dependabot PRs are handled
+    # by dependabot-automerge.yml, so skip them here to avoid double enabling.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge (squash)
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # actions/github-script v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = context.payload.pull_request;
+
+            try {
+              await github.graphql(
+                `mutation($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(
+                    input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }
+                  ) {
+                    clientMutationId
+                  }
+                }`,
+                { pullRequestId: pr.node_id }
+              );
+              core.info(`Auto-merge enabled for PR #${pr.number}.`);
+            } catch (error) {
+              const message = error.message || "";
+              if (message.includes("already enabled")) {
+                core.info(`Auto-merge already enabled for PR #${pr.number}.`);
+                return;
+              }
+              if (message.includes("Pull request is in clean status")) {
+                core.info(`PR #${pr.number} can already be merged; auto-merge not needed.`);
+                return;
+              }
+              // Auto-merge requires branch protection / required checks to be configured.
+              // Do not fail the workflow if the repo cannot enable it.
+              core.warning(`Could not enable auto-merge for PR #${pr.number}: ${message}`);
+            }
