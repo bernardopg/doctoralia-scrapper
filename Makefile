@@ -38,8 +38,7 @@ install: ## Instala dependências de produção
 install-dev: ## Instala dependências completas + setup do ambiente
 	@echo "$(BLUE)Instalando dependências de desenvolvimento...$(NC)"
 	$(PIP) install -r requirements.txt
-	$(PIP) install -r requirements-dev.txt
-	$(PIP) install black isort mypy flake8 pylint bandit safety pre-commit
+	$(PIP) install black isort mypy flake8 pylint bandit pip-audit pre-commit
 venv: ## Cria ambiente virtual local (.venv) usando Poetry e instala deps
 	@echo "$(BLUE)Configurando ambiente virtual com Poetry...$(NC)"
 	@if command -v poetry >/dev/null 2>&1; then \
@@ -94,7 +93,7 @@ lint: ## Executa linting, formatação e verificação de segurança
 	mypy $(SRC_DIR) --ignore-missing-imports
 	@echo "$(BLUE)Verificando segurança...$(NC)"
 	bandit -r $(SRC_DIR)
-	safety check --file requirements.txt
+	pip-audit --requirement requirements.txt --progress-spinner off
 
 format: ## Apenas formata o código (black + isort)
 	@echo "$(BLUE)Formatando código (black + isort)...$(NC)"
@@ -102,11 +101,11 @@ format: ## Apenas formata o código (black + isort)
 	isort .
 	@echo "$(GREEN)Formatação concluída!$(NC)"
 
-security: ## Executa apenas verificações de segurança (bandit + safety)
+security: ## Executa apenas verificações de segurança (bandit + pip-audit)
 	@echo "$(BLUE)Executando bandit...$(NC)"
 	bandit -r $(SRC_DIR)
-	@echo "$(BLUE)Executando safety...$(NC)"
-	safety check --file requirements.txt || true
+	@echo "$(BLUE)Executando pip-audit...$(NC)"
+	pip-audit --requirement requirements.txt --progress-spinner off || true
 	@echo "$(GREEN)Verificações de segurança concluídas!$(NC)"
 
 check: ## Verifica formatação sem alterar arquivos
