@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" width="100%">
+  <img src="docs/assets/banner.png" width="100%">
 </p>
 
 <p align="center">
@@ -22,14 +22,14 @@ Este repositório organiza uma rotina operacional completa para reviews do Docto
 
 ## O que você encontra aqui
 
-| Bloco | O que faz |
-|---|---|
-| `api` | Expõe endpoints sync e async, settings, health, metrics e notificações Telegram |
-| `worker` | Processa scraping, análise, geração e snapshots em background |
+| Bloco       | O que faz                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `api`       | Expõe endpoints sync e async, settings, health, metrics e notificações Telegram              |
+| `worker`    | Processa scraping, análise, geração e snapshots em background                                |
 | `dashboard` | Workspace visual para operação diária, histórico, relatórios, perfil do operador e scheduler |
-| `redis` | Fila RQ, métricas Redis-backed, agendamentos, locks e histórico |
-| `selenium` | Navegador remoto para scraping resiliente |
-| `n8n` | Orquestrações externas, callbacks e automações multi-sistema |
+| `redis`     | Fila RQ, métricas Redis-backed, agendamentos, locks e histórico                              |
+| `selenium`  | Navegador remoto para scraping resiliente                                                    |
+| `n8n`       | Orquestrações externas, callbacks e automações multi-sistema                                 |
 
 ## Tour visual
 
@@ -54,7 +54,7 @@ Este repositório organiza uma rotina operacional completa para reviews do Docto
 
 ## Como a stack funciona
 
-![Workflow principal do projeto](docs/assets/workflow-platform.svg)
+![Workflow principal do projeto](docs/assets/schema01.png)
 
 ## Início rápido
 
@@ -104,33 +104,33 @@ make lint
 
 ## Endpoints que importam
 
-| Método | Endpoint | Uso |
-|---|---|---|
-| `POST` | `/v1/scrape:run` | Scraping síncrono |
-| `POST` | `/v1/jobs` | Cria job assíncrono |
-| `GET` | `/v1/jobs/{job_id}` | Consulta job |
-| `GET` | `/v1/ready` | Readiness com Redis, Selenium e NLTK |
-| `GET` | `/v1/metrics` | Métricas da API persistidas em Redis |
-| `GET` | `/v1/auth/status` | Estado da autenticação do dashboard |
-| `POST` | `/v1/auth/login` | Validação de credenciais do dashboard |
-| `POST` | `/v1/auth/change-password` | Rotação da senha dedicada do dashboard |
-| `GET/POST/PUT/DELETE` | `/v1/notifications/telegram/schedules` | CRUD do scheduler Telegram |
-| `POST` | `/v1/notifications/telegram/schedules/{schedule_id}/run` | Disparo manual |
-| `GET` | `/v1/notifications/telegram/history` | Histórico persistido |
-| `POST` | `/v1/notifications/telegram/test` | Validação real do bot |
-| `POST` | `/v1/hooks/n8n/scrape` | Webhook dedicado do n8n |
+| Método                | Endpoint                                                 | Uso                                    |
+| --------------------- | -------------------------------------------------------- | -------------------------------------- |
+| `POST`                | `/v1/scrape:run`                                         | Scraping síncrono                      |
+| `POST`                | `/v1/jobs`                                               | Cria job assíncrono                    |
+| `GET`                 | `/v1/jobs/{job_id}`                                      | Consulta job                           |
+| `GET`                 | `/v1/ready`                                              | Readiness com Redis, Selenium e NLTK   |
+| `GET`                 | `/v1/metrics`                                            | Métricas da API persistidas em Redis   |
+| `GET`                 | `/v1/auth/status`                                        | Estado da autenticação do dashboard    |
+| `POST`                | `/v1/auth/login`                                         | Validação de credenciais do dashboard  |
+| `POST`                | `/v1/auth/change-password`                               | Rotação da senha dedicada do dashboard |
+| `GET/POST/PUT/DELETE` | `/v1/notifications/telegram/schedules`                   | CRUD do scheduler Telegram             |
+| `POST`                | `/v1/notifications/telegram/schedules/{schedule_id}/run` | Disparo manual                         |
+| `GET`                 | `/v1/notifications/telegram/history`                     | Histórico persistido                   |
+| `POST`                | `/v1/notifications/telegram/test`                        | Validação real do bot                  |
+| `POST`                | `/v1/hooks/n8n/scrape`                                   | Webhook dedicado do n8n                |
 
 ## Estado atual do projeto
 
-| Tema | Situação |
-|---|---|
-| Stack Docker | `api`, `worker`, `dashboard`, `redis`, `selenium`, `n8n` |
-| Workspace web | Operacional, autenticado e com scheduler Telegram integrado |
-| Persistência | Snapshots em `data/` e histórico/schedules em Redis |
-| Métricas da API | Redis-backed, multi-processo |
-| n8n local | preso em `127.0.0.1:5678`, com auth e encryption key obrigatórias |
-| Testes | suíte cobrindo áreas críticas de API, dashboard, jobs, Redis e Telegram |
-| Auth do dashboard | login web, sessão assinada, bootstrap via `API_KEY` e rotação em `/me` |
+| Tema              | Situação                                                                |
+| ----------------- | ----------------------------------------------------------------------- |
+| Stack Docker      | `api`, `worker`, `dashboard`, `redis`, `selenium`, `n8n`                |
+| Workspace web     | Operacional, autenticado e com scheduler Telegram integrado             |
+| Persistência      | Snapshots em `data/` e histórico/schedules em Redis                     |
+| Métricas da API   | Redis-backed, multi-processo                                            |
+| n8n local         | preso em `127.0.0.1:5678`, com auth e encryption key obrigatórias       |
+| Testes            | suíte cobrindo áreas críticas de API, dashboard, jobs, Redis e Telegram |
+| Auth do dashboard | login web, sessão assinada, bootstrap via `API_KEY` e rotação em `/me`  |
 
 ## Redis em `localhost:6379`
 
@@ -156,20 +156,20 @@ PONG
 
 O `README` agora é só a entrada. A documentação foi reorganizada em formato de wiki dentro de `docs/`.
 
-| Página | Para que serve |
-|---|---|
-| [docs/Home.md](docs/Home.md) | Hub principal da wiki |
-| [docs/about.md](docs/about.md) | Texto de vitrine, metadata e assets do repositório |
-| [docs/quickstart.md](docs/quickstart.md) | Setup rápido |
-| [docs/overview.md](docs/overview.md) | Arquitetura e responsabilidades |
-| [docs/dashboard-workspace.md](docs/dashboard-workspace.md) | Operação diária no dashboard |
-| [docs/telegram-notifications.md](docs/telegram-notifications.md) | Scheduler Telegram completo |
-| [docs/api.md](docs/api.md) | Referência da API |
-| [docs/n8n.md](docs/n8n.md) | Workflows e integração externa |
-| [docs/operations.md](docs/operations.md) | Runbook e troubleshooting |
-| [docs/development.md](docs/development.md) | Padrões de desenvolvimento |
-| [docs/deployment.md](docs/deployment.md) | Guia de deploy |
-| [docs/templates.md](docs/templates.md) | Templates e mensagens |
+| Página                                                           | Para que serve                                     |
+| ---------------------------------------------------------------- | -------------------------------------------------- |
+| [docs/Home.md](docs/Home.md)                                     | Hub principal da wiki                              |
+| [docs/about.md](docs/about.md)                                   | Texto de vitrine, metadata e assets do repositório |
+| [docs/quickstart.md](docs/quickstart.md)                         | Setup rápido                                       |
+| [docs/overview.md](docs/overview.md)                             | Arquitetura e responsabilidades                    |
+| [docs/dashboard-workspace.md](docs/dashboard-workspace.md)       | Operação diária no dashboard                       |
+| [docs/telegram-notifications.md](docs/telegram-notifications.md) | Scheduler Telegram completo                        |
+| [docs/api.md](docs/api.md)                                       | Referência da API                                  |
+| [docs/n8n.md](docs/n8n.md)                                       | Workflows e integração externa                     |
+| [docs/operations.md](docs/operations.md)                         | Runbook e troubleshooting                          |
+| [docs/development.md](docs/development.md)                       | Padrões de desenvolvimento                         |
+| [docs/deployment.md](docs/deployment.md)                         | Guia de deploy                                     |
+| [docs/templates.md](docs/templates.md)                           | Templates e mensagens                              |
 
 ## Assets visuais adicionados
 
