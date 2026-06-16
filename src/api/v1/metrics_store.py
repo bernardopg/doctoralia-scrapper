@@ -32,9 +32,15 @@ class RedisAPIMetricsStore:
         prefix: str = "doctoralia:api:metrics",
         max_samples: int = 500,
         active_request_ttl_s: int = 3600,
+        socket_connect_timeout_s: float = 0.2,
+        socket_timeout_s: float = 0.2,
     ) -> "RedisAPIMetricsStore":
         return cls(
-            redis.Redis.from_url(redis_url),
+            redis.Redis.from_url(
+                redis_url,
+                socket_connect_timeout=socket_connect_timeout_s,
+                socket_timeout=socket_timeout_s,
+            ),
             prefix=prefix,
             max_samples=max_samples,
             active_request_ttl_s=active_request_ttl_s,

@@ -154,6 +154,10 @@ bruna_pinto_gomes.json
 #claude cache
 .claude
 
+# Serena cache
+.serena/
+AGENTS.md
+
 # Logs
 *.log
 

@@ -208,9 +208,11 @@ deps-sync: ## Sincroniza requirements.txt a partir do pyproject.toml (Poetry nec
 	@if command -v poetry >/dev/null 2>&1; then \
 		if poetry help export >/dev/null 2>&1; then \
 			poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main || exit 1; \
+		elif poetry run poetry help export >/dev/null 2>&1; then \
+			poetry run poetry export --without-hashes --format=requirements.txt --output requirements.txt --only main || exit 1; \
 			echo "$(GREEN)requirements.txt atualizado a partir do pyproject.toml$(NC)"; \
 		else \
-			echo "$(RED)poetry export não está disponível. Instale o plugin poetry-plugin-export.$(NC)"; \
+			echo "$(RED)poetry export não está disponível. Instale o plugin poetry-plugin-export no Poetry ou no ambiente do projeto.$(NC)"; \
 			exit 1; \
 		fi; \
 	else \
@@ -233,8 +235,17 @@ deps-check: ## Verifica se requirements.txt está sincronizado com pyproject.tom
 		else \
 			exit 1; \
 		fi; \
+	elif poetry run poetry help export >/dev/null 2>&1; then \
+		tmp_file=$$(mktemp); \
+		trap 'rm -f "$$tmp_file"' EXIT; \
+		poetry run poetry export --without-hashes --format=requirements.txt --output $$tmp_file --only main || exit 1; \
+		if diff -u requirements.txt $$tmp_file; then \
+			echo "$(GREEN)requirements.txt está sincronizado.$(NC)"; \
+		else \
+			exit 1; \
+		fi; \
 	else \
-		echo "$(RED)poetry export não está disponível. Instale o plugin poetry-plugin-export.$(NC)"; \
+		echo "$(RED)poetry export não está disponível. Instale o plugin poetry-plugin-export no Poetry ou no ambiente do projeto.$(NC)"; \
 		exit 1; \
 	fi
 

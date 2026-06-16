@@ -79,9 +79,9 @@ COPY main.py ./
 COPY scripts ./scripts
 COPY tests ./tests
 RUN pip install --no-cache-dir \
-    "pytest>=7.4.0" \
-    "pytest-asyncio>=0.21.0" \
-    "pytest-cov>=4.1.0" \
-    "pytest-mock>=3.11.1" \
-    "httpx~=0.28.1"
+    "pytest>=9.1.0" \
+    "pytest-asyncio>=1.4.0" \
+    "pytest-cov>=7.1.0" \
+    "pytest-mock>=3.15.1" \
+    "httpx2>=2.4.0"
 CMD ["python", "-m", "pytest", "tests"]

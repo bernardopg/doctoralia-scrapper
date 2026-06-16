@@ -60,7 +60,13 @@ def dynamic_app_config_from_env():
             generation=SimpleNamespace(mode=os.getenv("GENERATION_MODE", "local")),
         )
 
-    with patch("src.config.settings.AppConfig.load", side_effect=_build_config):
+    with (
+        patch.dict("os.environ", {"DISABLE_NOTIFICATION_SCHEDULER": "true"}),
+        patch(
+            "src.config.settings.AppConfig.load",
+            side_effect=_build_config,
+        ),
+    ):
         yield
 
 
