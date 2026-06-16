@@ -12,6 +12,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+# Apply nltk security patch (CVE-2024-53889) before any nltk imports
+import src.nltk_security_patch  # noqa: F401
 from src.api.v1.deps import create_webhook_signature
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
 

@@ -15,7 +15,7 @@ from nltk.tokenize import sent_tokenize, word_tokenize
 
 # Download required NLTK data
 try:
-    nltk.data.find("vader_lexicon")
+    nltk.data.find("sentiment/vader_lexicon")
 except LookupError:
     nltk.download("vader_lexicon", quiet=True)
 

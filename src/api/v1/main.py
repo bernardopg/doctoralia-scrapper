@@ -10,6 +10,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Apply nltk security patch (CVE-2024-53889) before any nltk imports
+import src.nltk_security_patch  # noqa: F401
 from src.api.v1 import _state as api_state
 from src.api.v1.middleware import register_api_middleware
 from src.api.v1.routers import (

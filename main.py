@@ -6,6 +6,9 @@ Doctoralia Scrapper - CLI Principal
 Script principal para executar o scraper do Doctoralia via linha de comando.
 """
 
+# Apply nltk security patch (CVE-2024-53889) before any nltk imports
+import src.nltk_security_patch  # noqa: F401
+
 import argparse
 import json
 import logging
