@@ -12,6 +12,7 @@ RUN apt-get update && \
     build-essential \
     gcc \
     g++ \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
