@@ -220,11 +220,16 @@ jobs:
         with:
           version: "2.2.1"
 
+      - name: Install twine
+        if: steps.pypi.outputs.publish == 'true'
+        run: pip install twine
+
       - name: Publish to PyPI
         if: steps.pypi.outputs.publish == 'true'
         env:
-          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
-        run: poetry publish --skip-existing
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: twine upload dist/* --skip-existing
 
   create-github-release:
     name: Create GitHub Release
