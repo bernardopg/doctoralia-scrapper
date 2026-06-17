@@ -1,6 +1,6 @@
 [project]
 name = "doctoralia-scrapper"
-version = "2.2.0"
+version = "2.3.1"
 description = "Sistema profissional de monitoramento e resposta a avaliações médicas. Inclui web scraping resiliente, API REST, análise de sentimento, geração inteligente de respostas e integração com n8n/Telegram."
 authors = [{name = "Bernardo Gomes", email = "bernardopg@users.noreply.github.com"}]
 maintainers = [{name = "Bernardo Gomes", email = "bernardopg@users.noreply.github.com"}]

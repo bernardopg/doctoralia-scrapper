@@ -6,6 +6,12 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-06-16
+
+### Fixed
+
+- **[docker]** Corrigido o estágio final do build multi-stage para instalar diretamente as wheels já construídas em `/wheels`, evitando que `pip install --no-index --find-links=/wheels -r requirements.txt` tente resolver novamente dependências VCS e chame `git` em imagens runtime sem Git instalado.
+
 ## [2.2.0] - 2026-06-11
 
 ### Security
@@ -159,7 +165,8 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.2.0...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.1...HEAD
+- [2.3.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.0...v2.3.1
 - [2.2.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.1...v2.2.0
 - [2.1.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.0...v2.1.1
 - [2.1.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.0.1...v2.1.0

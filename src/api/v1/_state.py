@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-API_VERSION = "2.1.1"
+API_VERSION = "2.3.1"
 
 METRICS_MAX_SAMPLES = 500
 METRICS_ACTIVE_REQUEST_TTL_S = 3600

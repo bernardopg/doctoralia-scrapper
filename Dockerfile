@@ -36,7 +36,7 @@ WORKDIR /app
 COPY requirements.txt ./
 COPY --from=builder /wheels /wheels
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt && \
+    pip install --no-cache-dir --no-index /wheels/*.whl && \
     rm -rf /wheels
 
 COPY src ./src
