@@ -5,7 +5,60 @@ Sistema de tratamento de erros melhorado
 import functools
 import logging
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Tuple, Type
+
+# Cache dos grupos de exceções Selenium (carregados sob demanda).
+_SELENIUM_GROUPS_CACHE: Optional[
+    Tuple[Tuple[Type[BaseException], ...], Tuple[Type[BaseException], ...]]
+] = None
+
+
+def _selenium_exception_groups() -> (
+    Tuple[Tuple[Type[BaseException], ...], Tuple[Type[BaseException], ...]]
+):
+    """Retorna (fatais, transitórias) do Selenium, ou tuplas vazias se ausente.
+
+    - Fatais: falhas que um retry não resolve (seletor inválido, argumento
+      inválido, driver/sessão inexistente).
+    - Transitórias: falhas tipicamente temporárias (timeout, elemento obsoleto,
+      WebDriverException genérica) que valem nova tentativa.
+    """
+    global _SELENIUM_GROUPS_CACHE
+    if _SELENIUM_GROUPS_CACHE is not None:
+        return _SELENIUM_GROUPS_CACHE
+
+    try:
+        from selenium.common.exceptions import (
+            InvalidArgumentException,
+            InvalidSelectorException,
+            NoSuchDriverException,
+            NoSuchElementException,
+            SessionNotCreatedException,
+            StaleElementReferenceException,
+            TimeoutException,
+            WebDriverException,
+        )
+
+        fatal: Tuple[Type[BaseException], ...] = (
+            NoSuchElementException,
+            InvalidSelectorException,
+            InvalidArgumentException,
+            NoSuchDriverException,
+            SessionNotCreatedException,
+        )
+        # Transitórias precisam vir antes da WebDriverException genérica na
+        # checagem do chamador; aqui a ordem não importa pois é por isinstance.
+        transient: Tuple[Type[BaseException], ...] = (
+            TimeoutException,
+            StaleElementReferenceException,
+            WebDriverException,
+        )
+    except ImportError:
+        fatal = ()
+        transient = ()
+
+    _SELENIUM_GROUPS_CACHE = (fatal, transient)
+    return _SELENIUM_GROUPS_CACHE
 
 
 class ErrorSeverity(Enum):
@@ -158,7 +211,31 @@ class EnhancedErrorHandler:
             raise RuntimeError(error_msg)
 
     def _is_fatal_error(self, exception: Exception) -> bool:
-        """Determine if an error is fatal and shouldn't be retried."""
+        """Determine if an error is fatal and shouldn't be retried.
+
+        Decision order:
+        1. Our own ScrapingError carries an explicit `retryable` flag — honour
+           it first (e.g. PageNotFoundError is non-retryable, RateLimitError is).
+        2. Known Selenium failures that won't be fixed by retrying (broken
+           selector, invalid argument, no driver/session) are fatal; transient
+           ones (timeout, stale element, generic WebDriverException) are not.
+        3. Generic programming errors remain fatal.
+        """
+        # 1) Respect the explicit contract of our domain exceptions.
+        if isinstance(exception, ScrapingError):
+            return not exception.retryable
+
+        # 2) Selenium-specific handling (import is optional/lazy so the module
+        #    works even when selenium is not installed). Check fatal first:
+        #    several fatal types (e.g. NoSuchElementException) subclass the
+        #    generic WebDriverException that we treat as transient.
+        selenium_fatal, selenium_transient = _selenium_exception_groups()
+        if selenium_fatal and isinstance(exception, selenium_fatal):
+            return True
+        if selenium_transient and isinstance(exception, selenium_transient):
+            return False
+
+        # 3) Generic programming errors that retrying cannot fix.
         fatal_errors = (
             ValueError,  # Invalid input
             TypeError,  # Type errors
@@ -166,7 +243,6 @@ class EnhancedErrorHandler:
             ImportError,  # Import errors
             KeyboardInterrupt,  # User interruption
         )
-
         return isinstance(exception, fatal_errors)
 
 

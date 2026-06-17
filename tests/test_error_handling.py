@@ -1,8 +1,17 @@
 import logging
 
 import pytest
+from selenium.common.exceptions import (
+    InvalidSelectorException,
+    NoSuchElementException,
+    SessionNotCreatedException,
+    StaleElementReferenceException,
+    TimeoutException,
+    WebDriverException,
+)
 
 from src.error_handling import (
+    EnhancedErrorHandler,
     ErrorReporter,
     PageNotFoundError,
     RateLimitError,
@@ -69,3 +78,42 @@ def test_error_reporter_logs_unexpected_error(caplog):
     with caplog.at_level("ERROR"):
         reporter.report_error(ValueError("boom"), {"op": "t"})
     assert any("Unexpected" in r.message for r in caplog.records)
+
+
+# ---------------------------------------------------------------------------
+# EnhancedErrorHandler._is_fatal_error
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def handler():
+    return EnhancedErrorHandler(logger=logging.getLogger("test_is_fatal"))
+
+
+def test_is_fatal_honours_scraping_error_retryable(handler):
+    # Non-retryable domain error is fatal; retryable is not.
+    assert handler._is_fatal_error(PageNotFoundError("https://x/404")) is True
+    assert handler._is_fatal_error(RateLimitError(retry_after=5)) is False
+    assert handler._is_fatal_error(ScrapingError("x", retryable=True)) is False
+    assert handler._is_fatal_error(ScrapingError("x", retryable=False)) is True
+
+
+def test_is_fatal_selenium_broken_selector_is_fatal(handler):
+    # Broken selector / config errors won't be fixed by retrying.
+    assert handler._is_fatal_error(NoSuchElementException()) is True
+    assert handler._is_fatal_error(InvalidSelectorException()) is True
+    assert handler._is_fatal_error(SessionNotCreatedException()) is True
+
+
+def test_is_fatal_selenium_transient_is_not_fatal(handler):
+    # Transient Selenium failures should be retried.
+    assert handler._is_fatal_error(TimeoutException()) is False
+    assert handler._is_fatal_error(StaleElementReferenceException()) is False
+    assert handler._is_fatal_error(WebDriverException()) is False
+
+
+def test_is_fatal_generic_programming_errors(handler):
+    assert handler._is_fatal_error(ValueError("bad")) is True
+    assert handler._is_fatal_error(TypeError("bad")) is True
+    # A plain transient-looking error with no special handling is not fatal.
+    assert handler._is_fatal_error(RuntimeError("transient")) is False

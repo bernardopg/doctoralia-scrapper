@@ -15,6 +15,7 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ### Changed
 
+- **[refactor]** `EnhancedErrorHandler._is_fatal_error` endurecido: agora honra o flag `retryable` das exceções de domínio (`PageNotFoundError` é fatal, `RateLimitError` é retryável) e classifica exceções do Selenium — seletor/argumento inválido e driver/sessão inexistente são fatais; timeout, elemento obsoleto e `WebDriverException` genérica são transitórios. Import do Selenium é tardio/opcional (módulo funciona sem ele). Cobertura nova em `tests/test_error_handling.py`.
 - **[refactor]** Provedores de IA extraídos de `src/response_generator.py` para o pacote `src/providers/` (`base.AIProvider`/`ProviderError` + `openai`, `gemini`, `claude` + factory `get_provider`). O gerador passa a delegar a chamada externa via `_call_*` finos, mantendo-se focado em templates e orquestração; `_extract_*` permanecem como API estável delegando aos provedores. Comportamento preservado (mesmos endpoints, headers, timeouts e mensagens de erro); `ProviderError` herda de `ValueError` por compatibilidade.
 - **[docs]** `docs/deployment.md`: seção de reverse proxy reescrita de Nginx manual para o fluxo real com Caddy e o overlay `docker-compose.prod.yml`.
 - **[config]** `.env.example`: adicionadas `APP_DOMAIN`, `N8N_DOMAIN`, `REDIS_PASSWORD`, `CADDY_HTTP_PORT` e `CADDY_HTTPS_PORT`.

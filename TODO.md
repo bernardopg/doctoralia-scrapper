@@ -40,7 +40,7 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 - [x] Quebrar `src/api/v1/main.py` em routers FastAPI por domínio (`auth`, `health`, `jobs`, `scrape`, `generate`, `analyze`, `metrics`, `settings`, `telegram`) e centralizar dependências injetáveis em `src/api/v1/providers.py`.
 - [x] Quebrar `src/dashboard.py` em módulos Flask menores (`app`, `auth`, `pages`, `reports`, `notifications`, `services`, `workspace`, `api_proxy`, `user_profile`), separando rotas, autenticação, leitura de dados e renderização.
 - [x] Extrair provedores de IA de `src/response_generator.py` para `src/providers/`, mantendo o gerador focado em templates e orquestração.
-- [ ] Endurecer `_is_fatal_error` em `src/error_handling.py`, incluindo exceções próprias do scraper e casos Selenium conhecidos.
+- [x] Endurecer `_is_fatal_error` em `src/error_handling.py`, incluindo exceções próprias do scraper e casos Selenium conhecidos.
 - [x] Completar `scripts/backup_restore.sh` com backup/restore reais e validação automatizada do restore.
 
 ## Prioridade baixa
