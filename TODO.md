@@ -6,7 +6,7 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 
 - [ ] Persistir no backend os campos completos do perfil do operador: `email`, avatar, time, membros e plano.
 - [ ] Introduzir modelo multiusuário com convite, papéis e isolamento por workspace/equipe.
-- [ ] Configurar HTTPS/TLS no deploy com reverse proxy e certificados.
+- [x] Configurar HTTPS/TLS no deploy com reverse proxy e certificados. (Caddy + `docker-compose.prod.yml`)
 - [x] Implementar limpeza e arquivamento de jobs antigos no Redis.
 - [x] Adicionar rate limiting por IP/API key nos endpoints da API.
 - [x] Adicionar CSRF protection nas ações autenticadas do dashboard (`login`, `logout`, troca de senha e futuras mutações web).

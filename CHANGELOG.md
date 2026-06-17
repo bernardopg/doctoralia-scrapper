@@ -6,6 +6,16 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+### Added
+
+- **[deploy]** Overlay de produção `docker-compose.prod.yml` com **Caddy** como reverse proxy e **TLS automático** (Let's Encrypt em produção, certificado self-signed da CA interna em local/staging). Roteia `/v1/*`, `/docs` e `/openapi.json` para a API e o restante para o dashboard; n8n em subdomínio dedicado. Aplica HSTS + `X-Frame-Options` + `X-Content-Type-Options` + `Referrer-Policy`, redirect HTTP→HTTPS e remove o header `Server`. Portas do Caddy configuráveis via `CADDY_HTTP_PORT`/`CADDY_HTTPS_PORT`.
+- **[security]** O overlay de produção passa a exigir senha no Redis (`REDIS_PASSWORD`), injeta a `REDIS_URL` autenticada em `api`/`worker` e deixa de publicar as portas internas (Redis/API/dashboard/n8n/selenium) no host — só o Caddy expõe 80/443.
+
+### Changed
+
+- **[docs]** `docs/deployment.md`: seção de reverse proxy reescrita de Nginx manual para o fluxo real com Caddy e o overlay `docker-compose.prod.yml`.
+- **[config]** `.env.example`: adicionadas `APP_DOMAIN`, `N8N_DOMAIN`, `REDIS_PASSWORD`, `CADDY_HTTP_PORT` e `CADDY_HTTPS_PORT`.
+
 ## [2.3.1] - 2026-06-16
 
 ### Fixed
