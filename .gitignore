@@ -141,6 +141,7 @@ n8n-workflows/
 
 # Doctoralia runtime
 .env
+backups/
 data/backups/
 data/logs/
 data/temp/

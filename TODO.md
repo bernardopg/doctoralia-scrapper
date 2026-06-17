@@ -12,7 +12,7 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 - [x] Adicionar CSRF protection nas ações autenticadas do dashboard (`login`, `logout`, troca de senha e futuras mutações web).
 - [x] Mascarar segredos na tela de settings sem perder rotação de chave.
 - [x] Criar testes end-to-end do fluxo completo: scrape -> analyze -> generate -> notify. (`tests/test_e2e_flow.py`)
-- [ ] Implementar `scripts/backup_restore.sh` de forma real, com restore validado.
+- [x] Implementar `scripts/backup_restore.sh` de forma real, com restore validado. (data/config/.env/Redis/n8n + `verify`)
 
 ## Prioridade média
 
@@ -41,7 +41,7 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 - [x] Quebrar `src/dashboard.py` em módulos Flask menores (`app`, `auth`, `pages`, `reports`, `notifications`, `services`, `workspace`, `api_proxy`, `user_profile`), separando rotas, autenticação, leitura de dados e renderização.
 - [ ] Extrair provedores de IA de `src/response_generator.py` para `src/providers/`, mantendo o gerador focado em templates e orquestração.
 - [ ] Endurecer `_is_fatal_error` em `src/error_handling.py`, incluindo exceções próprias do scraper e casos Selenium conhecidos.
-- [ ] Completar `scripts/backup_restore.sh` com backup/restore reais e validação automatizada do restore.
+- [x] Completar `scripts/backup_restore.sh` com backup/restore reais e validação automatizada do restore.
 
 ## Prioridade baixa
 
