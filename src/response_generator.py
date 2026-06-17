@@ -4,9 +4,31 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from src.config.templates import QUALITY_KEYWORDS, RESPONSE_TEMPLATES
+from src.providers import (
+    ClaudeProvider,
+    GeminiProvider,
+    OpenAIProvider,
+    get_provider,
+)
+
+
+class _ProviderConfigView:
+    """Adapta o generation config para um provedor, sobrescrevendo atributos.
+
+    Usado pelo wrapper `_call_openai` para injetar a API key resolvida (com o
+    fallback histórico para `security.openai_api_key`) sem mutar o config real.
+    """
+
+    def __init__(self, base: Any, **overrides: Any) -> None:
+        self._base = base
+        self._overrides = overrides
+
+    def __getattr__(self, name: str) -> Any:
+        if name in self._overrides:
+            return self._overrides[name]
+        return getattr(self._base, name)
+
 
 DEFAULT_SYSTEM_PROMPT = (
     "Voce gera respostas curtas e profissionais para avaliacoes publicas de pacientes "
@@ -181,183 +203,36 @@ class ResponseGenerator:
         ]
         return "\n".join(prompt_lines)
 
-    @staticmethod
-    def _extract_openai_text(payload: Dict[str, Any]) -> str:
-        choices = payload.get("choices", [])
-        if not choices:
-            return ""
-        message = choices[0].get("message", {})
-        content = message.get("content", "")
-        if isinstance(content, str):
-            return content.strip()
-        if isinstance(content, list):
-            for item in content:
-                if isinstance(item, dict) and item.get("type") == "text":
-                    return str(item.get("text") or "").strip()
-        return ""
-
-    @staticmethod
-    def _extract_claude_text(payload: Dict[str, Any]) -> str:
-        for item in payload.get("content", []):
-            if isinstance(item, dict) and item.get("type") == "text":
-                return str(item.get("text") or "").strip()
-        return ""
-
-    @staticmethod
-    def _extract_gemini_text(payload: Dict[str, Any]) -> str:
-        candidates = payload.get("candidates", [])
-        if not candidates:
-            return ""
-        content = candidates[0].get("content", {})
-        for part in content.get("parts", []):
-            if isinstance(part, dict) and part.get("text"):
-                return str(part["text"]).strip()
-        return ""
+    # Extração de texto delegada aos provedores (mantida como API estável).
+    _extract_openai_text = staticmethod(OpenAIProvider._extract_text)
+    _extract_claude_text = staticmethod(ClaudeProvider._extract_text)
+    _extract_gemini_text = staticmethod(GeminiProvider._extract_text)
 
     def _call_openai(
         self, prompt: str, system_prompt: str, temperature: float, max_tokens: int
     ) -> tuple[str, str]:
+        # Resolve a API key com fallback histórico para `security.openai_api_key`
+        # e delega a chamada ao provedor extraído em `src/providers/`.
         config = self._get_generation_config()
         api_key = getattr(config, "openai_api_key", None) or getattr(
             getattr(self.config, "security", None), "openai_api_key", None
         )
-        model = getattr(config, "openai_model", "gpt-4.1-mini")
-        if not api_key:
-            raise ValueError("OpenAI API key não configurada")
-
-        try:
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "temperature": temperature,
-                    "max_tokens": max_tokens,
-                },
-                timeout=45,
-            )
-        except requests.exceptions.Timeout:
-            raise ValueError("OpenAI timeout após 45s")
-        except requests.exceptions.ConnectionError:
-            raise ValueError("OpenAI erro de conexão")
-        except requests.exceptions.RequestException as e:
-            raise ValueError(f"OpenAI erro de rede: {e}")
-
-        if not response.ok:
-            raise ValueError(
-                f"OpenAI retornou {response.status_code}: {response.text[:300]}"
-            )
-
-        try:
-            data = response.json()
-        except (ValueError, KeyError):
-            raise ValueError("OpenAI retornou resposta inválida (não-JSON)")
-
-        text = self._extract_openai_text(data)
-        if not text:
-            raise ValueError("OpenAI não retornou texto de resposta")
-        return text, str(model)
+        provider = get_provider(
+            "openai", _ProviderConfigView(config, openai_api_key=api_key)
+        )
+        return provider.generate(prompt, system_prompt, temperature, max_tokens)
 
     def _call_claude(
         self, prompt: str, system_prompt: str, temperature: float, max_tokens: int
     ) -> tuple[str, str]:
-        config = self._get_generation_config()
-        api_key = getattr(config, "claude_api_key", None)
-        model = getattr(config, "claude_model", "claude-3-5-sonnet-latest")
-        if not api_key:
-            raise ValueError("Claude API key não configurada")
-
-        try:
-            response = requests.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": max_tokens,
-                    "temperature": temperature,
-                    "system": system_prompt,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                timeout=45,
-            )
-        except requests.exceptions.Timeout:
-            raise ValueError("Claude timeout após 45s")
-        except requests.exceptions.ConnectionError:
-            raise ValueError("Claude erro de conexão")
-        except requests.exceptions.RequestException as e:
-            raise ValueError(f"Claude erro de rede: {e}")
-
-        if not response.ok:
-            raise ValueError(
-                f"Claude retornou {response.status_code}: {response.text[:300]}"
-            )
-
-        try:
-            data = response.json()
-        except (ValueError, KeyError):
-            raise ValueError("Claude retornou resposta inválida (não-JSON)")
-
-        text = self._extract_claude_text(data)
-        if not text:
-            raise ValueError("Claude não retornou texto de resposta")
-        return text, str(model)
+        provider = get_provider("claude", self._get_generation_config())
+        return provider.generate(prompt, system_prompt, temperature, max_tokens)
 
     def _call_gemini(
         self, prompt: str, system_prompt: str, temperature: float, max_tokens: int
     ) -> tuple[str, str]:
-        config = self._get_generation_config()
-        api_key = getattr(config, "gemini_api_key", None)
-        model = getattr(config, "gemini_model", "gemini-2.5-flash")
-        if not api_key:
-            raise ValueError("Gemini API key não configurada")
-
-        try:
-            response = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
-                params={"key": api_key},
-                headers={"Content-Type": "application/json"},
-                json={
-                    "systemInstruction": {"parts": [{"text": system_prompt}]},
-                    "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                    "generationConfig": {
-                        "temperature": temperature,
-                        "maxOutputTokens": max_tokens,
-                    },
-                },
-                timeout=45,
-            )
-        except requests.exceptions.Timeout:
-            raise ValueError("Gemini timeout após 45s")
-        except requests.exceptions.ConnectionError:
-            raise ValueError("Gemini erro de conexão")
-        except requests.exceptions.RequestException as e:
-            raise ValueError(f"Gemini erro de rede: {e}")
-
-        if not response.ok:
-            raise ValueError(
-                f"Gemini retornou {response.status_code}: {response.text[:300]}"
-            )
-
-        try:
-            data = response.json()
-        except (ValueError, KeyError):
-            raise ValueError("Gemini retornou resposta inválida (não-JSON)")
-
-        text = self._extract_gemini_text(data)
-        if not text:
-            raise ValueError("Gemini não retornou texto de resposta")
-        return text, str(model)
+        provider = get_provider("gemini", self._get_generation_config())
+        return provider.generate(prompt, system_prompt, temperature, max_tokens)
 
     def _generate_local_response(
         self, review: Dict[str, Any], doctor_context: Optional[Dict[str, Any]] = None

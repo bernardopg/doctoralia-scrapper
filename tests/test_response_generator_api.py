@@ -93,7 +93,7 @@ def _mock_error_response(status_code=429, text="rate limited"):
 
 
 class TestCallOpenAI:
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_success(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(OPENAI_SUCCESS_RESPONSE)
 
@@ -103,35 +103,35 @@ class TestCallOpenAI:
         assert model == "gpt-4.1-mini"
         mock_post.assert_called_once()
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_timeout(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.Timeout()
 
         with pytest.raises(ValueError, match="timeout"):
             generator._call_openai(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_connection_error(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.ConnectionError()
 
         with pytest.raises(ValueError, match="conexão"):
             generator._call_openai(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_request_exception(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.RequestException("socket closed")
 
         with pytest.raises(ValueError, match="rede"):
             generator._call_openai(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_http_error(self, mock_post, generator):
         mock_post.return_value = _mock_error_response(429, "rate limited")
 
         with pytest.raises(ValueError, match="429"):
             generator._call_openai(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_invalid_json(self, mock_post, generator):
         resp = MagicMock()
         resp.ok = True
@@ -141,7 +141,7 @@ class TestCallOpenAI:
         with pytest.raises(ValueError, match="não-JSON"):
             generator._call_openai(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_empty_response_text(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response({"choices": []})
 
@@ -159,7 +159,7 @@ class TestCallOpenAI:
 
 
 class TestCallClaude:
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_success(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(CLAUDE_SUCCESS_RESPONSE)
 
@@ -168,35 +168,35 @@ class TestCallClaude:
         assert text == "Obrigado pelo feedback!"
         assert model == "claude-3-5-sonnet-latest"
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_timeout(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.Timeout()
 
         with pytest.raises(ValueError, match="timeout"):
             generator._call_claude(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_connection_error(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.ConnectionError()
 
         with pytest.raises(ValueError, match="conexão"):
             generator._call_claude(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_request_exception(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.RequestException("reset")
 
         with pytest.raises(ValueError, match="rede"):
             generator._call_claude(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_http_error(self, mock_post, generator):
         mock_post.return_value = _mock_error_response(500, "internal error")
 
         with pytest.raises(ValueError, match="500"):
             generator._call_claude(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_invalid_json(self, mock_post, generator):
         resp = MagicMock()
         resp.ok = True
@@ -206,7 +206,7 @@ class TestCallClaude:
         with pytest.raises(ValueError, match="não-JSON"):
             generator._call_claude(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_empty_response_text(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response({"content": []})
 
@@ -224,7 +224,7 @@ class TestCallClaude:
 
 
 class TestCallGemini:
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_success(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(GEMINI_SUCCESS_RESPONSE)
 
@@ -233,35 +233,35 @@ class TestCallGemini:
         assert text == "Obrigado pelo feedback!"
         assert model == "gemini-2.5-flash"
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_timeout(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.Timeout()
 
         with pytest.raises(ValueError, match="timeout"):
             generator._call_gemini(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_connection_error(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.ConnectionError()
 
         with pytest.raises(ValueError, match="conexão"):
             generator._call_gemini(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_request_exception(self, mock_post, generator):
         mock_post.side_effect = requests.exceptions.RequestException("dns failure")
 
         with pytest.raises(ValueError, match="rede"):
             generator._call_gemini(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_http_error(self, mock_post, generator):
         mock_post.return_value = _mock_error_response(403, "forbidden")
 
         with pytest.raises(ValueError, match="403"):
             generator._call_gemini(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_invalid_json(self, mock_post, generator):
         resp = MagicMock()
         resp.ok = True
@@ -271,7 +271,7 @@ class TestCallGemini:
         with pytest.raises(ValueError, match="não-JSON"):
             generator._call_gemini(*CALL_ARGS)
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_empty_response_text(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response({"candidates": []})
 
@@ -302,7 +302,7 @@ class TestGenerateResponseWithMetadata:
         assert result["model"]["type"] == "template"
         assert result["model"]["mode"] == "local"
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_openai_mode(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(OPENAI_SUCCESS_RESPONSE)
         review = {"author": "Carlos", "comment": "Bom"}
@@ -316,7 +316,7 @@ class TestGenerateResponseWithMetadata:
         assert result["model"]["type"] == "third-party"
         assert result["model"]["name"] == "gpt-4.1-mini"
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.claude.requests.post")
     def test_claude_mode(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(CLAUDE_SUCCESS_RESPONSE)
         review = {"author": "Ana", "comment": "Boa consulta"}
@@ -328,7 +328,7 @@ class TestGenerateResponseWithMetadata:
         assert result["text"] == "Obrigado pelo feedback!"
         assert result["model"]["provider"] == "claude"
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.gemini.requests.post")
     def test_gemini_mode(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(GEMINI_SUCCESS_RESPONSE)
         review = {"author": "Pedro", "comment": "Recomendo"}
@@ -357,7 +357,7 @@ class TestGenerateResponseWithMetadata:
 
         assert result["model"]["provider"] == "local"
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_metadata_includes_temperature_and_tokens(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(OPENAI_SUCCESS_RESPONSE)
         review = {"author": "Test", "comment": "Test"}
@@ -384,7 +384,7 @@ class TestGenerateResponse:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @patch("src.response_generator.requests.post")
+    @patch("src.providers.openai.requests.post")
     def test_delegates_to_metadata_method(self, mock_post, generator):
         mock_post.return_value = _mock_ok_response(OPENAI_SUCCESS_RESPONSE)
         review = {"author": "Test", "comment": "Test"}
