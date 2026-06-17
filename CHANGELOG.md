@@ -8,6 +8,7 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ### Added
 
+- **[tests]** Testes end-to-end do pipeline completo em `tests/test_e2e_flow.py`: `scrape -> generate -> analyze -> notify`, mockando apenas as fronteiras de I/O (rede do Selenium e HTTP do Telegram) e exercitando a orquestração real. Inclui caso de aborto quando o scrape não retorna dados.
 - **[deploy]** Overlay de produção `docker-compose.prod.yml` com **Caddy** como reverse proxy e **TLS automático** (Let's Encrypt em produção, certificado self-signed da CA interna em local/staging). Roteia `/v1/*`, `/docs` e `/openapi.json` para a API e o restante para o dashboard; n8n em subdomínio dedicado. Aplica HSTS + `X-Frame-Options` + `X-Content-Type-Options` + `Referrer-Policy`, redirect HTTP→HTTPS e remove o header `Server`. Portas do Caddy configuráveis via `CADDY_HTTP_PORT`/`CADDY_HTTPS_PORT`.
 - **[security]** O overlay de produção passa a exigir senha no Redis (`REDIS_PASSWORD`), injeta a `REDIS_URL` autenticada em `api`/`worker` e deixa de publicar as portas internas (Redis/API/dashboard/n8n/selenium) no host — só o Caddy expõe 80/443.
 

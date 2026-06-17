@@ -11,7 +11,7 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 - [x] Adicionar rate limiting por IP/API key nos endpoints da API.
 - [x] Adicionar CSRF protection nas ações autenticadas do dashboard (`login`, `logout`, troca de senha e futuras mutações web).
 - [x] Mascarar segredos na tela de settings sem perder rotação de chave.
-- [ ] Criar testes end-to-end do fluxo completo: scrape -> analyze -> generate -> notify.
+- [x] Criar testes end-to-end do fluxo completo: scrape -> analyze -> generate -> notify. (`tests/test_e2e_flow.py`)
 - [ ] Implementar `scripts/backup_restore.sh` de forma real, com restore validado.
 
 ## Prioridade média
