@@ -476,14 +476,14 @@ redis = ["redis (>=2.10.5)"]
 
 [[package]]
 name = "certifi"
-version = "2026.5.20"
+version = "2026.6.17"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
 groups = ["main", "dev"]
 files = [
-    {file = "certifi-2026.5.20-py3-none-any.whl", hash = "sha256:3c52e209ba0a4ad7aebe60436a4ab349c39e1e602e8c134221e546902ad25897"},
-    {file = "certifi-2026.5.20.tar.gz", hash = "sha256:69dea482ab64caa7b9f6aba1c6bf48bb6a5448d1c0f1b17ab42ad8c763a5344d"},
+    {file = "certifi-2026.6.17-py3-none-any.whl", hash = "sha256:2227dcbaafe0d2f59279d1762ddddc37783ed4354594f194ffc31d20f41fc3db"},
+    {file = "certifi-2026.6.17.tar.gz", hash = "sha256:024c88eeec92ca068db80f02b8b07c9cef7b9fe261d1d535abfd5abd6f6af432"},
 ]
 
 [[package]]
@@ -1219,14 +1219,14 @@ tests = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "fastapi"
-version = "0.137.1"
+version = "0.138.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "fastapi-0.137.1-py3-none-any.whl", hash = "sha256:64f6983c59e45c4b9fdc44e57cb8035c2451ee91ea8e8ec042aca37de7cf6b69"},
-    {file = "fastapi-0.137.1.tar.gz", hash = "sha256:822360704230d9533d8d9475399613525968aa2f0b5bd2a3ccc9f18c88fd541c"},
+    {file = "fastapi-0.138.0-py3-none-any.whl", hash = "sha256:b6f54fd1bd72c80b0f899f172c61a600f6f7af9b43d4d772a018f35624048cb0"},
+    {file = "fastapi-0.138.0.tar.gz", hash = "sha256:d445a4877636ad191e7053e08c9bf98cb921a6756776848400bb773d1740c061"},
 ]
 
 [package.dependencies]
@@ -3399,14 +3399,14 @@ files = [
 
 [[package]]
 name = "pytest"
-version = "9.1.0"
+version = "9.1.1"
 description = "pytest: simple powerful testing with Python"
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "pytest-9.1.0-py3-none-any.whl", hash = "sha256:8ebb0e7888bdf2bdfc602ec51f8f62d50200af37356c74e503c79a94f5c81f32"},
-    {file = "pytest-9.1.0.tar.gz", hash = "sha256:41dd9148c08072446394cefd3d79701701335a9f4cae69ba92e39f6c7f5c061c"},
+    {file = "pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c"},
+    {file = "pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313"},
 ]
 
 [package.dependencies]
@@ -3995,14 +3995,14 @@ files = [
 
 [[package]]
 name = "rq"
-version = "2.9.1"
+version = "2.10.0"
 description = "RQ is a simple, lightweight, library for creating background jobs, and processing them."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "rq-2.9.1-py3-none-any.whl", hash = "sha256:092624e1bc3b3ca9d2ce7ff4049bd7667f772f84695c9dc66a7a662f67f1939a"},
-    {file = "rq-2.9.1.tar.gz", hash = "sha256:2ae30c452bd1e8e26b4a213340d4b6e3957cae23176a92f9132c661d73d0c179"},
+    {file = "rq-2.10.0-py3-none-any.whl", hash = "sha256:1f072e0ff79771f3d3a810170df4c4836dca9ce9f31330a9fc25e25277620ec8"},
+    {file = "rq-2.10.0.tar.gz", hash = "sha256:2d8c533dd27500fedabec06295f18db595966e4f22744e6988fe31155b8f7a21"},
 ]
 
 [package.dependencies]
@@ -5192,4 +5192,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "0f59bcb2bae5e258c3f0171baa3aea8c641d6698977f32d0686d5b575f5a0af1"
+content-hash = "c702c189795e87f8b4330c0ccea21b341dcc9833c8a29cc1a1dee0ee60cb5331"
