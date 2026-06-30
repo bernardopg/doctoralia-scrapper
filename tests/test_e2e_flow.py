@@ -19,7 +19,6 @@ from src.scraper import DoctoraliaScraper
 from src.telegram_notifier import TelegramNotifier
 from tests.fixtures import MockConfig
 
-
 DOCTOR_URL = "https://www.doctoralia.com.br/medico/especialidade/cidade"
 
 
@@ -144,9 +143,7 @@ def test_pipeline_aborts_when_scrape_returns_nothing(tmp_path) -> None:
     logger = Mock()
 
     scraper = DoctoraliaScraper(config, logger)
-    with patch.object(
-        scraper, "_process_single_scrape_attempt", return_value=None
-    ):
+    with patch.object(scraper, "_process_single_scrape_attempt", return_value=None):
         data = scraper.scrape_reviews(DOCTOR_URL)
 
     assert not data
