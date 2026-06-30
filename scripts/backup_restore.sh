@@ -6,12 +6,13 @@
 #   - data/            extractions, responses, logs, snapshots
 #   - src/config/      config.json (and example)
 #   - .env             secrets / runtime configuration
+#   - PostgreSQL       full SQL dump (users, workspaces, memberships)
 #   - Redis            full RDB dump (job queue, metrics, notifications)
 #   - n8n              exported workflows + credentials (when n8n is running)
 #
-# Redis and n8n are read from the running Docker Compose stack. When the stack
-# is not up, those parts are skipped with a warning and the file backup still
-# succeeds.
+# PostgreSQL, Redis and n8n are read from the running Docker Compose stack.
+# When the stack is not up, those parts are skipped with a warning and the
+# file backup still succeeds.
 #
 # Usage:
 #   scripts/backup_restore.sh backup            # create a new backup
@@ -61,6 +62,18 @@ redis_password() {
     grep -E '^REDIS_PASSWORD=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true
 }
 
+# Reads a POSTGRES_* var from .env, falling back to the doctoralia default
+# used across docker-compose.yml/.env.example.
+postgres_var() {
+    local name="$1" default="${2:-doctoralia}"
+    if [ -f "$ENV_FILE" ]; then
+        # Ignore grep exit code (1 when no match) to avoid triggering set -e
+        local val; val="$(grep -E "^${name}=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
+        [ -n "$val" ] && { echo "$val"; return 0; }
+    fi
+    echo "$default"
+}
+
 # ---------------------------------------------------------------------------
 # Backup
 # ---------------------------------------------------------------------------
@@ -102,6 +115,26 @@ backup_n8n() {
     fi
 }
 
+backup_postgres() {
+    local dest="$1"
+    local cid; cid="$(compose_container db)"
+    if [ -z "$cid" ]; then
+        print_warning "PostgreSQL container not running — skipping PostgreSQL backup"
+        return 0
+    fi
+    print_info "Backing up PostgreSQL (pg_dump)..."
+    local user db
+    user="$(postgres_var POSTGRES_USER doctoralia)"
+    db="$(postgres_var POSTGRES_DB doctoralia)"
+    if docker exec "$cid" pg_dump -U "$user" -d "$db" --clean --if-exists --no-owner \
+        > "$dest/postgres_dump.sql" 2>/dev/null; then
+        print_success "PostgreSQL dump saved"
+    else
+        print_warning "pg_dump failed — PostgreSQL data not backed up"
+        rm -f "$dest/postgres_dump.sql"
+    fi
+}
+
 create_backup() {
     mkdir -p "$BACKUP_DIR"
     local backup_file="$BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
@@ -133,6 +166,7 @@ create_backup() {
 
     backup_redis "$contents"
     backup_n8n "$contents"
+    backup_postgres "$contents"
 
     # Manifest used by verify/restore to know what to expect.
     cat > "$contents/backup_info.txt" <<EOF
@@ -146,6 +180,7 @@ $([ -d "$contents/data" ]    && echo "- data directory")
 $([ -d "$contents/config" ]  && echo "- src/config")
 $([ -f "$contents/env" ]     && echo "- .env")
 $([ -f "$contents/redis_dump.rdb" ]   && echo "- Redis dump.rdb")
+$([ -f "$contents/postgres_dump.sql" ] && echo "- PostgreSQL dump.sql")
 $([ -f "$contents/n8n_workflows.json" ] && echo "- n8n workflows")
 EOF
 
@@ -202,6 +237,16 @@ verify_backup() {
             print_success "n8n workflows are valid JSON"
         else
             print_error "n8n workflows file is not valid JSON"
+            ok=1
+        fi
+    fi
+    # Validate the PostgreSQL dump looks like pg_dump output (non-empty,
+    # starts with the standard pg_dump preamble).
+    if [ -f "$contents/postgres_dump.sql" ]; then
+        if [ -s "$contents/postgres_dump.sql" ] && head -n 20 "$contents/postgres_dump.sql" | grep -q '^-- PostgreSQL database dump'; then
+            print_success "PostgreSQL dump looks valid"
+        else
+            print_error "PostgreSQL dump present but does not look like a pg_dump output"
             ok=1
         fi
     fi
@@ -263,6 +308,26 @@ restore_n8n() {
     fi
 }
 
+restore_postgres() {
+    local contents="$1"
+    [ -f "$contents/postgres_dump.sql" ] || return 0
+    local cid; cid="$(compose_container db)"
+    if [ -z "$cid" ]; then
+        print_warning "PostgreSQL not running — skipping PostgreSQL restore (dump kept in data/)"
+        cp "$contents/postgres_dump.sql" "$DATA_DIR/postgres_dump.sql" 2>/dev/null || true
+        return 0
+    fi
+    print_info "Restoring PostgreSQL dump..."
+    local user db
+    user="$(postgres_var POSTGRES_USER doctoralia)"
+    db="$(postgres_var POSTGRES_DB doctoralia)"
+    if docker exec -i "$cid" psql -U "$user" -d "$db" < "$contents/postgres_dump.sql" >/dev/null 2>&1; then
+        print_success "PostgreSQL restored"
+    else
+        print_warning "PostgreSQL restore failed — check dump compatibility (psql output suppressed)"
+    fi
+}
+
 restore_backup() {
     local backup_file="$1"
     [ -f "$backup_file" ] || { print_error "Backup file not found: $backup_file"; exit 1; }
@@ -270,7 +335,7 @@ restore_backup() {
     # Validate before touching anything.
     verify_backup "$backup_file"
 
-    print_warning "This will overwrite existing data, config, .env, Redis and n8n state."
+    print_warning "This will overwrite existing data, config, .env, PostgreSQL, Redis and n8n state."
     read -r -p "Proceed with restore from $(basename "$backup_file")? (y/N): " reply
     [[ "$reply" =~ ^[Yy]$ ]] || { print_info "Restore cancelled"; exit 0; }
 
@@ -314,6 +379,7 @@ restore_backup() {
 
     restore_redis "$contents"
     restore_n8n "$contents"
+    restore_postgres "$contents"
 
     print_success "Restore complete"
 }
@@ -350,7 +416,7 @@ show_usage() {
     cat <<EOF
 Usage: $0 {backup|list|restore <file>|verify <file>|cleanup|help}
 
-  backup           Create a new backup (data, config, .env, Redis, n8n)
+  backup           Create a new backup (data, config, .env, PostgreSQL, Redis, n8n)
   list             List available backups
   restore <file>   Validate then restore from a backup
   verify <file>    Validate a backup archive without changing anything
