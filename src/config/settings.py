@@ -405,21 +405,27 @@ class AppConfig:
 
                 integrations_data = data.get("integrations", {})
                 integrations = IntegrationConfig(
-                    redis_url=integrations_data.get(
-                        "redis_url", os.getenv("REDIS_URL", integrations.redis_url)
+                    # Runtime integration endpoints may carry deployment-only
+                    # credentials (for example redis://:<password>@redis:6379/0
+                    # from docker-compose.prod.yml). Environment variables must
+                    # override a persisted config.json so mounted local settings
+                    # cannot silently break containerized production wiring.
+                    redis_url=os.getenv(
+                        "REDIS_URL",
+                        integrations_data.get("redis_url", integrations.redis_url),
                     ),
-                    selenium_remote_url=integrations_data.get(
-                        "selenium_remote_url",
-                        os.getenv(
-                            "SELENIUM_REMOTE_URL", integrations.selenium_remote_url
+                    selenium_remote_url=os.getenv(
+                        "SELENIUM_REMOTE_URL",
+                        integrations_data.get(
+                            "selenium_remote_url", integrations.selenium_remote_url
                         ),
                     ),
                     api_url=_clean_optional(
-                        integrations_data.get("api_url") or os.getenv("API_URL")
+                        os.getenv("API_URL") or integrations_data.get("api_url")
                     ),
                     api_public_url=_clean_optional(
-                        integrations_data.get("api_public_url")
-                        or os.getenv("API_PUBLIC_URL")
+                        os.getenv("API_PUBLIC_URL")
+                        or integrations_data.get("api_public_url")
                     ),
                 )
 

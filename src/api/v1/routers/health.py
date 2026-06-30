@@ -6,10 +6,12 @@ from urllib.parse import urlparse
 import requests
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from src.api.schemas.common import HealthResponse, ReadyComponent, ReadyResponse
 from src.api.v1._state import API_VERSION
 from src.api.v1.providers import get_app_config, get_job_queue_factory
+from src.db.base import get_sessionmaker
 
 router = APIRouter(tags=["Health"])
 
@@ -132,6 +134,25 @@ async def readiness_check(
         status=selenium_ok,
         latency_ms=selenium_latency,
         error=selenium_error,
+        details=None,
+    )
+
+    database_ok = False
+    database_error = None
+    database_latency = None
+    try:
+        start = time.perf_counter()
+        async_session = get_sessionmaker()
+        async with async_session() as session:
+            await session.execute(text("SELECT 1"))
+        database_latency = int((time.perf_counter() - start) * 1000)
+        database_ok = True
+    except Exception as exc:  # pragma: no cover
+        database_error = str(exc)[:300]
+    components["database"] = ReadyComponent(
+        status=database_ok,
+        latency_ms=database_latency,
+        error=database_error,
         details=None,
     )
 

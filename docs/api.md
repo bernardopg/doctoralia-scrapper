@@ -409,7 +409,8 @@ Verifica disponibilidade de todas as dependências.
     "queue": true,
     "templates": true,
     "nltk_vader": true,
-    "selenium": true
+    "selenium": true,
+    "database": true
   },
   "components": {
     "redis": {
@@ -425,6 +426,11 @@ Verifica disponibilidade de todas as dependências.
         "depth": 3,
         "failed": 0
       }
+    },
+    "database": {
+      "status": true,
+      "latency_ms": 8,
+      "error": null
     },
     ...
   }

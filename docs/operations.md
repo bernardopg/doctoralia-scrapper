@@ -11,7 +11,7 @@ Esta página concentra o runbook do projeto: health, logs, agendamentos, retenç
 | Endpoint | Uso |
 |---|---|
 | `/v1/health` | disponibilidade básica da API |
-| `/v1/ready` | readiness com Redis, queue, Selenium e NLTK |
+| `/v1/ready` | readiness com Redis, queue, PostgreSQL, Selenium e NLTK |
 | `/v1/statistics` | estatísticas agregadas |
 | `/v1/metrics` | métricas Redis-backed da API |
 

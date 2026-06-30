@@ -168,6 +168,60 @@ class TestHealthEndpoints:
             response = client.get("/v1/ready")
             assert response.status_code == 503
 
+    def test_ready_check_reports_database_failure(self, client):
+        """Readiness should include database diagnostics when Postgres is down."""
+
+        class FailingSession:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+            async def execute(self, *_args, **_kwargs):
+                raise RuntimeError("database unavailable")
+
+        class FakeRedis:
+            def ping(self):
+                return True
+
+        fake_queue = SimpleNamespace(
+            count=0,
+            name="doctoralia",
+            connection=object(),
+        )
+        fake_registry = MagicMock()
+        fake_registry.get_job_ids.return_value = []
+        fake_response = MagicMock()
+        fake_response.raise_for_status.return_value = None
+
+        from src.api.v1.providers import get_job_queue_factory
+
+        client.app.dependency_overrides[get_job_queue_factory] = lambda: (
+            lambda: fake_queue
+        )
+        try:
+            with (
+                patch("redis.Redis.from_url", return_value=FakeRedis()),
+                patch("rq.registry.FailedJobRegistry", return_value=fake_registry),
+                patch("requests.get", return_value=fake_response),
+                patch("src.response_quality_analyzer.ResponseQualityAnalyzer"),
+                patch(
+                    "src.api.v1.routers.health.get_sessionmaker",
+                    return_value=lambda: FailingSession(),
+                ),
+            ):
+                response = client.get("/v1/ready")
+        finally:
+            client.app.dependency_overrides.pop(get_job_queue_factory, None)
+
+        assert response.status_code == 503
+        data = response.json()
+        assert data["checks"]["database"] is False
+        assert "database unavailable" in data["components"]["database"]["error"]
+        assert data["checks"]["redis"] is True
+        assert data["checks"]["queue"] is True
+
     def test_metrics_endpoint_uses_redis_backed_store(self, client):
         """Metrics endpoint should expose Redis-backed counters and middleware timings."""
         metrics_store = MagicMock()
