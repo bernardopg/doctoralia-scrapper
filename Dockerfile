@@ -13,6 +13,7 @@ RUN apt-get update && \
     gcc \
     g++ \
     git \
+    libpq-dev \
     && git config --global url."https://github.com/".insteadOf git@github.com: \
     && git config --global http.lowSpeedLimit 1000 \
     && git config --global http.lowSpeedTime 30 \

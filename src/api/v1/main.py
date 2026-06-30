@@ -25,6 +25,7 @@ from src.api.v1.routers import (
     settings,
     telegram,
 )
+from src.db.base import get_engine
 
 
 async def startup_notification_scheduler() -> None:
@@ -37,12 +38,26 @@ async def shutdown_notification_scheduler() -> None:
     api_state.stop_telegram_schedule_service()
 
 
+async def startup_db() -> None:
+    """Initialize database engine (singleton)."""
+    get_engine()
+
+
+async def shutdown_db() -> None:
+    """Dispose database engine on shutdown."""
+    engine = get_engine()
+    if engine is not None:
+        await engine.dispose()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await startup_notification_scheduler()
+    await startup_db()
     try:
         yield
     finally:
+        await shutdown_db()
         await shutdown_notification_scheduler()
 
 

@@ -5,9 +5,10 @@ FastAPI dependency overrides and avoids binding routers directly to global
 constructors.
 """
 
-from typing import Any
+from typing import Any, AsyncIterator
 
 from src.api.v1 import _state
+from src.db.base import get_session
 from src.jobs import queue as queue_module
 
 
@@ -29,3 +30,13 @@ def get_metrics_snapshot() -> tuple[dict, bool]:
 
 def get_running_telegram_schedule_service() -> Any:
     return _state.get_telegram_schedule_service(start_runner=True)
+
+
+async def get_db_session() -> AsyncIterator[Any]:
+    """FastAPI dependency yielding an async DB session.
+
+    Commits on success, rolls back on exception. Uses the singleton session
+    factory from src.db.base.
+    """
+    async for session in get_session():
+        yield session

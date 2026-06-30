@@ -12,7 +12,7 @@ if [[ -f .env ]]; then
 fi
 
 # Validate required environment variables
-REQUIRED_VARS=("REDIS_URL")
+REQUIRED_VARS=("REDIS_URL" "DATABASE_URL")
 for var in "${REQUIRED_VARS[@]}"; do
     if [[ -z "${!var}" ]]; then
         echo "ERROR: Required environment variable '${var}' is not set"
@@ -23,6 +23,7 @@ done
 # Debug: Print startup info
 echo "Starting RQ worker..."
 echo "Redis URL: ${REDIS_URL}"
+echo "Database URL: ${DATABASE_URL}"
 python_version=$(python --version)
 echo "Python version: ${python_version}"
 echo ""
