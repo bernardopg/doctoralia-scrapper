@@ -88,5 +88,6 @@ RUN pip install --no-cache-dir \
     "pytest-asyncio>=1.4.0" \
     "pytest-cov>=7.1.0" \
     "pytest-mock>=3.15.1" \
+    "aiosqlite>=0.21.0" \
     "httpx2>=2.4.0"
 CMD ["python", "-m", "pytest", "tests"]
