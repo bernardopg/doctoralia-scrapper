@@ -98,6 +98,12 @@ make info              # Environment info (Python, Git, system)
 - `src/telegram_notifier.py` - Telegram notifications
 - `src/secure_config.py` - Configuration with PII masking
 
+**Database Layer** (PostgreSQL + SQLAlchemy async):
+- `src/db/base.py` - Engine, session factory, declarative base
+- `src/db/models.py` - ORM models: User, Workspace, Membership, WorkspaceRole
+- `src/db/init_db.py` - Schema initialization and seeding CLI
+- `src/db/__init__.py` - Package exports
+
 ### Data Flow
 
 1. **Synchronous API**: User → FastAPI → Scraper → Response (direct)
@@ -105,12 +111,14 @@ make info              # Environment info (Python, Git, system)
 3. **n8n Integration**: n8n → API endpoint → Job → Webhook → n8n workflow
 4. **Scheduled**: Daemon → Scraper → Generator → Analyzer → Storage/Notification
 
+5. **Database Persistence**: API/Worker → SQLAlchemy async session → PostgreSQL → User/Workspace/Membership data
+
 ### Configuration
 
 **Config Files**:
 - `config/config.json` - Main configuration (scraping params, delays, telegram settings)
 - `config/config.example.json` - Example template
-- `.env` - Secrets (API_KEY, WEBHOOK_SIGNING_SECRET, TELEGRAM_TOKEN, OPENAI_API_KEY, REDIS_URL, SELENIUM_REMOTE_URL)
+- `.env` - Secrets (API_KEY, WEBHOOK_SIGNING_SECRET, TELEGRAM_TOKEN, OPENAI_API_KEY, REDIS_URL, SELENIUM_REMOTE_URL, DATABASE_URL, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)
 - `.env.example` - Template for environment variables
 
 **Settings Module**: `src/config/settings.py` (AppConfig class) loads and validates configuration
@@ -215,6 +223,7 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 │   │   └── v1/
 │   │       ├── main.py       # FastAPI app
 │   │       ├── deps.py       # Auth dependencies
+│   │       ├── providers.py  # Dependency providers (config, queue, DB session)
 │   │       └── schemas/      # Pydantic models
 │   ├── jobs/
 │   │   ├── queue.py          # RQ interface
@@ -225,6 +234,11 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 │   │   ├── settings.py       # AppConfig loader
 │   │   ├── config.json       # Main config (gitignored)
 │   │   └── templates.py      # Response templates
+│   ├── db/                   # Database layer (PostgreSQL + SQLAlchemy async)
+│   │   ├── base.py           # Engine, session, declarative base
+│   │   ├── models.py         # User, Workspace, Membership, WorkspaceRole
+│   │   ├── init_db.py        # Schema init & seeding CLI
+│   │   └── __init__.py       # Package exports
 │   ├── static/               # CSS, icons, favicons
 │   └── telegram_notifier.py  # Notifications
 ├── scripts/
@@ -241,15 +255,19 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 
 **Docker Production**:
 - Multi-stage Dockerfile with `api` and `worker` targets
-- Services: api, worker, redis, selenium, n8n
-- Health checks: `/health` (API), Redis PING, Selenium status
-- Ports: 8000 (API), 5678 (n8n), 6379 (Redis), 4444/7900 (Selenium)
+- Services: api, worker, redis, selenium, n8n, db (PostgreSQL)
+- Health checks: `/health` (API), Redis PING, Selenium status, PostgreSQL pg_isready
+- Ports: 8000 (API), 5678 (n8n), 6379 (Redis), 4444/7900 (Selenium), 5432 (PostgreSQL)
 
 **Environment Variables** (production critical):
 - `API_KEY` - Strong random key for API auth
 - `WEBHOOK_SIGNING_SECRET` - HMAC secret for webhook validation
 - `REDIS_URL` - Redis connection string
 - `SELENIUM_REMOTE_URL` - Selenium Grid endpoint
+- `DATABASE_URL` - PostgreSQL async connection string (e.g., `postgresql+asyncpg://user:pass@host:5432/db`)
+- `POSTGRES_USER` - PostgreSQL username
+- `POSTGRES_PASSWORD` - PostgreSQL password
+- `POSTGRES_DB` - PostgreSQL database name
 
 **Monitoring**:
 - Metrics endpoint: `/v1/metrics` (requests, errors, durations)

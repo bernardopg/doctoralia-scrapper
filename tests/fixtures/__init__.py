@@ -14,6 +14,7 @@ class MockTelegramConfig:
     token: str = "test_token"
     chat_id: str = "test_chat_id"
     enabled: bool = False
+    attach_responses_auto: bool = False
 
 
 @dataclass

@@ -13,6 +13,7 @@ RUN apt-get update && \
     gcc \
     g++ \
     git \
+    libpq-dev \
     && git config --global url."https://github.com/".insteadOf git@github.com: \
     && git config --global http.lowSpeedLimit 1000 \
     && git config --global http.lowSpeedTime 30 \
@@ -87,5 +88,6 @@ RUN pip install --no-cache-dir \
     "pytest-asyncio>=1.4.0" \
     "pytest-cov>=7.1.0" \
     "pytest-mock>=3.15.1" \
+    "aiosqlite>=0.21.0" \
     "httpx2>=2.4.0"
 CMD ["python", "-m", "pytest", "tests"]

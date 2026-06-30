@@ -6,13 +6,13 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 
 - [ ] Persistir no backend os campos completos do perfil do operador: `email`, avatar, time, membros e plano.
 - [ ] Introduzir modelo multiusuário com convite, papéis e isolamento por workspace/equipe.
-- [ ] Configurar HTTPS/TLS no deploy com reverse proxy e certificados.
+- [x] Configurar HTTPS/TLS no deploy com reverse proxy e certificados. (Caddy + `docker-compose.prod.yml`)
 - [x] Implementar limpeza e arquivamento de jobs antigos no Redis.
 - [x] Adicionar rate limiting por IP/API key nos endpoints da API.
 - [x] Adicionar CSRF protection nas ações autenticadas do dashboard (`login`, `logout`, troca de senha e futuras mutações web).
 - [x] Mascarar segredos na tela de settings sem perder rotação de chave.
-- [ ] Criar testes end-to-end do fluxo completo: scrape -> analyze -> generate -> notify.
-- [ ] Implementar `scripts/backup_restore.sh` de forma real, com restore validado.
+- [x] Criar testes end-to-end do fluxo completo: scrape -> analyze -> generate -> notify. (`tests/test_e2e_flow.py`)
+- [x] Implementar `scripts/backup_restore.sh` de forma real, com restore validado. (data/config/.env/Redis/n8n + `verify`)
 
 ## Prioridade média
 
@@ -39,9 +39,9 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 
 - [x] Quebrar `src/api/v1/main.py` em routers FastAPI por domínio (`auth`, `health`, `jobs`, `scrape`, `generate`, `analyze`, `metrics`, `settings`, `telegram`) e centralizar dependências injetáveis em `src/api/v1/providers.py`.
 - [x] Quebrar `src/dashboard.py` em módulos Flask menores (`app`, `auth`, `pages`, `reports`, `notifications`, `services`, `workspace`, `api_proxy`, `user_profile`), separando rotas, autenticação, leitura de dados e renderização.
-- [ ] Extrair provedores de IA de `src/response_generator.py` para `src/providers/`, mantendo o gerador focado em templates e orquestração.
-- [ ] Endurecer `_is_fatal_error` em `src/error_handling.py`, incluindo exceções próprias do scraper e casos Selenium conhecidos.
-- [ ] Completar `scripts/backup_restore.sh` com backup/restore reais e validação automatizada do restore.
+- [x] Extrair provedores de IA de `src/response_generator.py` para `src/providers/`, mantendo o gerador focado em templates e orquestração.
+- [x] Endurecer `_is_fatal_error` em `src/error_handling.py`, incluindo exceções próprias do scraper e casos Selenium conhecidos.
+- [x] Completar `scripts/backup_restore.sh` com backup/restore reais e validação automatizada do restore.
 
 ## Prioridade baixa
 

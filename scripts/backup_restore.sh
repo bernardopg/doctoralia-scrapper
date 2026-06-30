@@ -1,288 +1,434 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# Backup and restore for Doctoralia Scrapper.
+#
+# Backs up (and restores) everything needed to rebuild operational state:
+#   - data/            extractions, responses, logs, snapshots
+#   - src/config/      config.json (and example)
+#   - .env             secrets / runtime configuration
+#   - PostgreSQL       full SQL dump (users, workspaces, memberships)
+#   - Redis            full RDB dump (job queue, metrics, notifications)
+#   - n8n              exported workflows + credentials (when n8n is running)
+#
+# PostgreSQL, Redis and n8n are read from the running Docker Compose stack.
+# When the stack is not up, those parts are skipped with a warning and the
+# file backup still succeeds.
+#
+# Usage:
+#   scripts/backup_restore.sh backup            # create a new backup
+#   scripts/backup_restore.sh list              # list existing backups
+#   scripts/backup_restore.sh restore <file>    # restore from a backup
+#   scripts/backup_restore.sh verify <file>     # validate a backup (no changes)
+#   scripts/backup_restore.sh cleanup           # keep only the 5 newest
+#
+set -euo pipefail
 
-# Backup and Restore script for Doctoralia Scraper
-# This script handles data backup, configuration backup, and restoration
-
-# Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Configuration
 DATA_DIR="$PROJECT_DIR/data"
-CONFIG_FILE="$PROJECT_DIR/config/config.json"
+CONFIG_DIR="$PROJECT_DIR/src/config"
+ENV_FILE="$PROJECT_DIR/.env"
 BACKUP_DIR="$PROJECT_DIR/backups"
-TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+TIMESTAMP="$(date '+%Y%m%d_%H%M%S')"
+KEEP_COUNT=5
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Compose invocation: prefer `docker compose`, fall back to `docker-compose`.
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose)
+else
+    COMPOSE=()
+fi
 
-print_header() {
-    echo -e "${BLUE}╔══════════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║                 💾 BACKUP & RESTORE                          ║${NC}"
-    echo -e "${BLUE}║                Doctoralia Scraper Data                       ║${NC}"
-    echo -e "${BLUE}╚══════════════════════════════════════════════════════════════╝${NC}"
-    echo ""
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+print_header()  { echo -e "${BLUE}== 💾 Doctoralia Scrapper — Backup & Restore ==${NC}\n"; }
+print_success() { echo -e "${GREEN}✅ $1${NC}"; }
+print_error()   { echo -e "${RED}❌ $1${NC}" >&2; }
+print_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+print_info()    { echo -e "${BLUE}ℹ️  $1${NC}"; }
+
+# Echoes the container id for a compose service, or nothing if not running.
+compose_container() {
+    local service="$1"
+    [ "${#COMPOSE[@]}" -gt 0 ] || return 0
+    (cd "$PROJECT_DIR" && "${COMPOSE[@]}" ps -q "$service" 2>/dev/null) || true
 }
 
-print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+# Reads REDIS_PASSWORD from .env (empty if unset).
+redis_password() {
+    [ -f "$ENV_FILE" ] || return 0
+    grep -E '^REDIS_PASSWORD=' "$ENV_FILE" | tail -1 | cut -d= -f2- || true
 }
 
-print_error() {
-    echo -e "${RED}❌ $1${NC}"
+# Reads a POSTGRES_* var from .env, falling back to the doctoralia default
+# used across docker-compose.yml/.env.example.
+postgres_var() {
+    local name="$1" default="${2:-doctoralia}"
+    if [ -f "$ENV_FILE" ]; then
+        # Ignore grep exit code (1 when no match) to avoid triggering set -e
+        local val; val="$(grep -E "^${name}=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true)"
+        [ -n "$val" ] && { echo "$val"; return 0; }
+    fi
+    echo "$default"
 }
 
-print_warning() {
-    echo -e "${YELLOW}⚠️ $1${NC}"
+# ---------------------------------------------------------------------------
+# Backup
+# ---------------------------------------------------------------------------
+backup_redis() {
+    local dest="$1"
+    local cid; cid="$(compose_container redis)"
+    if [ -z "$cid" ]; then
+        print_warning "Redis container not running — skipping Redis backup"
+        return 0
+    fi
+    print_info "Backing up Redis (RDB snapshot)..."
+    local pass; pass="$(redis_password)"
+    local auth=(); [ -n "$pass" ] && auth=(-a "$pass" --no-auth-warning)
+    # Force a synchronous save so the dump on disk is current.
+    if ! docker exec "$cid" redis-cli "${auth[@]}" SAVE >/dev/null 2>&1; then
+        print_warning "Redis SAVE failed — dump may be stale"
+    fi
+    if docker cp "$cid:/data/dump.rdb" "$dest/redis_dump.rdb" 2>/dev/null; then
+        print_success "Redis dump saved"
+    else
+        print_warning "Could not copy Redis dump.rdb"
+    fi
 }
 
-print_info() {
-    echo -e "${BLUE}ℹ️ $1${NC}"
+backup_n8n() {
+    local dest="$1"
+    local cid; cid="$(compose_container n8n)"
+    if [ -z "$cid" ]; then
+        print_warning "n8n container not running — skipping n8n backup"
+        return 0
+    fi
+    print_info "Backing up n8n workflows..."
+    if docker exec "$cid" n8n export:workflow --all --output=/tmp/n8n_workflows.json >/dev/null 2>&1; then
+        docker cp "$cid:/tmp/n8n_workflows.json" "$dest/n8n_workflows.json" 2>/dev/null \
+            && print_success "n8n workflows saved" \
+            || print_warning "Could not copy n8n workflows"
+    else
+        print_warning "n8n export returned no workflows (or failed)"
+    fi
+}
+
+backup_postgres() {
+    local dest="$1"
+    local cid; cid="$(compose_container db)"
+    if [ -z "$cid" ]; then
+        print_warning "PostgreSQL container not running — skipping PostgreSQL backup"
+        return 0
+    fi
+    print_info "Backing up PostgreSQL (pg_dump)..."
+    local user db
+    user="$(postgres_var POSTGRES_USER doctoralia)"
+    db="$(postgres_var POSTGRES_DB doctoralia)"
+    if docker exec "$cid" pg_dump -U "$user" -d "$db" --clean --if-exists --no-owner \
+        > "$dest/postgres_dump.sql" 2>/dev/null; then
+        print_success "PostgreSQL dump saved"
+    else
+        print_warning "pg_dump failed — PostgreSQL data not backed up"
+        rm -f "$dest/postgres_dump.sql"
+    fi
 }
 
 create_backup() {
-    print_info "Creating backup..."
-
-    # Create backup directory
     mkdir -p "$BACKUP_DIR"
+    local backup_file="$BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
+    local temp_dir; temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+    local contents="$temp_dir/doctoralia_backup_$TIMESTAMP"
+    mkdir -p "$contents"
 
-    # Create backup filename
-    BACKUP_FILE="$BACKUP_DIR/backup_$TIMESTAMP.tar.gz"
-
-    # Create temporary directory for backup contents
-    TEMP_DIR=$(mktemp -d)
-    BACKUP_CONTENTS="$TEMP_DIR/doctoralia_backup_$TIMESTAMP"
-
-    mkdir -p "$BACKUP_CONTENTS"
-
-    # Copy data directory
     if [ -d "$DATA_DIR" ]; then
-        print_info "Backing up data directory..."
-        cp -r "$DATA_DIR" "$BACKUP_CONTENTS/"
-        print_success "Data directory backed up"
+        print_info "Backing up data/ ..."
+        cp -r "$DATA_DIR" "$contents/data"
+        print_success "data/ backed up"
     else
-        print_warning "Data directory not found: $DATA_DIR"
+        print_warning "data/ not found: $DATA_DIR"
     fi
 
-    # Copy configuration file
-    if [ -f "$CONFIG_FILE" ]; then
-        print_info "Backing up configuration..."
-        mkdir -p "$BACKUP_CONTENTS/config"
-        cp "$CONFIG_FILE" "$BACKUP_CONTENTS/config/"
-        print_success "Configuration backed up"
-    else
-        print_warning "Configuration file not found: $CONFIG_FILE"
+    if [ -d "$CONFIG_DIR" ]; then
+        print_info "Backing up src/config/ ..."
+        mkdir -p "$contents/config"
+        cp "$CONFIG_DIR"/*.json "$contents/config/" 2>/dev/null || true
+        print_success "src/config/ backed up"
     fi
 
-    # Create backup info file
-    cat > "$BACKUP_CONTENTS/backup_info.txt" << EOF
-Doctoralia Scraper Backup
+    if [ -f "$ENV_FILE" ]; then
+        print_info "Backing up .env ..."
+        cp "$ENV_FILE" "$contents/env"
+        print_success ".env backed up"
+    fi
+
+    backup_redis "$contents"
+    backup_n8n "$contents"
+    backup_postgres "$contents"
+
+    # Manifest used by verify/restore to know what to expect.
+    cat > "$contents/backup_info.txt" <<EOF
+Doctoralia Scrapper Backup
 Created: $(date)
 Project Directory: $PROJECT_DIR
 Backup Timestamp: $TIMESTAMP
 
 Contents:
-$(if [ -d "$DATA_DIR" ]; then echo "- Data directory"; fi)
-$(if [ -f "$CONFIG_FILE" ]; then echo "- Configuration file"; fi)
-
-To restore, run:
-    tar -xzf $BACKUP_FILE -C /
-    # Then run bootstrap_setup.py to reconfigure
+$([ -d "$contents/data" ]    && echo "- data directory")
+$([ -d "$contents/config" ]  && echo "- src/config")
+$([ -f "$contents/env" ]     && echo "- .env")
+$([ -f "$contents/redis_dump.rdb" ]   && echo "- Redis dump.rdb")
+$([ -f "$contents/postgres_dump.sql" ] && echo "- PostgreSQL dump.sql")
+$([ -f "$contents/n8n_workflows.json" ] && echo "- n8n workflows")
 EOF
 
-    # Create compressed archive
     print_info "Creating compressed archive..."
-    cd "$TEMP_DIR"
-    tar -czf "$BACKUP_FILE" "doctoralia_backup_$TIMESTAMP"
+    tar -czf "$backup_file" -C "$temp_dir" "doctoralia_backup_$TIMESTAMP"
 
-    # Cleanup
-    cd "$PROJECT_DIR"
-    rm -rf "$TEMP_DIR"
-
-    # Calculate backup size
-    BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-
-    print_success "Backup created successfully!"
-    print_info "Backup file: $BACKUP_FILE"
-    print_info "Backup size: $BACKUP_SIZE"
-
-    echo ""
-    print_info "To restore this backup, run:"
-    echo "    $0 restore $BACKUP_FILE"
+    print_success "Backup created: $backup_file ($(du -h "$backup_file" | cut -f1))"
+    print_info "Validate it with: $0 verify $backup_file"
 }
 
-list_backups() {
-    print_info "Available backups:"
+# ---------------------------------------------------------------------------
+# Verify (no side effects) — extracts to a temp dir and checks integrity.
+# ---------------------------------------------------------------------------
+verify_backup() {
+    local backup_file="$1"
+    [ -f "$backup_file" ] || { print_error "Backup file not found: $backup_file"; exit 1; }
 
-    if [ ! -d "$BACKUP_DIR" ]; then
-        print_warning "No backup directory found: $BACKUP_DIR"
-        return
+    print_info "Verifying archive integrity..."
+    if ! tar -tzf "$backup_file" >/dev/null 2>&1; then
+        print_error "Archive is corrupt or not a valid tar.gz"
+        exit 1
+    fi
+    print_success "Archive is a readable tar.gz"
+
+    local temp_dir; temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+    tar -xzf "$backup_file" -C "$temp_dir"
+
+    local contents; contents="$(find "$temp_dir" -maxdepth 1 -name 'doctoralia_backup_*' -type d | head -1)"
+    if [ -z "$contents" ]; then
+        print_error "Invalid backup structure (missing doctoralia_backup_* root)"
+        exit 1
     fi
 
-    BACKUP_COUNT=$(find "$BACKUP_DIR" -name "backup_*.tar.gz" | wc -l)
+    if [ ! -f "$contents/backup_info.txt" ]; then
+        print_error "Missing manifest backup_info.txt"
+        exit 1
+    fi
+    print_success "Manifest present"
 
-    if [ "$BACKUP_COUNT" -eq 0 ]; then
-        print_warning "No backup files found"
-        return
+    local ok=0
+    # Validate Redis dump magic header (REDISxxxx) when present.
+    if [ -f "$contents/redis_dump.rdb" ]; then
+        if [ "$(head -c 5 "$contents/redis_dump.rdb")" = "REDIS" ]; then
+            print_success "Redis dump has valid RDB header"
+        else
+            print_error "Redis dump present but header is not 'REDIS'"
+            ok=1
+        fi
+    fi
+    # Validate n8n export is valid JSON when present.
+    if [ -f "$contents/n8n_workflows.json" ]; then
+        if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$contents/n8n_workflows.json" 2>/dev/null; then
+            print_success "n8n workflows are valid JSON"
+        else
+            print_error "n8n workflows file is not valid JSON"
+            ok=1
+        fi
+    fi
+    # Validate the PostgreSQL dump looks like pg_dump output (non-empty,
+    # starts with the standard pg_dump preamble).
+    if [ -f "$contents/postgres_dump.sql" ]; then
+        if [ -s "$contents/postgres_dump.sql" ] && head -n 20 "$contents/postgres_dump.sql" | grep -q '^-- PostgreSQL database dump'; then
+            print_success "PostgreSQL dump looks valid"
+        else
+            print_error "PostgreSQL dump present but does not look like a pg_dump output"
+            ok=1
+        fi
+    fi
+    # Validate config.json is valid JSON when present.
+    if [ -f "$contents/config/config.json" ]; then
+        if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$contents/config/config.json" 2>/dev/null; then
+            print_success "config.json is valid JSON"
+        else
+            print_error "config.json is not valid JSON"
+            ok=1
+        fi
     fi
 
-    echo ""
-    echo "📁 Backup Directory: $BACKUP_DIR"
-    echo "📊 Total Backups: $BACKUP_COUNT"
-    echo ""
-    echo "📋 Backup Files:"
-    find "$BACKUP_DIR" -name "backup_*.tar.gz" -printf '%T@ %p\n' | sort -n | while read timestamp file; do
-        date_str=$(date -d "@${timestamp%.*}" '+%Y-%m-%d %H:%M:%S')
-        size=$(du -h "$file" | cut -f1)
-        filename=$(basename "$file")
-        echo "   📦 $date_str - $filename (${size})"
-    done
+    if [ "$ok" -eq 0 ]; then
+        print_success "Backup verified successfully"
+    else
+        print_error "Backup verification found problems"
+        exit 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Restore
+# ---------------------------------------------------------------------------
+restore_redis() {
+    local contents="$1"
+    [ -f "$contents/redis_dump.rdb" ] || return 0
+    local cid; cid="$(compose_container redis)"
+    if [ -z "$cid" ]; then
+        print_warning "Redis not running — skipping Redis restore (dump kept in data/)"
+        cp "$contents/redis_dump.rdb" "$DATA_DIR/redis_dump.rdb" 2>/dev/null || true
+        return 0
+    fi
+    print_info "Restoring Redis dump (container will restart)..."
+    # Stop Redis BEFORE copying the dump. A running Redis saves its current
+    # (post-restore-target) state to dump.rdb on shutdown, which would clobber
+    # the file we just copied. Copying while stopped, then starting, makes the
+    # restored dump the one Redis loads.
+    (cd "$PROJECT_DIR" && "${COMPOSE[@]}" stop redis >/dev/null 2>&1) || docker stop "$cid" >/dev/null
+    docker cp "$contents/redis_dump.rdb" "$cid:/data/dump.rdb"
+    (cd "$PROJECT_DIR" && "${COMPOSE[@]}" start redis >/dev/null 2>&1) || docker start "$cid" >/dev/null
+    print_success "Redis restored"
+}
+
+restore_n8n() {
+    local contents="$1"
+    [ -f "$contents/n8n_workflows.json" ] || return 0
+    local cid; cid="$(compose_container n8n)"
+    if [ -z "$cid" ]; then
+        print_warning "n8n not running — skipping n8n restore"
+        return 0
+    fi
+    print_info "Restoring n8n workflows..."
+    docker cp "$contents/n8n_workflows.json" "$cid:/tmp/n8n_workflows.json"
+    if docker exec "$cid" n8n import:workflow --input=/tmp/n8n_workflows.json >/dev/null 2>&1; then
+        print_success "n8n workflows restored"
+    else
+        print_warning "n8n import failed"
+    fi
+}
+
+restore_postgres() {
+    local contents="$1"
+    [ -f "$contents/postgres_dump.sql" ] || return 0
+    local cid; cid="$(compose_container db)"
+    if [ -z "$cid" ]; then
+        print_warning "PostgreSQL not running — skipping PostgreSQL restore (dump kept in data/)"
+        cp "$contents/postgres_dump.sql" "$DATA_DIR/postgres_dump.sql" 2>/dev/null || true
+        return 0
+    fi
+    print_info "Restoring PostgreSQL dump..."
+    local user db
+    user="$(postgres_var POSTGRES_USER doctoralia)"
+    db="$(postgres_var POSTGRES_DB doctoralia)"
+    if docker exec -i "$cid" psql -U "$user" -d "$db" < "$contents/postgres_dump.sql" >/dev/null 2>&1; then
+        print_success "PostgreSQL restored"
+    else
+        print_warning "PostgreSQL restore failed — check dump compatibility (psql output suppressed)"
+    fi
 }
 
 restore_backup() {
-    BACKUP_FILE="$1"
+    local backup_file="$1"
+    [ -f "$backup_file" ] || { print_error "Backup file not found: $backup_file"; exit 1; }
 
-    if [ ! -f "$BACKUP_FILE" ]; then
-        print_error "Backup file not found: $BACKUP_FILE"
-        exit 1
-    fi
+    # Validate before touching anything.
+    verify_backup "$backup_file"
 
-    print_warning "⚠️ This will overwrite existing data!"
-    read -p "Are you sure you want to restore from $BACKUP_FILE? (y/N): " -r
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Restore cancelled"
-        exit 0
-    fi
+    print_warning "This will overwrite existing data, config, .env, PostgreSQL, Redis and n8n state."
+    read -r -p "Proceed with restore from $(basename "$backup_file")? (y/N): " reply
+    [[ "$reply" =~ ^[Yy]$ ]] || { print_info "Restore cancelled"; exit 0; }
 
-    print_info "Restoring from backup..."
+    local temp_dir; temp_dir="$(mktemp -d)"
+    trap 'rm -rf "$temp_dir"' RETURN
+    tar -xzf "$backup_file" -C "$temp_dir"
+    local contents; contents="$(find "$temp_dir" -maxdepth 1 -name 'doctoralia_backup_*' -type d | head -1)"
 
-    # Create temporary directory for extraction
-    TEMP_DIR=$(mktemp -d)
-
-    # Extract backup
-    print_info "Extracting backup..."
-    tar -xzf "$BACKUP_FILE" -C "$TEMP_DIR"
-
-    # Find the backup contents directory
-    BACKUP_CONTENTS=$(find "$TEMP_DIR" -name "doctoralia_backup_*" -type d | head -1)
-
-    if [ -z "$BACKUP_CONTENTS" ]; then
-        print_error "Invalid backup file structure"
-        rm -rf "$TEMP_DIR"
-        exit 1
-    fi
-
-    # Show backup info
-    if [ -f "$BACKUP_CONTENTS/backup_info.txt" ]; then
-        echo ""
-        print_info "Backup Information:"
-        cat "$BACKUP_CONTENTS/backup_info.txt" | sed 's/^/   /'
-        echo ""
-    fi
-
-    # Restore data directory
-    if [ -d "$BACKUP_CONTENTS/data" ]; then
-        print_info "Restoring data directory..."
+    if [ -d "$contents/data" ]; then
+        print_info "Restoring data/ ..."
         mkdir -p "$DATA_DIR"
-        cp -r "$BACKUP_CONTENTS/data"/* "$DATA_DIR/" 2>/dev/null || true
-        print_success "Data directory restored"
+        # Files written by root-owned containers may not be overwritable by the
+        # current user. Force removal of the destination first and report any
+        # files that still could not be restored, without aborting the run.
+        local failed=0
+        while IFS= read -r -d '' src; do
+            local rel="${src#"$contents/data/"}"
+            local target="$DATA_DIR/$rel"
+            mkdir -p "$(dirname "$target")"
+            if ! cp --remove-destination "$src" "$target" 2>/dev/null; then
+                failed=$((failed + 1))
+            fi
+        done < <(find "$contents/data" -type f -print0)
+        if [ "$failed" -eq 0 ]; then
+            print_success "data/ restored"
+        else
+            print_warning "data/ restored with $failed file(s) skipped (permission denied — run with sudo or fix ownership)"
+        fi
+    fi
+    if [ -d "$contents/config" ]; then
+        print_info "Restoring src/config/ ..."
+        mkdir -p "$CONFIG_DIR"
+        cp "$contents/config/"*.json "$CONFIG_DIR/" 2>/dev/null || true
+        print_success "src/config/ restored"
+    fi
+    if [ -f "$contents/env" ]; then
+        print_info "Restoring .env ..."
+        cp "$contents/env" "$ENV_FILE"
+        print_success ".env restored"
     fi
 
-    # Restore configuration
-    if [ -d "$BACKUP_CONTENTS/config" ] && [ -f "$BACKUP_CONTENTS/config/config.json" ]; then
-        print_info "Restoring configuration..."
-        mkdir -p "$(dirname "$CONFIG_FILE")"
-        cp "$BACKUP_CONTENTS/config/config.json" "$CONFIG_FILE"
-        print_success "Configuration restored"
-        print_warning "You may need to reconfigure Telegram settings"
+    restore_redis "$contents"
+    restore_n8n "$contents"
+    restore_postgres "$contents"
+
+    print_success "Restore complete"
+}
+
+# ---------------------------------------------------------------------------
+# List / cleanup
+# ---------------------------------------------------------------------------
+list_backups() {
+    if [ ! -d "$BACKUP_DIR" ] || [ -z "$(find "$BACKUP_DIR" -name 'backup_*.tar.gz' 2>/dev/null)" ]; then
+        print_warning "No backups found in $BACKUP_DIR"
+        return
     fi
-
-    # Cleanup
-    rm -rf "$TEMP_DIR"
-
-    print_success "Backup restored successfully!"
-    print_info "You may want to run bootstrap_setup.py to verify configuration"
+    echo "📁 $BACKUP_DIR"
+    find "$BACKUP_DIR" -name 'backup_*.tar.gz' -printf '%T@ %p\n' | sort -n | while read -r ts file; do
+        printf '   📦 %s - %s (%s)\n' \
+            "$(date -d "@${ts%.*}" '+%Y-%m-%d %H:%M:%S')" \
+            "$(basename "$file")" "$(du -h "$file" | cut -f1)"
+    done
 }
 
 cleanup_old_backups() {
-    if [ ! -d "$BACKUP_DIR" ]; then
-        print_warning "No backup directory found"
-        return
-    fi
-
-    # Keep only the 5 most recent backups
-    KEEP_COUNT=5
-    BACKUP_FILES=$(find "$BACKUP_DIR" -name "backup_*.tar.gz" -printf '%T@ %p\n' | sort -n | head -n -$KEEP_COUNT | cut -d' ' -f2-)
-
-    if [ -z "$BACKUP_FILES" ]; then
-        print_info "No old backups to clean up"
-        return
-    fi
-
-    print_info "Cleaning up old backups (keeping $KEEP_COUNT most recent)..."
-
-    echo "$BACKUP_FILES" | while read file; do
-        if [ -f "$file" ]; then
-            size=$(du -h "$file" | cut -f1)
-            rm "$file"
-            print_info "Removed: $(basename "$file") (${size})"
-        fi
+    [ -d "$BACKUP_DIR" ] || { print_warning "No backup directory"; return; }
+    local old
+    old="$(find "$BACKUP_DIR" -name 'backup_*.tar.gz' -printf '%T@ %p\n' | sort -n | head -n "-$KEEP_COUNT" | cut -d' ' -f2-)"
+    [ -n "$old" ] || { print_info "No old backups to remove (keeping $KEEP_COUNT)"; return; }
+    echo "$old" | while read -r file; do
+        [ -f "$file" ] && rm "$file" && print_info "Removed $(basename "$file")"
     done
-
-    print_success "Old backups cleaned up"
+    print_success "Old backups cleaned (kept $KEEP_COUNT newest)"
 }
 
 show_usage() {
     print_header
-    echo "Usage: $0 {backup|list|restore|cleanup|help}"
-    echo ""
-    echo "Commands:"
-    echo "  backup     - Create a new backup"
-    echo "  list       - List all available backups"
-    echo "  restore <file> - Restore from backup file"
-    echo "  cleanup    - Remove old backups (keep 5 most recent)"
-    echo "  help       - Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  $0 backup              # Create new backup"
-    echo "  $0 list                # Show available backups"
-    echo "  $0 restore backup_20231201_120000.tar.gz"
-    echo "  $0 cleanup             # Clean old backups"
-    echo ""
-    echo "Backup Locations:"
-    echo "  📁 Backup Directory: $BACKUP_DIR"
-    echo "  📄 Config File: $CONFIG_FILE"
-    echo "  📊 Data Directory: $DATA_DIR"
+    cat <<EOF
+Usage: $0 {backup|list|restore <file>|verify <file>|cleanup|help}
+
+  backup           Create a new backup (data, config, .env, PostgreSQL, Redis, n8n)
+  list             List available backups
+  restore <file>   Validate then restore from a backup
+  verify <file>    Validate a backup archive without changing anything
+  cleanup          Remove old backups, keeping the $KEEP_COUNT newest
+EOF
 }
 
-# Main script logic
 case "${1:-help}" in
-    "backup")
-        print_header
-        create_backup
-        ;;
-    "list")
-        print_header
-        list_backups
-        ;;
-    "restore")
-        if [ -z "${2:-}" ]; then
-            print_error "Please specify backup file to restore"
-            echo "Usage: $0 restore <backup_file>"
-            exit 1
-        fi
-        print_header
-        restore_backup "$2"
-        ;;
-    "cleanup")
-        print_header
-        cleanup_old_backups
-        ;;
-    "help"|*)
-        show_usage
-        ;;
+    backup)  print_header; create_backup ;;
+    list)    print_header; list_backups ;;
+    restore) [ -n "${2:-}" ] || { print_error "Specify a backup file"; exit 1; }; print_header; restore_backup "$2" ;;
+    verify)  [ -n "${2:-}" ] || { print_error "Specify a backup file"; exit 1; }; print_header; verify_backup "$2" ;;
+    cleanup) print_header; cleanup_old_backups ;;
+    help|*)  show_usage ;;
 esac

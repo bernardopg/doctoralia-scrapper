@@ -92,155 +92,56 @@ docker compose ps
 
 ## Docker Compose para Produção
 
-Para produção, crie `docker-compose.prod.yml` com ajustes:
+O projeto já inclui um overlay de produção (`docker-compose.prod.yml`) que
+adiciona **Caddy** como reverse proxy com **TLS automático** na frente de
+`api`, `dashboard` e `n8n`. O overlay também:
 
-```yaml
-version: '3.8'
+- remove a publicação direta das portas internas (só o Caddy expõe 80/443);
+- exige senha no Redis (`REDIS_PASSWORD`) e injeta a URL autenticada na API/worker;
+- aplica `restart: always` em todos os serviços.
 
-services:
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-    depends_on:
-      - api
-    restart: always
-    networks:
-      - doctoralia-net
-
-  api:
-    build:
-      context: .
-      target: api
-    env_file: .env
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
-    restart: always
-    networks:
-      - doctoralia-net
-
-  worker:
-    build:
-      context: .
-      target: worker
-    env_file: .env
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-    restart: always
-    networks:
-      - doctoralia-net
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 2gb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis-data:/data
-    restart: always
-    networks:
-      - doctoralia-net
-
-  selenium:
-    image: selenium/standalone-chrome:latest
-    shm_size: "2g"
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-    restart: always
-    networks:
-      - doctoralia-net
-
-  n8n:
-    image: n8nio/n8n:latest
-    environment:
-      - N8N_PROTOCOL=https
-      - N8N_HOST=${N8N_HOST}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
-    volumes:
-      - n8n-data:/home/node/.n8n
-    restart: always
-    networks:
-      - doctoralia-net
-
-volumes:
-  redis-data:
-  n8n-data:
-
-networks:
-  doctoralia-net:
-    driver: bridge
-```
-
-Deploy:
+### Subir em produção
 
 ```bash
-docker-compose -f docker-compose.prod.yml up -d --build
+# Defina no .env: APP_DOMAIN, N8N_DOMAIN, REDIS_PASSWORD
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
-## Reverse Proxy (Nginx)
+### TLS automático (Caddy)
 
-Exemplo de configuração com SSL e rate limiting:
+O `caddy/Caddyfile` decide o certificado pelo domínio configurado:
 
-```nginx
-upstream api_backend {
-    least_conn;
-    server api:8000 max_fails=3 fail_timeout=30s;
-}
+| Cenário | `APP_DOMAIN` | Certificado |
+|---------|--------------|-------------|
+| Local / staging | `localhost` (default) | self-signed da CA interna do Caddy (sem rede) |
+| Produção | domínio real (DNS apontando para o host) | Let's Encrypt automático |
 
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+Para produção, basta apontar o DNS do domínio para o host e definir
+`APP_DOMAIN`/`N8N_DOMAIN`; o Caddy provisiona e renova os certificados sozinho.
 
-server {
-    listen 80;
-    server_name yourdomain.com;
-    return 301 https://$server_name$request_uri;
-}
+Variáveis relevantes no `.env`:
 
-server {
-    listen 443 ssl http2;
-    server_name yourdomain.com;
-
-    ssl_certificate /etc/nginx/ssl/fullchain.pem;
-    ssl_certificate_key /etc/nginx/ssl/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-    location / {
-        limit_req zone=api_limit burst=20 nodelay;
-        proxy_pass http://api_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_connect_timeout 60s;
-        proxy_read_timeout 60s;
-    }
-
-    location /health {
-        access_log off;
-        proxy_pass http://api_backend/v1/health;
-    }
-}
+```env
+APP_DOMAIN=app.seudominio.com      # dashboard + API
+N8N_DOMAIN=n8n.seudominio.com      # editor n8n
+REDIS_PASSWORD=<openssl rand -hex 24>
+# Opcional: se a porta 443 do host já estiver em uso (teste local)
+CADDY_HTTP_PORT=8080
+CADDY_HTTPS_PORT=8443
 ```
+
+### Roteamento e segurança
+
+O Caddy aplica os cabeçalhos `Strict-Transport-Security` (HSTS),
+`X-Frame-Options`, `X-Content-Type-Options` e `Referrer-Policy` em todas as
+respostas, redireciona HTTP→HTTPS automaticamente e roteia:
+
+| Caminho | Destino |
+|---------|---------|
+| `/v1/*`, `/docs`, `/openapi.json` | API (`api:8000`) |
+| `/` e demais rotas | Dashboard (`dashboard:5000`) |
+| `{N8N_DOMAIN}` | n8n (`n8n:5678`) |
 
 ## Health / Smoke Test
 

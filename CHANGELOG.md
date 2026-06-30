@@ -6,6 +6,20 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+### Added
+
+- **[ops]** `scripts/backup_restore.sh` reescrito com backup e restore reais e **validação automatizada**: além de `data/`, `src/config/` e `.env`, agora captura o **dump RDB do Redis** (job queue, métricas, notificações) e os **workflows do n8n** a partir da stack Docker em execução. Novo subcomando `verify` valida o arquivo (integridade tar.gz, manifesto, header RDB `REDIS`, JSON do n8n/config) sem efeitos colaterais; `restore` valida antes de aplicar. Corrige o caminho de config (`config/` → `src/config/`) e uma condição de corrida em que o Redis sobrescrevia o dump restaurado ao desligar (agora para o container antes de copiar o dump).
+- **[tests]** Testes end-to-end do pipeline completo em `tests/test_e2e_flow.py`: `scrape -> generate -> analyze -> notify`, mockando apenas as fronteiras de I/O (rede do Selenium e HTTP do Telegram) e exercitando a orquestração real. Inclui caso de aborto quando o scrape não retorna dados.
+- **[deploy]** Overlay de produção `docker-compose.prod.yml` com **Caddy** como reverse proxy e **TLS automático** (Let's Encrypt em produção, certificado self-signed da CA interna em local/staging). Roteia `/v1/*`, `/docs` e `/openapi.json` para a API e o restante para o dashboard; n8n em subdomínio dedicado. Aplica HSTS + `X-Frame-Options` + `X-Content-Type-Options` + `Referrer-Policy`, redirect HTTP→HTTPS e remove o header `Server`. Portas do Caddy configuráveis via `CADDY_HTTP_PORT`/`CADDY_HTTPS_PORT`.
+- **[security]** O overlay de produção passa a exigir senha no Redis (`REDIS_PASSWORD`), injeta a `REDIS_URL` autenticada em `api`/`worker` e deixa de publicar as portas internas (Redis/API/dashboard/n8n/selenium) no host — só o Caddy expõe 80/443.
+
+### Changed
+
+- **[refactor]** `EnhancedErrorHandler._is_fatal_error` endurecido: agora honra o flag `retryable` das exceções de domínio (`PageNotFoundError` é fatal, `RateLimitError` é retryável) e classifica exceções do Selenium — seletor/argumento inválido e driver/sessão inexistente são fatais; timeout, elemento obsoleto e `WebDriverException` genérica são transitórios. Import do Selenium é tardio/opcional (módulo funciona sem ele). Cobertura nova em `tests/test_error_handling.py`.
+- **[refactor]** Provedores de IA extraídos de `src/response_generator.py` para o pacote `src/providers/` (`base.AIProvider`/`ProviderError` + `openai`, `gemini`, `claude` + factory `get_provider`). O gerador passa a delegar a chamada externa via `_call_*` finos, mantendo-se focado em templates e orquestração; `_extract_*` permanecem como API estável delegando aos provedores. Comportamento preservado (mesmos endpoints, headers, timeouts e mensagens de erro); `ProviderError` herda de `ValueError` por compatibilidade.
+- **[docs]** `docs/deployment.md`: seção de reverse proxy reescrita de Nginx manual para o fluxo real com Caddy e o overlay `docker-compose.prod.yml`.
+- **[config]** `.env.example`: adicionadas `APP_DOMAIN`, `N8N_DOMAIN`, `REDIS_PASSWORD`, `CADDY_HTTP_PORT` e `CADDY_HTTPS_PORT`.
+
 ## [2.3.1] - 2026-06-16
 
 ### Fixed

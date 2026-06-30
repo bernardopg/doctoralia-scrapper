@@ -1,0 +1,60 @@
+# Caddyfile — reverse proxy TLS para Doctoralia Scrapper.
+#
+# TLS automático:
+#   - Domínio real (APP_DOMAIN=app.exemplo.com) + ACME_EMAIL definido
+#     -> Caddy provisiona certificados Let's Encrypt automaticamente.
+#   - Default local (APP_DOMAIN=localhost) -> Caddy emite certificado
+#     self-signed via sua CA interna, sem nenhuma chamada de rede.
+#
+# Variáveis lidas do ambiente (ver docker-compose.prod.yml):
+#   APP_DOMAIN   domínio do dashboard + API          (default: localhost)
+#   N8N_DOMAIN   domínio do editor n8n               (default: n8n.localhost)
+#   ACME_EMAIL   e-mail de contato do Let's Encrypt  (default: vazio)
+
+# Cabeçalhos de segurança reutilizáveis.
+(security_headers) {
+	header {
+		# HSTS — força HTTPS por 1 ano, inclui subdomínios.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Frame-Options "SAMEORIGIN"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Remove o header que vaza a versão do servidor.
+		-Server
+	}
+}
+
+{$APP_DOMAIN:localhost} {
+	import security_headers
+
+	# API REST e documentação OpenAPI.
+	handle /v1/* {
+		reverse_proxy api:8000
+	}
+	handle /docs* {
+		reverse_proxy api:8000
+	}
+	handle /openapi.json {
+		reverse_proxy api:8000
+	}
+
+	# Health agregado do proxy (não loga corpo).
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Dashboard Flask (raiz e demais rotas web).
+	handle {
+		reverse_proxy dashboard:5000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
+
+{$N8N_DOMAIN:n8n.localhost} {
+	import security_headers
+	reverse_proxy n8n:5678
+}
