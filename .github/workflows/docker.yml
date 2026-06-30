@@ -260,6 +260,9 @@ jobs:
             api:
               image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ env.IMAGE_TAG }}
               build: null
+            db-init:
+              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ env.IMAGE_TAG }}
+              build: null
             worker:
               image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker:${{ env.IMAGE_TAG }}
               build: null

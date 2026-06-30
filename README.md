@@ -109,7 +109,7 @@ make lint
 | `POST`                | `/v1/scrape:run`                                         | Scraping síncrono                      |
 | `POST`                | `/v1/jobs`                                               | Cria job assíncrono                    |
 | `GET`                 | `/v1/jobs/{job_id}`                                      | Consulta job                           |
-| `GET`                 | `/v1/ready`                                              | Readiness com Redis, Selenium e NLTK   |
+| `GET`                 | `/v1/ready`                                              | Readiness com Redis, fila, PostgreSQL, Selenium e NLTK |
 | `GET`                 | `/v1/metrics`                                            | Métricas da API persistidas em Redis   |
 | `GET`                 | `/v1/auth/status`                                        | Estado da autenticação do dashboard    |
 | `POST`                | `/v1/auth/login`                                         | Validação de credenciais do dashboard  |
@@ -124,9 +124,9 @@ make lint
 
 | Tema              | Situação                                                                |
 | ----------------- | ----------------------------------------------------------------------- |
-| Stack Docker      | `api`, `worker`, `dashboard`, `redis`, `selenium`, `n8n`                |
+| Stack Docker      | `api`, `worker`, `dashboard`, `db`/`db-init`, `redis`, `selenium`, `n8n` |
 | Workspace web     | Operacional, autenticado e com scheduler Telegram integrado             |
-| Persistência      | Snapshots em `data/` e histórico/schedules em Redis                     |
+| Persistência      | Snapshots em `data/`, histórico/schedules em Redis e schema base em PostgreSQL |
 | Métricas da API   | Redis-backed, multi-processo                                            |
 | n8n local         | preso em `127.0.0.1:5678`, com auth e encryption key obrigatórias       |
 | Testes            | suíte cobrindo áreas críticas de API, dashboard, jobs, Redis e Telegram |

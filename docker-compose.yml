@@ -23,6 +23,8 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     volumes:
@@ -70,6 +72,8 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
       # selenium is NOT required for the worker process to start; it is used
       # only when a scraping task is actually executed.
     volumes:
@@ -145,6 +149,20 @@ services:
         reservations:
           cpus: "0.25"
           memory: 128M
+
+  db-init:
+    build:
+      context: .
+      target: api
+    command: ["python", "-m", "src.db.init_db", "init-and-seed"]
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-doctoralia}:${POSTGRES_PASSWORD:-doctoralia}@db:5432/${POSTGRES_DB:-doctoralia}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - doctoralia-net
+    restart: "no"
 
   selenium:
     image: selenium/standalone-chrome:latest
@@ -226,6 +244,8 @@ services:
         condition: service_healthy
       db:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     ports:
       - "5000:5000"
     volumes:

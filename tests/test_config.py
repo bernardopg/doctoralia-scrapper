@@ -287,13 +287,18 @@ class TestAppConfig:
         assert loaded.telegram.enabled is True
         assert loaded.telegram.parse_mode == "HTML"
         assert loaded.security.api_key == "file-api-key-123"
-        assert loaded.security.openai_api_key == "sk-file-openai-key"
+        assert loaded.security.openai_api_key == source_config.security.openai_api_key
         assert loaded.generation.mode == "openai"
         assert loaded.generation.gemini_api_key == "gemini-secret"
-        assert loaded.integrations.redis_url == "redis://redis.internal:6379/1"
+        # Runtime integration endpoints come from the environment when set so
+        # container deployment wiring (including credentials in REDIS_URL) wins
+        # over stale persisted UI settings.
+        assert loaded.integrations.redis_url == "redis://env-redis:6379/0"
         assert (
-            loaded.integrations.api_public_url == "https://doctoralia.example.com/api"
+            loaded.integrations.selenium_remote_url == "http://env-selenium:4444/wd/hub"
         )
+        assert loaded.integrations.api_url == "http://env-api:8000"
+        assert loaded.integrations.api_public_url == "https://env.example.com/api"
         assert loaded.privacy.mask_pii is False
         assert loaded.privacy.allowed_callback_domains == [
             "hooks.example.com",

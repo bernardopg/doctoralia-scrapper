@@ -97,13 +97,16 @@ adiciona **Caddy** como reverse proxy com **TLS automático** na frente de
 `api`, `dashboard` e `n8n`. O overlay também:
 
 - remove a publicação direta das portas internas (só o Caddy expõe 80/443);
-- exige senha no Redis (`REDIS_PASSWORD`) e injeta a URL autenticada na API/worker;
+- exige senha no Redis (`REDIS_PASSWORD`) e no Postgres (`POSTGRES_PASSWORD`),
+  injetando URLs autenticadas na API/worker/dashboard;
+- executa `db-init` antes dos serviços dependentes para criar/semear o schema
+  base do PostgreSQL de forma idempotente;
 - aplica `restart: always` em todos os serviços.
 
 ### Subir em produção
 
 ```bash
-# Defina no .env: APP_DOMAIN, N8N_DOMAIN, REDIS_PASSWORD
+# Defina no .env: APP_DOMAIN, N8N_DOMAIN, REDIS_PASSWORD, POSTGRES_PASSWORD
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
@@ -126,6 +129,7 @@ Variáveis relevantes no `.env`:
 APP_DOMAIN=app.seudominio.com      # dashboard + API
 N8N_DOMAIN=n8n.seudominio.com      # editor n8n
 REDIS_PASSWORD=<openssl rand -hex 24>
+POSTGRES_PASSWORD=<openssl rand -hex 24>
 # Opcional: se a porta 443 do host já estiver em uso (teste local)
 CADDY_HTTP_PORT=8080
 CADDY_HTTPS_PORT=8443
@@ -147,7 +151,7 @@ respostas, redireciona HTTP→HTTPS automaticamente e roteia:
 
 ```bash
 curl -H "X-API-Key: $API_KEY" http://localhost:8000/v1/health
-curl http://localhost:8000/v1/ready
+curl http://localhost:8000/v1/ready  # Redis, fila, PostgreSQL, Selenium e NLTK
 curl http://localhost:8000/v1/auth/status
 ```
 
@@ -175,43 +179,17 @@ sudo ufw enable
 
 ## Backup e Recuperação
 
-### Backup Automático
+### Backup / Restore
 
 ```bash
-#!/bin/bash
-BACKUP_DIR="/backup/$(date +%Y%m%d_%H%M%S)"
-mkdir -p $BACKUP_DIR
-
-# Backup Redis
-docker exec redis redis-cli --rdb /data/dump.rdb
-docker cp redis:/data/dump.rdb $BACKUP_DIR/redis.rdb
-
-# Backup dados de scraping
-tar -czf $BACKUP_DIR/data.tgz data/
-
-# Backup n8n workflows
-docker exec n8n n8n export:workflow --all --output=/tmp/workflows.json
-docker cp n8n:/tmp/workflows.json $BACKUP_DIR/
-
-# Backup configs
-cp .env $BACKUP_DIR/
-cp config/config.json $BACKUP_DIR/
-
-# Limpar backups antigos (>30 dias)
-find /backup -type d -mtime +30 -exec rm -rf {} \;
+scripts/backup_restore.sh backup
+scripts/backup_restore.sh verify backups/backup_YYYYmmdd_HHMMSS.tar.gz
+scripts/backup_restore.sh restore backups/backup_YYYYmmdd_HHMMSS.tar.gz
 ```
 
-### Restore
-
-```bash
-# Restore Redis
-docker cp backup/redis.rdb redis:/data/dump.rdb
-docker restart redis
-
-# Restore n8n
-docker cp backup/workflows.json n8n:/tmp/
-docker exec n8n n8n import:workflow --input=/tmp/workflows.json
-```
+O script captura `data/`, `src/config/`, `.env`, dump RDB do Redis, dump SQL
+do PostgreSQL (`pg_dump`) e workflows do n8n quando os containers estão em
+execução. O `restore` valida o arquivo antes de aplicar mudanças.
 
 ### Cron de Backup
 
