@@ -261,12 +261,12 @@ class AppConfig:
 
                 tg_data = data.get("telegram", {})
                 telegram_token = _clean_optional(
-                    tg_data.get("token")
-                    or os.getenv("TELEGRAM_TOKEN")
+                    os.getenv("TELEGRAM_TOKEN")
                     or os.getenv("TELEGRAM_BOT_TOKEN")
+                    or tg_data.get("token")
                 )
                 telegram_chat_id = _clean_optional(
-                    tg_data.get("chat_id") or os.getenv("TELEGRAM_CHAT_ID")
+                    os.getenv("TELEGRAM_CHAT_ID") or tg_data.get("chat_id")
                 )
                 enabled_default = _env_bool(
                     "TELEGRAM_ENABLED", bool(telegram_token and telegram_chat_id)
@@ -325,15 +325,15 @@ class AppConfig:
                 security_data = data.get("security", {})
                 security = SecurityConfig(
                     api_key=_clean_optional(
-                        security_data.get("api_key") or os.getenv("API_KEY")
+                        os.getenv("API_KEY") or security_data.get("api_key")
                     ),
                     webhook_signing_secret=_clean_optional(
-                        security_data.get("webhook_signing_secret")
-                        or os.getenv("WEBHOOK_SIGNING_SECRET")
+                        os.getenv("WEBHOOK_SIGNING_SECRET")
+                        or security_data.get("webhook_signing_secret")
                     ),
                     openai_api_key=_clean_optional(
-                        security_data.get("openai_api_key")
-                        or os.getenv("OPENAI_API_KEY")
+                        os.getenv("OPENAI_API_KEY")
+                        or security_data.get("openai_api_key")
                     ),
                     dashboard_auth_enabled=bool(
                         security_data.get(
@@ -360,23 +360,23 @@ class AppConfig:
                 generation = GenerationConfig(
                     mode=str(generation_data.get("mode", generation.mode) or "local"),
                     openai_api_key=_clean_optional(
-                        generation_data.get("openai_api_key")
+                        _env_first("OPENAI_API_KEY")
+                        or generation_data.get("openai_api_key")
                         or security_data.get("openai_api_key")
-                        or _env_first("OPENAI_API_KEY")
                     ),
                     openai_model=str(
                         generation_data.get("openai_model", generation.openai_model)
                     ),
                     gemini_api_key=_clean_optional(
-                        generation_data.get("gemini_api_key")
-                        or _env_first("GEMINI_API_KEY", "GOOGLE_API_KEY")
+                        _env_first("GEMINI_API_KEY", "GOOGLE_API_KEY")
+                        or generation_data.get("gemini_api_key")
                     ),
                     gemini_model=str(
                         generation_data.get("gemini_model", generation.gemini_model)
                     ),
                     claude_api_key=_clean_optional(
-                        generation_data.get("claude_api_key")
-                        or _env_first("CLAUDE_API_KEY", "ANTHROPIC_API_KEY")
+                        _env_first("CLAUDE_API_KEY", "ANTHROPIC_API_KEY")
+                        or generation_data.get("claude_api_key")
                     ),
                     claude_model=str(
                         generation_data.get("claude_model", generation.claude_model)
@@ -410,15 +410,13 @@ class AppConfig:
                     # from docker-compose.prod.yml). Environment variables must
                     # override a persisted config.json so mounted local settings
                     # cannot silently break containerized production wiring.
-                    redis_url=os.getenv(
-                        "REDIS_URL",
-                        integrations_data.get("redis_url", integrations.redis_url),
-                    ),
-                    selenium_remote_url=os.getenv(
-                        "SELENIUM_REMOTE_URL",
-                        integrations_data.get(
-                            "selenium_remote_url", integrations.selenium_remote_url
-                        ),
+                    # An empty env var (e.g. unset compose interpolation) falls
+                    # back to config, matching the api_url/api_public_url pattern.
+                    redis_url=os.getenv("REDIS_URL")
+                    or integrations_data.get("redis_url", integrations.redis_url),
+                    selenium_remote_url=os.getenv("SELENIUM_REMOTE_URL")
+                    or integrations_data.get(
+                        "selenium_remote_url", integrations.selenium_remote_url
                     ),
                     api_url=_clean_optional(
                         os.getenv("API_URL") or integrations_data.get("api_url")

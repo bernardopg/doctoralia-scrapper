@@ -286,8 +286,8 @@ class TestAppConfig:
 
         assert loaded.telegram.enabled is True
         assert loaded.telegram.parse_mode == "HTML"
-        assert loaded.security.api_key == "file-api-key-123"
-        assert loaded.security.openai_api_key == source_config.security.openai_api_key
+        assert loaded.security.api_key == "env-api-key"
+        assert loaded.security.openai_api_key == env_overrides["OPENAI_API_KEY"]
         assert loaded.generation.mode == "openai"
         assert loaded.generation.gemini_api_key == "gemini-secret"
         # Runtime integration endpoints come from the environment when set so

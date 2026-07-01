@@ -24,6 +24,16 @@
 	}
 }
 
+# Access log sanitizado. Sem isso, probes autenticados contra /v1/* podem
+# gravar API keys e outros headers sensíveis no stdout do container.
+(sanitized_access_log) {
+	log {
+		# O encoder filter não está disponível/ativo na imagem caddy:2-alpine
+		# usada aqui; descartar access logs é mais seguro do que vazar headers.
+		output discard
+	}
+}
+
 {$APP_DOMAIN:localhost} {
 	import security_headers
 
@@ -48,10 +58,7 @@
 		reverse_proxy dashboard:5000
 	}
 
-	log {
-		output stdout
-		format console
-	}
+	import sanitized_access_log
 }
 
 {$N8N_DOMAIN:n8n.localhost} {
