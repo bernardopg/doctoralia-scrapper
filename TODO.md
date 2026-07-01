@@ -4,9 +4,13 @@ Backlog aberto e priorizado. Funcionalidades já entregues e consideradas madura
 
 ## Alta prioridade
 
+- [ ] Criar um agendamento Telegram real de monitoramento/relatório na stack em execução e validar `next_run_at` + histórico persistido.
+- [ ] Consolidar o contrato de configuração: `.env` para segredos/runtime, `config.json` para preferências não secretas e JSON Schema para validar drift.
+- [ ] Trocar o servidor dev do dashboard Flask por um WSGI server no container de produção.
 - [ ] Persistir no backend os campos completos do perfil do operador: `email`, avatar, time, membros e plano.
 - [ ] Introduzir modelo multiusuário com convite, papéis e isolamento por workspace/equipe.
 - [x] Configurar HTTPS/TLS no deploy com reverse proxy e certificados. (Caddy + `docker-compose.prod.yml`)
+- [x] Adicionar smoke test Docker de produção para readiness, Caddy e Telegram real opcional. (`make docker-smoke-prod`, `make docker-smoke-prod-telegram`)
 - [x] Implementar limpeza e arquivamento de jobs antigos no Redis.
 - [x] Adicionar rate limiting por IP/API key nos endpoints da API.
 - [x] Adicionar CSRF protection nas ações autenticadas do dashboard (`login`, `logout`, troca de senha e futuras mutações web).

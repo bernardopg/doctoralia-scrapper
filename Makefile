@@ -1,7 +1,7 @@
 # Makefile para Doctoralia Scrapper
 # ===================================
 
-.PHONY: help install setup test docker-test lint run daemon monitor clean venv format security deps-sync deps-check analyze run-full-url
+.PHONY: help install setup test docker-test docker-smoke-prod docker-smoke-prod-telegram lint run daemon monitor clean venv format security deps-sync deps-check analyze run-full-url
 
 # Variáveis
 # Detecta se .venv existe e usa o Python do venv, caso contrário usa python3 do sistema
@@ -81,6 +81,14 @@ test-html: ## Executa testes com relatório HTML
 docker-test: ## Executa testes dentro do container Docker com pytest instalado
 	@echo "$(BLUE)Executando testes no container test...$(NC)"
 	docker compose --profile test run --rm test
+
+docker-smoke-prod: ## Valida a stack Docker de produção sem efeitos colaterais
+	@echo "$(BLUE)Executando smoke test da stack Docker de produção...$(NC)"
+	$(PYTHON) scripts/docker_smoke_prod.py
+
+docker-smoke-prod-telegram: ## Valida a stack Docker de produção enviando teste real Telegram
+	@echo "$(BLUE)Executando smoke test da stack Docker de produção com Telegram real...$(NC)"
+	$(PYTHON) scripts/docker_smoke_prod.py --send-telegram
 
 lint: ## Executa linting, formatação e verificação de segurança
 	@echo "$(BLUE)Formatando código...$(NC)"
