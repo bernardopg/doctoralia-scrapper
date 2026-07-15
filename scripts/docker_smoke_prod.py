@@ -20,7 +20,14 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE_FILES = ["docker-compose.yml", "docker-compose.prod.yml"]
-REQUIRED_READY_CHECKS = {"redis", "queue", "templates", "nltk_vader", "selenium", "database"}
+REQUIRED_READY_CHECKS = {
+    "redis",
+    "queue",
+    "templates",
+    "nltk_vader",
+    "selenium",
+    "database",
+}
 
 
 def _load_dotenv(path: Path) -> None:
@@ -82,7 +89,9 @@ def _request_json(
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:500]
-        raise RuntimeError(f"{method} {url} returned HTTP {exc.code}: {detail}") from exc
+        raise RuntimeError(
+            f"{method} {url} returned HTTP {exc.code}: {detail}"
+        ) from exc
     except URLError as exc:
         raise RuntimeError(f"{method} {url} failed: {exc.reason}") from exc
 
@@ -115,10 +124,14 @@ def _check_compose_services() -> None:
 
 
 def _check_caddy_config() -> None:
-    validate = _run("exec", "-T", "caddy", "caddy", "validate", "--config", "/etc/caddy/Caddyfile")
+    validate = _run(
+        "exec", "-T", "caddy", "caddy", "validate", "--config", "/etc/caddy/Caddyfile"
+    )
     _require(validate.returncode == 0, f"caddy validate failed:\n{validate.stdout}")
 
-    adapted = _run("exec", "-T", "caddy", "caddy", "adapt", "--config", "/etc/caddy/Caddyfile")
+    adapted = _run(
+        "exec", "-T", "caddy", "caddy", "adapt", "--config", "/etc/caddy/Caddyfile"
+    )
     _require(adapted.returncode == 0, f"caddy adapt failed:\n{adapted.stdout}")
     config = json.loads(adapted.stdout)
     writer = (
@@ -128,7 +141,10 @@ def _check_caddy_config() -> None:
         .get("writer", {})
         .get("output")
     )
-    _require(writer == "discard", f"Caddy app access log must discard sensitive headers; got {writer!r}")
+    _require(
+        writer == "discard",
+        f"Caddy app access log must discard sensitive headers; got {writer!r}",
+    )
 
 
 def _check_ready(base_url: str, api_key: str) -> None:
@@ -136,12 +152,18 @@ def _check_ready(base_url: str, api_key: str) -> None:
     _require(payload.get("ready") is True, f"/v1/ready is not ready: {payload}")
     checks = payload.get("checks") or {}
     missing = sorted(REQUIRED_READY_CHECKS - checks.keys())
-    failing = sorted(name for name in REQUIRED_READY_CHECKS if checks.get(name) is not True)
+    failing = sorted(
+        name for name in REQUIRED_READY_CHECKS if checks.get(name) is not True
+    )
     _require(not missing, f"/v1/ready missing checks: {missing}")
     _require(not failing, f"/v1/ready failing checks: {failing}")
 
-    queue_details = ((payload.get("components") or {}).get("queue") or {}).get("details") or {}
-    _require(queue_details.get("failed", 0) == 0, f"queue has failed jobs: {queue_details}")
+    queue_details = ((payload.get("components") or {}).get("queue") or {}).get(
+        "details"
+    ) or {}
+    _require(
+        queue_details.get("failed", 0) == 0, f"queue has failed jobs: {queue_details}"
+    )
 
 
 def _check_telegram(base_url: str, api_key: str) -> None:
@@ -154,13 +176,22 @@ def _check_telegram(base_url: str, api_key: str) -> None:
     )
     _require(payload.get("success") is True, f"telegram smoke failed: {payload}")
     result = payload.get("result") or {}
-    _require(result.get("sent") is True, f"telegram smoke did not report sent=true: {payload}")
+    _require(
+        result.get("sent") is True,
+        f"telegram smoke did not report sent=true: {payload}",
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base-url", default=os.getenv("DOCTORALIA_BASE_URL", "https://localhost:8443"))
-    parser.add_argument("--send-telegram", action="store_true", help="send a real Telegram test notification")
+    parser.add_argument(
+        "--base-url", default=os.getenv("DOCTORALIA_BASE_URL", "https://localhost:8443")
+    )
+    parser.add_argument(
+        "--send-telegram",
+        action="store_true",
+        help="send a real Telegram test notification",
+    )
     args = parser.parse_args()
 
     _load_dotenv(ROOT / ".env")
@@ -174,7 +205,9 @@ def main() -> int:
         ("readiness", lambda: _check_ready(args.base_url.rstrip("/"), api_key)),
     ]
     if args.send_telegram:
-        checks.append(("telegram", lambda: _check_telegram(args.base_url.rstrip("/"), api_key)))
+        checks.append(
+            ("telegram", lambda: _check_telegram(args.base_url.rstrip("/"), api_key))
+        )
 
     for name, fn in checks:
         fn()
