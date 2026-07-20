@@ -6,12 +6,17 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-07-20
+
 ### Added
 
 - **[ops]** `scripts/backup_restore.sh` reescrito com backup e restore reais e **validação automatizada**: além de `data/`, `src/config/` e `.env`, agora captura o **dump RDB do Redis** (job queue, métricas, notificações) e os **workflows do n8n** a partir da stack Docker em execução. Novo subcomando `verify` valida o arquivo (integridade tar.gz, manifesto, header RDB `REDIS`, JSON do n8n/config) sem efeitos colaterais; `restore` valida antes de aplicar. Corrige o caminho de config (`config/` → `src/config/`) e uma condição de corrida em que o Redis sobrescrevia o dump restaurado ao desligar (agora para o container antes de copiar o dump).
 - **[tests]** Testes end-to-end do pipeline completo em `tests/test_e2e_flow.py`: `scrape -> generate -> analyze -> notify`, mockando apenas as fronteiras de I/O (rede do Selenium e HTTP do Telegram) e exercitando a orquestração real. Inclui caso de aborto quando o scrape não retorna dados.
 - **[deploy]** Overlay de produção `docker-compose.prod.yml` com **Caddy** como reverse proxy e **TLS automático** (Let's Encrypt em produção, certificado self-signed da CA interna em local/staging). Roteia `/v1/*`, `/docs` e `/openapi.json` para a API e o restante para o dashboard; n8n em subdomínio dedicado. Aplica HSTS + `X-Frame-Options` + `X-Content-Type-Options` + `Referrer-Policy`, redirect HTTP→HTTPS e remove o header `Server`. Portas do Caddy configuráveis via `CADDY_HTTP_PORT`/`CADDY_HTTPS_PORT`.
 - **[security]** O overlay de produção passa a exigir senha no Redis (`REDIS_PASSWORD`), injeta a `REDIS_URL` autenticada em `api`/`worker` e deixa de publicar as portas internas (Redis/API/dashboard/n8n/selenium) no host — só o Caddy expõe 80/443.
+- **[db]** Camada assíncrona PostgreSQL (`src/db/`: engine, sessão, modelos `User`/`Workspace`/`Membership`/`WorkspaceRole`) com serviço `db-init` que roda schema init/seed antes de `api`, `worker` e `dashboard` subirem. Produção exige `POSTGRES_PASSWORD`. `/v1/ready` passou a checar conectividade com o PostgreSQL.
+- **[tests]** `scripts/docker_smoke_prod.py`: smoke test da stack de produção validando `/v1/ready` (redis, queue, templates, nltk, selenium, database), config do Caddy e envio real via endpoint de teste do Telegram.
+- **[ops]** Healthcheck do Caddy via API admin (`127.0.0.1:2019/config/`) — antes o container não reportava saúde.
 
 ### Changed
 
@@ -19,6 +24,15 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 - **[refactor]** Provedores de IA extraídos de `src/response_generator.py` para o pacote `src/providers/` (`base.AIProvider`/`ProviderError` + `openai`, `gemini`, `claude` + factory `get_provider`). O gerador passa a delegar a chamada externa via `_call_*` finos, mantendo-se focado em templates e orquestração; `_extract_*` permanecem como API estável delegando aos provedores. Comportamento preservado (mesmos endpoints, headers, timeouts e mensagens de erro); `ProviderError` herda de `ValueError` por compatibilidade.
 - **[docs]** `docs/deployment.md`: seção de reverse proxy reescrita de Nginx manual para o fluxo real com Caddy e o overlay `docker-compose.prod.yml`.
 - **[config]** `.env.example`: adicionadas `APP_DOMAIN`, `N8N_DOMAIN`, `REDIS_PASSWORD`, `CADDY_HTTP_PORT` e `CADDY_HTTPS_PORT`.
+- **[runtime]** Variáveis de ambiente de integração (Redis/Selenium/Telegram/API) passam a sobrescrever o `config.json` persistido, evitando que credenciais injetadas pelo Docker fossem ignoradas silenciosamente.
+- **[ops]** Logs de acesso do Caddy deixam de registrar headers de requisições autenticadas.
+- **[deps]** n8n atualizado de `2.11.4` para `2.31.4`; limite de memória do container elevado de `512M` para `1G` (a versão nova estourava OOM no limite antigo).
+- **[ops]** Dashboard passa a ser servido via `waitress` em produção em vez do servidor de desenvolvimento do Flask (`app.run`).
+
+### Fixed
+
+- **[bug]** `DoctoraliaScraper.save_data()` crashava com `TypeError: expected string or bytes-like object, got 'NoneType'` quando `extract_doctor_name()` retornava `None` (timeout no site) mesmo com o restante do scraping bem-sucedido — derrubava silenciosamente toda notificação Telegram agendada que dependesse dele. `dict.get(chave, default)` só cobre chave ausente, não chave presente com valor `None`. Mesmo padrão corrigido em `mask_pii`/`sanitize_review` (`src/integrations/n8n/privacy.py`), no template `scraping_complete` do Telegram e na normalização de médico do n8n (`src/integrations/n8n/normalize.py`), que mostravam a string literal `"None"` em vez do rótulo de fallback. Reproduzido e validado contra a stack de produção real.
+- **[security]** Corrigido falso-positivo do bandit B201 introduzido pela mudança do dashboard para `waitress`: literal `debug=True` disparava o alerta mesmo dentro do branch já protegido por `if debug:`; revertido para a variável `debug`.
 
 ## [2.3.1] - 2026-06-16
 
