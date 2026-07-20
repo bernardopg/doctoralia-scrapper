@@ -74,7 +74,7 @@ def mask_pii(text: str) -> str:
     """
     Mask personally identifiable information in text.
     """
-    if not _get_bool("MASK_PII", True):
+    if not text or not _get_bool("MASK_PII", True):
         return text
 
     # Mask email addresses
@@ -114,7 +114,7 @@ def sanitize_review(review: Dict[str, Any]) -> Dict[str, Any]:
     sanitized = review.copy()
 
     # Mask author name
-    if "author_name" in sanitized:
+    if sanitized.get("author_name"):
         name_parts = sanitized["author_name"].split()
         if len(name_parts) > 1:
             # Keep first name, mask last name

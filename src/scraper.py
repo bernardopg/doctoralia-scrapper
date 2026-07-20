@@ -886,7 +886,7 @@ class DoctoraliaScraper:
         try:
             self.config.data_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            doctor_name = data.get("doctor_name", "unknown_doctor")
+            doctor_name = data.get("doctor_name") or "unknown_doctor"
             clean_name = (
                 re.sub(r"[^\w\s-]", "", doctor_name).strip().replace(" ", "_").lower()
             )

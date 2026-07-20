@@ -42,6 +42,19 @@ class TestDoctoraliaScraper:
         assert hasattr(scraper, "setup_driver")
         assert callable(getattr(scraper, "setup_driver"))
 
+    def test_save_data_handles_none_doctor_name(self, tmp_path) -> None:
+        """doctor_name presente mas None (extração falhou) não deve crashar."""
+        config = AppConfig.load()
+        config.data_dir = tmp_path
+        mock_logger = Mock()
+        scraper = DoctoraliaScraper(config, mock_logger)
+
+        saved_path = scraper.save_data({"doctor_name": None, "reviews": []})
+
+        assert saved_path is not None
+        assert saved_path.exists()
+        assert "unknown_doctor" in saved_path.name
+
 
 class TestScrapingMethods:
     """Testes para métodos específicos de scraping"""
