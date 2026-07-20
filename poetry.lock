@@ -690,7 +690,7 @@ files = [
     {file = "cffi-2.0.0-cp39-cp39-win_amd64.whl", hash = "sha256:b882b3df248017dba09d6b16defe9b5c407fe32fc7c65a9c69798e6175601be9"},
     {file = "cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529"},
 ]
-markers = {main = "implementation_name != \"pypy\" and os_name == \"nt\" or platform_python_implementation != \"PyPy\"", dev = "(platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\") and (sys_platform == \"linux\" or sys_platform == \"darwin\")"}
+markers = {main = "os_name == \"nt\" and implementation_name != \"pypy\" or platform_python_implementation != \"PyPy\"", dev = "(sys_platform == \"linux\" or sys_platform == \"darwin\") and (platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\")"}
 
 [package.dependencies]
 pycparser = {version = "*", markers = "implementation_name != \"PyPy\""}
@@ -1280,14 +1280,14 @@ tests = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "fastapi"
-version = "0.139.0"
+version = "0.139.2"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "fastapi-0.139.0-py3-none-any.whl", hash = "sha256:cf15e1e9e667ddb0ad63811e60bd11390d1aac838ca4a7a23f421807b2308189"},
-    {file = "fastapi-0.139.0.tar.gz", hash = "sha256:99ab7b2d92223c76d6cf10757ab3f89d45b38267fc20b2a136cf02f6beac3145"},
+    {file = "fastapi-0.139.2-py3-none-any.whl", hash = "sha256:b9ad015a835173d59865e2f5d8296fbc2b317bf56a2ba1a5bfbdd03de2fd4b1c"},
+    {file = "fastapi-0.139.2.tar.gz", hash = "sha256:333145a6891e9b5b3cfceb69baf817e8240cde4d4588ae5a10bf56ffacb6255e"},
 ]
 
 [package.dependencies]
@@ -1533,14 +1533,14 @@ trio = ["trio (>=0.22.0,<1.0)"]
 
 [[package]]
 name = "httpcore2"
-version = "2.5.0"
+version = "2.7.0"
 description = "A minimal low-level HTTP client."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "httpcore2-2.5.0-py3-none-any.whl", hash = "sha256:5ce35188de461d31e8d000bfb8ef8bf22c6c16587a211e5571deaa5e9bdf842a"},
-    {file = "httpcore2-2.5.0.tar.gz", hash = "sha256:88aa170137c17328d5ac44234f9fd10706466d5fb347f3edac4d39b91137b09d"},
+    {file = "httpcore2-2.7.0-py3-none-any.whl", hash = "sha256:1452f589fe23f55b44546cd884294c41a29330af902bc0b71a761fd52d18f92b"},
+    {file = "httpcore2-2.7.0.tar.gz", hash = "sha256:6dc0fedf329a52a990930a5579edfebaea81118ea700ea0dd7de2b5e5be49efc"},
 ]
 
 [package.dependencies]
@@ -1640,28 +1640,29 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "httpx2"
-version = "2.5.0"
+version = "2.7.0"
 description = "The next generation HTTP client."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "httpx2-2.5.0-py3-none-any.whl", hash = "sha256:3d2d4d9cf4b61f1a1f46a95947cfdb47e80cb56a2f91c6256ac8f58e4891df41"},
-    {file = "httpx2-2.5.0.tar.gz", hash = "sha256:e2df9cb4611021527ff8a675b1c320b610a2ec397acc8d6fe6e91df2d9b33c29"},
+    {file = "httpx2-2.7.0-py3-none-any.whl", hash = "sha256:ed2a2719c696789e09493bd8e2bec3d8bd925cc6e26b68389ec25ade132f7bf4"},
+    {file = "httpx2-2.7.0.tar.gz", hash = "sha256:8b30709aed5c8465b0dd3b95c09ce301c8f79e7e7a2d00ab0af551e0d0375b07"},
 ]
 
 [package.dependencies]
-anyio = "*"
-httpcore2 = "2.5.0"
+anyio = ">=4.10"
+httpcore2 = "2.7.0"
 idna = ">=3.18"
 truststore = ">=0.10"
 typing-extensions = {version = ">=4.5.0", markers = "python_version < \"3.13\""}
 
 [package.extras]
 brotli = ["brotli ; platform_python_implementation == \"CPython\"", "brotlicffi ; platform_python_implementation != \"CPython\""]
-cli = ["click (==8.*)", "pygments (==2.*)", "rich (>=10,<16)"]
+cli = ["click (>=8.4)", "pygments (==2.*)", "rich (>=10,<16)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
+ws = ["wsproto (>=1.2)"]
 zstd = ["zstandard (>=0.18.0) ; python_version <= \"3.13\""]
 
 [[package]]
@@ -3289,7 +3290,7 @@ files = [
     {file = "pycparser-3.0-py3-none-any.whl", hash = "sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"},
     {file = "pycparser-3.0.tar.gz", hash = "sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29"},
 ]
-markers = {main = "(implementation_name != \"pypy\" or platform_python_implementation != \"PyPy\") and implementation_name != \"PyPy\" and (os_name == \"nt\" or platform_python_implementation != \"PyPy\")", dev = "(platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\") and implementation_name != \"PyPy\" and (sys_platform == \"linux\" or sys_platform == \"darwin\")"}
+markers = {main = "os_name == \"nt\" and implementation_name != \"pypy\" and implementation_name != \"PyPy\" or platform_python_implementation != \"PyPy\" and implementation_name != \"PyPy\"", dev = "(sys_platform == \"linux\" or sys_platform == \"darwin\") and implementation_name != \"PyPy\" and (platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\")"}
 
 [[package]]
 name = "pydantic"
@@ -3537,7 +3538,7 @@ description = "A python implementation of GNU readline."
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "python_version < \"3.13\" and platform_system == \"Windows\""
+markers = "python_version <= \"3.12\" and platform_system == \"Windows\""
 files = [
     {file = "pyreadline3-3.5.6-py3-none-any.whl", hash = "sha256:8449b734232e42a5dcd74048e39b60db2839a4c38cf3ae2bf7707d58b5389c0d"},
     {file = "pyreadline3-3.5.6.tar.gz", hash = "sha256:61e53218b99656091ddb077df9e71f25850e72e030b6183b39c9b7e6e4f4a9bf"},
@@ -3553,7 +3554,7 @@ description = "A library for building flexible command line interfaces"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "python_version < \"3.13\""
+markers = "python_version <= \"3.12\""
 files = [
     {file = "pyrepl-0.11.4-py3-none-any.whl", hash = "sha256:ac30d6340267a21c39e1b1934f92bca6b8735017d14b17e40f903b2d1563541d"},
     {file = "pyrepl-0.11.4.tar.gz", hash = "sha256:efe988b4a6e5eed587e9769dc2269aeec2b6feec2f5d77995ee85b9ad7cf7063"},
@@ -4303,14 +4304,14 @@ files = [
 
 [[package]]
 name = "soupsieve"
-version = "2.8.4"
+version = "2.9"
 description = "A modern CSS selector implementation for Beautiful Soup."
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "soupsieve-2.8.4-py3-none-any.whl", hash = "sha256:e7e6b0769c8f51ed59acab6e994b00621096cfb1c640a7509295987388fbaf65"},
-    {file = "soupsieve-2.8.4.tar.gz", hash = "sha256:e121fd02e975c695e4e9e8774a5ee35d74714b59307868dcc5319ad2d9e3328e"},
+    {file = "soupsieve-2.9-py3-none-any.whl", hash = "sha256:a2b2c76d67df2382d245409fd71e321a571717e58463efa32ace87dcadac2c12"},
+    {file = "soupsieve-2.9.tar.gz", hash = "sha256:acee8417325c5653e1377dc31eccad59eb82cbc65942afe6174c53b3aaad63fc"},
 ]
 
 [[package]]
@@ -5029,7 +5030,7 @@ description = "Fast implementation of asyncio event loop on top of libuv"
 optional = false
 python-versions = ">=3.8.1"
 groups = ["main"]
-markers = "platform_python_implementation != \"PyPy\" and sys_platform != \"win32\" and sys_platform != \"cygwin\""
+markers = "sys_platform != \"win32\" and sys_platform != \"cygwin\" and platform_python_implementation != \"PyPy\""
 files = [
     {file = "uvloop-0.22.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:ef6f0d4cc8a9fa1f6a910230cd53545d9a14479311e87e3cb225495952eb672c"},
     {file = "uvloop-0.22.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:7cd375a12b71d33d46af85a3343b35d98e8116134ba404bd657b3b1d15988792"},
@@ -5467,4 +5468,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "3f0928cec5c10be6e83bbcfdd6cd80b1e2df272a1236428a37b42df17da04264"
+content-hash = "9fa94ffa2786b68ad107ee23d7fc7ee04f9e9fd325cbec958a33195410971285"
