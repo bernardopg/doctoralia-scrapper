@@ -201,7 +201,12 @@ class DashboardApp:
     ) -> None:
         if self.logger:
             self.logger.info("Starting dashboard server on http://%s:%s", host, port)
-        self.app.run(host=host, port=port, debug=debug)
+        if debug:
+            self.app.run(host=host, port=port, debug=True)
+        else:
+            from waitress import serve
+
+            serve(self.app, host=host, port=port)
 
 
 def start_dashboard(

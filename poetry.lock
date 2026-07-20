@@ -5108,6 +5108,22 @@ python-discovery = ">=1.4.2"
 typing-extensions = {version = ">=4.13.2", markers = "python_version < \"3.11\""}
 
 [[package]]
+name = "waitress"
+version = "3.0.2"
+description = "Waitress WSGI server"
+optional = false
+python-versions = ">=3.9.0"
+groups = ["main"]
+files = [
+    {file = "waitress-3.0.2-py3-none-any.whl", hash = "sha256:c56d67fd6e87c2ee598b76abdd4e96cfad1f24cacdea5078d382b1f9d7b5ed2e"},
+    {file = "waitress-3.0.2.tar.gz", hash = "sha256:682aaaf2af0c44ada4abfb70ded36393f0e307f4ab9456a215ce0020baefc31f"},
+]
+
+[package.extras]
+docs = ["Sphinx (>=1.8.1)", "docutils", "pylons-sphinx-themes (>=1.0.9)"]
+testing = ["coverage (>=7.6.0)", "pytest", "pytest-cov"]
+
+[[package]]
 name = "watchfiles"
 version = "1.2.0"
 description = "Simple, modern and high performance file watching and code reload in python."
@@ -5468,4 +5484,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "cb47f0baf1d215621c59d0a14779cf82fc1d7e395f3de776cc6d4caaa0c382a1"
+content-hash = "2f335773ad2c33d472b20c67bc4e0f671dcef1cfd7cd0ab3743d9f0247589d2c"

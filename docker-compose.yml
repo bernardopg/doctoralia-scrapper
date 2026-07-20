@@ -191,7 +191,7 @@ services:
           memory: 512M
 
   n8n:
-    image: n8nio/n8n:2.11.4
+    image: n8nio/n8n:2.31.4
     ports:
       - "127.0.0.1:5678:5678"
     environment:
@@ -225,7 +225,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1G
         reservations:
           cpus: "0.25"
           memory: 128M
