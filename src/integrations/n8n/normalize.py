@@ -224,7 +224,7 @@ def extract_scraper_result(
     """
     # Extract doctor info
     doctor_data = {
-        "name": scraper_output.get("doctor_name", "Unknown"),
+        "name": scraper_output.get("doctor_name") or "Unknown",
         "url": scraper_output.get("url", ""),
         "rating": scraper_output.get("average_rating"),
         "specialty": scraper_output.get("specialty"),

@@ -110,7 +110,7 @@ class TelegramTemplates:
     @staticmethod
     def scraping_complete(data: Dict[str, Any], save_path: Path) -> str:
         """Template para scraping concluído"""
-        doctor_name = _clean_md(data.get("doctor_name", "Médico"))
+        doctor_name = _clean_md(data.get("doctor_name") or "Médico")
         total_reviews = int(data.get("total_reviews", 0))
         with_replies = len(
             [r for r in data.get("reviews", []) if r.get("doctor_reply")]
