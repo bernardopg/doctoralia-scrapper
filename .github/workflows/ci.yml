@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # actions/checkout v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout v7.0.1
 
       - name: Set up Python
         id: setup-python
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # actions/checkout v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout v7.0.1
       - name: Verify dependency manifest set
         run: |
           unexpected_manifests=$(find . -maxdepth 1 -type f -name 'requirements*.txt' ! -name 'requirements.txt' -print)
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # actions/checkout v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout v7.0.1
         with:
           # Ensure commit history is available for TruffleHog diff scans
           fetch-depth: 0
@@ -146,7 +146,7 @@ jobs:
       # TruffleHog: scan PR diffs when base and head differ
       - name: Check for secrets (PR diff)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha != github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@27b0417c16317ca9a472a9a8092acce143b49c55 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -156,7 +156,7 @@ jobs:
       # Fallback: PR full scan when base and head are identical (e.g., re-runs)
       - name: Check for secrets (PR full scan)
         if: github.event_name == 'pull_request' && github.event.pull_request.base.sha == github.event.pull_request.head.sha
-        uses: trufflesecurity/trufflehog@27b0417c16317ca9a472a9a8092acce143b49c55 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -164,7 +164,7 @@ jobs:
       # TruffleHog: scan push diffs when before SHA is valid and differs
       - name: Check for secrets (push diff)
         if: github.event_name == 'push' && github.event.before != '' && github.event.before != github.sha && !startsWith(github.event.before, '000000')
-        uses: trufflesecurity/trufflehog@27b0417c16317ca9a472a9a8092acce143b49c55 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # trufflesecurity/trufflehog main
         with:
           path: ./
           base: ${{ github.event.before }}
@@ -174,7 +174,7 @@ jobs:
       # Fallback: push full scan when no valid diff available (e.g., new branch)
       - name: Check for secrets (push full scan)
         if: github.event_name == 'push' && (github.event.before == '' || github.event.before == github.sha || startsWith(github.event.before, '000000'))
-        uses: trufflesecurity/trufflehog@27b0417c16317ca9a472a9a8092acce143b49c55 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -182,7 +182,7 @@ jobs:
       # TruffleHog: fallback for manual triggers or other events
       - name: "Check for secrets (manual full scan)"
         if: github.event_name == 'workflow_dispatch'
-        uses: trufflesecurity/trufflehog@27b0417c16317ca9a472a9a8092acce143b49c55 # trufflesecurity/trufflehog main
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # trufflesecurity/trufflehog main
         with:
           path: ./
           extra_args: --only-verified
@@ -210,7 +210,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # actions/checkout v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout v7.0.1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python v7.0.0
@@ -264,7 +264,7 @@ jobs:
     needs: [lint, security, test]
     steps:
       - name: Checkout code
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # actions/checkout v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout v7.0.1
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # actions/setup-python v7.0.0
