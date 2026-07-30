@@ -6,6 +6,17 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-07-30
+
+### Fixed
+
+- **[ci]** O auto-merge de PRs do dependabot nunca concluía quando a branch estava desatualizada. O workflow chamava `pulls.updateBranch` e retornava, esperando um evento `synchronize` para tentar de novo — mas esse push é feito com `GITHUB_TOKEN`, que não dispara workflows, então a retentativa jamais acontecia e o PR ficava verde e parado indefinidamente (foi o caso do #150, aberto por 3 dias em estado `CLEAN`). Agora o auto-merge é armado **antes** de atualizar a branch, e o retorno `clean status` da API passa a resultar em merge direto em vez de derrubar o job.
+- **[ci]** O scan de vulnerabilidades da imagem Docker quebrava `main` com dois HIGH inexistentes: `msgpack 1.1.2` (GHSA-6v7p-g79w-8964) e `setuptools 70.3.0` (CVE-2025-47273). Nenhum dos dois está instalado — a imagem carrega `setuptools 83.0.0` e o `poetry.lock` fixa `msgpack 1.2.1`. As ocorrências vinham de `pip/_vendor/vendor.txt`, o manifesto das cópias que o próprio pip vendoriza, lido pelo analisador `python-pkg` do Trivy. Como só mudam quando o pip re-vendoriza upstream, bloqueariam todo build indefinidamente. Excluído via `skip-dirs` restrito ao diretório vendorizado, preservando o report de CVEs reais desses pacotes.
+
+### Changed
+
+- **[deps]** `fastapi` 0.139.2 → 0.140.1, `certifi` 2026.6.17 → 2026.7.22, `soupsieve` 2.9 → 2.9.1 (#150). Atualizações de GitHub Actions: `actions/checkout` 7.0.1, `trufflehog` 3.96.0, `codeql-action` 4.37.3, `docker/login-action` 4.5.1 (#149).
+
 ## [2.4.0] - 2026-07-20
 
 ### Added
@@ -193,7 +204,9 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.1...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.1...HEAD
+- [2.4.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.0...v2.4.1
+- [2.4.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.1...v2.4.0
 - [2.3.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.0...v2.3.1
 - [2.2.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.1...v2.2.0
 - [2.1.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.1.0...v2.1.1
