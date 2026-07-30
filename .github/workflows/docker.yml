@@ -136,6 +136,10 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
+          # pip ships vendored copies (msgpack, pkg_resources/setuptools) listed in
+          # pip/_vendor/vendor.txt. They are not app dependencies and only move when
+          # pip itself re-vendors, so they would block every build forever.
+          skip-dirs: "**/site-packages/pip/_vendor"
           exit-code: "0"
           format: "json"
           output: "trivy-results-${{ matrix.target }}.json"
@@ -150,6 +154,10 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
+          # pip ships vendored copies (msgpack, pkg_resources/setuptools) listed in
+          # pip/_vendor/vendor.txt. They are not app dependencies and only move when
+          # pip itself re-vendors, so they would block every build forever.
+          skip-dirs: "**/site-packages/pip/_vendor"
           exit-code: "0"
           format: "json"
           output: "trivy-results-${{ matrix.target }}.json"
@@ -164,6 +172,10 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
+          # pip ships vendored copies (msgpack, pkg_resources/setuptools) listed in
+          # pip/_vendor/vendor.txt. They are not app dependencies and only move when
+          # pip itself re-vendors, so they would block every build forever.
+          skip-dirs: "**/site-packages/pip/_vendor"
           exit-code: "0"
           format: "sarif"
           output: "trivy-results-${{ matrix.target }}.sarif"
@@ -178,6 +190,10 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           scanners: "vuln"
+          # pip ships vendored copies (msgpack, pkg_resources/setuptools) listed in
+          # pip/_vendor/vendor.txt. They are not app dependencies and only move when
+          # pip itself re-vendors, so they would block every build forever.
+          skip-dirs: "**/site-packages/pip/_vendor"
           exit-code: "0"
           format: "sarif"
           output: "trivy-results-${{ matrix.target }}.sarif"
