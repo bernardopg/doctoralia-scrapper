@@ -59,26 +59,14 @@ jobs:
 
             const pr = await waitForStablePullRequest(initialPr.number);
 
-            if (pr.mergeable_state === "behind") {
-              try {
-                await github.rest.pulls.updateBranch({
-                  owner,
-                  repo,
-                  pull_number: pr.number,
-                  expected_head_sha: pr.head.sha,
-                });
-                core.info(`Updated branch for PR #${pr.number}. Waiting for the synchronize event to retry auto-merge.`);
-              } catch (error) {
-                core.warning(`Could not update branch for PR #${pr.number}: ${error.message}`);
-              }
-              return;
-            }
-
             if (pr.mergeable === null || ["unknown", "unstable"].includes(pr.mergeable_state)) {
               core.warning(`Skipping PR #${pr.number}: mergeable state is still ${pr.mergeable_state}.`);
               return;
             }
 
+            // Enable auto-merge before touching the branch. updateBranch pushes with
+            // GITHUB_TOKEN, which does not fire the synchronize event this workflow
+            // would need to run again, so a "behind" PR must be armed first.
             try {
               await github.graphql(
                 `mutation($pullRequestId: ID!) {
@@ -92,13 +80,37 @@ jobs:
               );
               core.info(`Auto-merge enabled for PR #${pr.number}.`);
             } catch (error) {
-              if ((error.message || "").includes("already enabled")) {
+              const message = error.message || "";
+              if (message.includes("already enabled")) {
                 core.info(`Auto-merge is already enabled for PR #${pr.number}.`);
+              } else if (message.includes("clean status")) {
+                // "clean" means every required check passed and the branch is current.
+                await github.rest.pulls.merge({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  merge_method: "squash",
+                });
+                core.info(`PR #${pr.number} was already mergeable; merged directly.`);
                 return;
-              }
-              if ((error.message || "").includes("unstable status")) {
+              } else if (message.includes("unstable status")) {
                 core.warning(`Skipping PR #${pr.number}: GitHub still reports the pull request as unstable.`);
                 return;
+              } else {
+                throw error;
               }
-              throw error;
+            }
+
+            if (pr.mergeable_state === "behind") {
+              try {
+                await github.rest.pulls.updateBranch({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  expected_head_sha: pr.head.sha,
+                });
+                core.info(`Updated branch for PR #${pr.number}; auto-merge will complete it.`);
+              } catch (error) {
+                core.warning(`Could not update branch for PR #${pr.number}: ${error.message}`);
+              }
             }
