@@ -6,6 +6,18 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.4.2] - 2026-08-03
+
+### Fixed
+
+- **[ci]** PRs do dependabot continuavam travando com auto-merge armado e nenhuma retomada automática. Dois pushes do fluxo (sync de `requirements.txt` e `pulls.updateBranch`) são feitos com `GITHUB_TOKEN`; os runs que se seguem não disparam `synchronize` ou ficam em `action_required`, e sem evento pendente o PR nunca acordava sozinho (#154 ficou 8h bloqueado até intervenção manual). Adicionada varredura agendada a cada 30 min no workflow `dependabot-automerge.yml` que percorre os PRs abertos, aprova runs em `action_required`, arma o auto-merge e atualiza branches `behind`. Precisa do escopo `actions: write`; quando o token não pode aprovar um run, registra warning com a URL em vez de falhar o job (#156).
+
+### Changed
+
+- **[deps]** `fastapi` 0.140.1 → 0.141.1, `redis` 8.0.1 → 8.1.0, `uvicorn` 0.51.0 → 0.52.0 (#154).
+- **[deps]** Imagem Docker `n8n` 2.31.4 → 2.32.7 (#155).
+- **[deps]** GitHub Actions: `codeql-action` 4.37.4, `docker/login-action` 4.6.0 (#153).
+
 ## [2.4.1] - 2026-07-30
 
 ### Fixed
@@ -204,7 +216,8 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.1...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.2...HEAD
+- [2.4.2]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.1...v2.4.2
 - [2.4.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.0...v2.4.1
 - [2.4.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.1...v2.4.0
 - [2.3.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.0...v2.3.1
