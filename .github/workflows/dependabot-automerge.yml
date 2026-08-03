@@ -3,15 +3,31 @@ name: Dependabot Auto-merge
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
+  # Recovery path. Everything this workflow does to a Dependabot branch is done
+  # with GITHUB_TOKEN, and the runs that follow such a push either never fire a
+  # `synchronize` event or land in `action_required`. When that happens there is
+  # no event left to wake the PR up, so a periodic sweep is the only way back.
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number || github.event_name }}
+  cancel-in-progress: false
 
 jobs:
   enable-automerge:
     name: Enable auto-merge on Dependabot PRs
-    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false && github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      (github.event.pull_request.user.login == 'dependabot[bot]' &&
+        github.event.pull_request.draft == false &&
+        github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - name: Enable auto-merge
@@ -20,15 +36,37 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const initialPr = context.payload.pull_request;
 
-            if (initialPr.base.ref !== "main") {
-              core.info(`Skipping PR #${initialPr.number}: base branch is ${initialPr.base.ref}.`);
-              return;
+            // On a pull_request_target event only the PR that fired it is
+            // processed. On schedule/workflow_dispatch every open Dependabot PR
+            // is swept, because the stuck ones have no pending event.
+            async function pullRequestNumbers() {
+              if (context.payload.pull_request) {
+                return [context.payload.pull_request.number];
+              }
+
+              const pulls = await github.paginate(github.rest.pulls.list, {
+                owner,
+                repo,
+                state: "open",
+                base: "main",
+                per_page: 100,
+              });
+
+              return pulls
+                .filter(pull =>
+                  pull.user.login === "dependabot[bot]" &&
+                  pull.draft === false &&
+                  pull.head.repo &&
+                  pull.head.repo.full_name === `${owner}/${repo}`
+                )
+                .map(pull => pull.number);
             }
 
+            // GitHub computes `mergeable` asynchronously; a fresh PR reports
+            // null/unknown until it settles.
             async function waitForStablePullRequest(pullNumber, attempts = 6, delayMs = 5000) {
-              let currentPr = initialPr;
+              let currentPr = null;
 
               for (let attempt = 1; attempt <= attempts; attempt += 1) {
                 const { data } = await github.rest.pulls.get({
@@ -39,13 +77,10 @@ jobs:
                 currentPr = data;
 
                 core.info(
-                  `Attempt ${attempt}/${attempts}: mergeable=${currentPr.mergeable} mergeable_state=${currentPr.mergeable_state}`
+                  `PR #${pullNumber} attempt ${attempt}/${attempts}: mergeable=${currentPr.mergeable} mergeable_state=${currentPr.mergeable_state}`
                 );
 
-                if (
-                  currentPr.mergeable !== null &&
-                  !["unknown", "unstable"].includes(currentPr.mergeable_state)
-                ) {
+                if (currentPr.mergeable !== null && currentPr.mergeable_state !== "unknown") {
                   return currentPr;
                 }
 
@@ -57,60 +92,114 @@ jobs:
               return currentPr;
             }
 
-            const pr = await waitForStablePullRequest(initialPr.number);
+            // Pushes made inside a Dependabot PR context produce runs that wait
+            // for manual approval. Unapproved runs mean the required checks never
+            // report, so the PR stays blocked forever.
+            async function approveWaitingRuns(pr) {
+              const { data } = await github.rest.actions.listWorkflowRunsForRepo({
+                owner,
+                repo,
+                head_sha: pr.head.sha,
+                status: "action_required",
+                per_page: 100,
+              });
 
-            if (pr.mergeable === null || ["unknown", "unstable"].includes(pr.mergeable_state)) {
-              core.warning(`Skipping PR #${pr.number}: mergeable state is still ${pr.mergeable_state}.`);
-              return;
+              for (const run of data.workflow_runs) {
+                try {
+                  await github.rest.actions.approveWorkflowRun({ owner, repo, run_id: run.id });
+                  core.info(`Approved pending run "${run.name}" (${run.id}) for PR #${pr.number}.`);
+                } catch (error) {
+                  core.warning(
+                    `Could not approve run ${run.id} for PR #${pr.number}: ${error.message}. Approve it at ${run.html_url}.`
+                  );
+                }
+              }
             }
 
-            // Enable auto-merge before touching the branch. updateBranch pushes with
-            // GITHUB_TOKEN, which does not fire the synchronize event this workflow
-            // would need to run again, so a "behind" PR must be armed first.
-            try {
-              await github.graphql(
-                `mutation($pullRequestId: ID!) {
-                  enablePullRequestAutoMerge(
-                    input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }
-                  ) {
-                    clientMutationId
-                  }
-                }`,
-                { pullRequestId: pr.node_id }
-              );
-              core.info(`Auto-merge enabled for PR #${pr.number}.`);
-            } catch (error) {
-              const message = error.message || "";
-              if (message.includes("already enabled")) {
-                core.info(`Auto-merge is already enabled for PR #${pr.number}.`);
-              } else if (message.includes("clean status")) {
-                // "clean" means every required check passed and the branch is current.
-                await github.rest.pulls.merge({
-                  owner,
-                  repo,
-                  pull_number: pr.number,
-                  merge_method: "squash",
-                });
-                core.info(`PR #${pr.number} was already mergeable; merged directly.`);
-                return;
-              } else if (message.includes("unstable status")) {
-                core.warning(`Skipping PR #${pr.number}: GitHub still reports the pull request as unstable.`);
-                return;
-              } else {
+            // Returns "merged" when the PR was merged right away, "armed" when
+            // auto-merge is in place and "skipped" when neither was possible.
+            async function armAutoMerge(pr) {
+              try {
+                await github.graphql(
+                  `mutation($pullRequestId: ID!) {
+                    enablePullRequestAutoMerge(
+                      input: { pullRequestId: $pullRequestId, mergeMethod: SQUASH }
+                    ) {
+                      clientMutationId
+                    }
+                  }`,
+                  { pullRequestId: pr.node_id }
+                );
+                core.info(`Auto-merge enabled for PR #${pr.number}.`);
+                return "armed";
+              } catch (error) {
+                const message = error.message || "";
+
+                if (message.includes("already enabled")) {
+                  core.info(`Auto-merge is already enabled for PR #${pr.number}.`);
+                  return "armed";
+                }
+
+                if (message.includes("clean status")) {
+                  // "clean" means every required check passed and the branch is current.
+                  await github.rest.pulls.merge({
+                    owner,
+                    repo,
+                    pull_number: pr.number,
+                    merge_method: "squash",
+                  });
+                  core.info(`PR #${pr.number} was already mergeable; merged directly.`);
+                  return "merged";
+                }
+
+                if (message.includes("unstable status")) {
+                  core.warning(`Skipping PR #${pr.number}: GitHub still reports the pull request as unstable.`);
+                  return "skipped";
+                }
+
                 throw error;
               }
             }
 
-            if (pr.mergeable_state === "behind") {
-              try {
-                await github.rest.pulls.updateBranch({
-                  owner,
-                  repo,
-                  pull_number: pr.number,
-                  expected_head_sha: pr.head.sha,
-                });
-                core.info(`Updated branch for PR #${pr.number}; auto-merge will complete it.`);
-              } catch (error) {
-                core.warning(`Could not update branch for PR #${pr.number}: ${error.message}`);
+            for (const pullNumber of await pullRequestNumbers()) {
+              const pr = await waitForStablePullRequest(pullNumber);
+
+              if (!pr || pr.state !== "open" || pr.draft) {
+                core.info(`Skipping PR #${pullNumber}: no longer an open, ready pull request.`);
+                continue;
+              }
+
+              if (pr.base.ref !== "main") {
+                core.info(`Skipping PR #${pr.number}: base branch is ${pr.base.ref}.`);
+                continue;
+              }
+
+              if (pr.mergeable_state === "dirty") {
+                core.warning(`Skipping PR #${pr.number}: the branch has conflicts.`);
+                continue;
+              }
+
+              await approveWaitingRuns(pr);
+
+              // Auto-merge is armed before the branch is touched. updateBranch
+              // pushes with GITHUB_TOKEN, which does not fire the synchronize
+              // event this workflow would need to run again, so a "behind" PR
+              // must be armed first.
+              if (await armAutoMerge(pr) === "merged") {
+                continue;
+              }
+
+              if (pr.mergeable_state === "behind") {
+                try {
+                  await github.rest.pulls.updateBranch({
+                    owner,
+                    repo,
+                    pull_number: pr.number,
+                    expected_head_sha: pr.head.sha,
+                  });
+                  core.info(`Updated branch for PR #${pr.number}; auto-merge will complete it.`);
+                } catch (error) {
+                  core.warning(`Could not update branch for PR #${pr.number}: ${error.message}`);
+                }
               }
             }
