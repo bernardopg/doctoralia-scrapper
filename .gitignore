@@ -29,6 +29,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Codecov uploader binary (CI uses codecov-action, never the local binary)
+codecov
+
 # Unit test / coverage reports
 htmlcov/
 .tox/

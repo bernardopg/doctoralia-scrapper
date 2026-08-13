@@ -165,7 +165,7 @@ services:
     restart: "no"
 
   selenium:
-    image: selenium/standalone-chrome:latest
+    image: selenium/standalone-chrome:4.46.0-20260707  # pinned; aligns Grid 4.46.0 with selenium client
     shm_size: "2g"
     ports:
       - "4444:4444"
