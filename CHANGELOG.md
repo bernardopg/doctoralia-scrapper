@@ -6,6 +6,13 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-08-13
+
+### Changed
+
+- **[repo]** O binário `codecov` (executável ELF x86-64 de ~11 MB do uploader legacy) estava commitado no repositório desde `26d6456`, com mensagem de commit que dizia "configuration file" mas era o binário de fato. O CI nunca o utilizou — o upload de cobertura roda pela action oficial `codecov/codecov-action v7.0.0`. Removido do versionamento e adicionado ao `.gitignore`, eliminando o bloat no histórico.
+- **[docker]** A imagem `selenium/standalone-chrome` estava na tag volátil `:latest` em `docker-compose.yml`, único serviço da stack sem versão fixa. Fixada em `4.46.0-20260707` (Chrome 150.0.7871.124), alinhando a versão do Grid com o client `selenium==4.46.0` do lockfile e garantindo builds reprodutíveis.
+
 ## [2.4.2] - 2026-08-03
 
 ### Fixed
@@ -216,7 +223,8 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.2...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.3...HEAD
+- [2.4.3]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.2...v2.4.3
 - [2.4.2]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.1...v2.4.2
 - [2.4.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.0...v2.4.1
 - [2.4.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.3.1...v2.4.0
