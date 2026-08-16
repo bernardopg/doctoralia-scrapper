@@ -200,6 +200,18 @@
   };
 
   let overviewTimelineChart = null;
+  let overviewTimelineState = null;
+
+  function hexToRgba(hex, alpha) {
+    const value = hex.replace('#', '').trim();
+    const full = value.length === 3 ? value.split('').map((c) => c + c).join('') : value;
+    const num = parseInt(full, 16);
+    if (Number.isNaN(num)) return `rgba(20, 108, 148, ${alpha})`;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
 
   function buildOverviewQuery() {
     const params = new URLSearchParams();
@@ -279,6 +291,7 @@
   }
 
   function renderOverviewTimeline(timeline) {
+    overviewTimelineState = timeline;
     const canvas = document.getElementById('overview-timeline-chart');
     if (overviewTimelineChart) overviewTimelineChart.destroy();
 
@@ -292,6 +305,11 @@
       return;
     }
 
+    const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const blue = cssVar('--apple-blue') || '#146C94';
+    const green = cssVar('--apple-green') || '#16803F';
+    const red = cssVar('--apple-red') || '#C53327';
+
     overviewTimelineChart = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
@@ -300,32 +318,42 @@
           {
             label: 'Rastreios',
             data: timeline.scrapes,
-            borderColor: '#0A84FF',
-            backgroundColor: 'rgba(10, 132, 255, 0.14)',
+            borderColor: blue,
+            backgroundColor: hexToRgba(blue, 0.16),
             fill: true,
             tension: 0.35,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
           },
           {
             label: 'Reviews',
             data: timeline.reviews,
-            borderColor: '#34C759',
-            backgroundColor: 'rgba(52, 199, 89, 0.10)',
+            borderColor: green,
+            backgroundColor: hexToRgba(green, 0.12),
             fill: false,
             tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
           },
           {
             label: 'Pendentes',
             data: timeline.unanswered,
-            borderColor: '#FF3B30',
-            backgroundColor: 'rgba(255, 59, 48, 0.08)',
+            borderColor: red,
+            backgroundColor: hexToRgba(red, 0.10),
             fill: false,
             tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
           }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { position: 'bottom' }
         },
@@ -451,6 +479,13 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     loadOverview();
+  });
+
+  // Re-render do gráfico quando o tema muda (cores claras/escuras)
+  window.addEventListener('dashboard-theme-changed', () => {
+    if (overviewTimelineChart && overviewTimelineState) {
+      renderOverviewTimeline(overviewTimelineState);
+    }
   });
 </script>
 {% endblock %}

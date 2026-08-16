@@ -238,6 +238,18 @@
     inventory: [],
   };
   let reportsTimelineChart = null;
+  let reportsTimelineState = null;
+
+  function hexToRgba(hex, alpha) {
+    const value = String(hex).replace('#', '').trim();
+    const full = value.length === 3 ? value.split('').map((c) => c + c).join('') : value;
+    const num = parseInt(full, 16);
+    if (Number.isNaN(num)) return `rgba(20, 108, 148, ${alpha})`;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
 
   function reportsQuery() {
     const params = new URLSearchParams();
@@ -324,8 +336,14 @@
   }
 
   function renderTimeline(timeline) {
+    reportsTimelineState = timeline;
     const canvas = document.getElementById('reports-timeline-chart');
     if (reportsTimelineChart) reportsTimelineChart.destroy();
+
+    const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const blue = cssVar('--apple-blue') || '#146C94';
+    const red = cssVar('--apple-red') || '#C53327';
+
     reportsTimelineChart = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
@@ -334,29 +352,43 @@
           {
             label: 'Snapshots',
             data: timeline.scrapes || [],
-            borderColor: '#0A84FF',
-            backgroundColor: 'rgba(10, 132, 255, 0.12)',
+            borderColor: blue,
+            backgroundColor: hexToRgba(blue, 0.14),
             fill: true,
             tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
           },
           {
             label: 'Pendentes',
             data: timeline.unanswered || [],
-            borderColor: '#FF3B30',
-            backgroundColor: 'rgba(255, 59, 48, 0.08)',
+            borderColor: red,
+            backgroundColor: hexToRgba(red, 0.10),
             fill: false,
             tension: 0.3,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
           }
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: { legend: { position: 'bottom' } },
         scales: { y: { beginAtZero: true } },
       },
     });
   }
+
+  // Re-render do gráfico quando o tema muda
+  window.addEventListener('dashboard-theme-changed', () => {
+    if (reportsTimelineChart && reportsTimelineState) {
+      renderTimeline(reportsTimelineState);
+    }
+  });
 
   function renderTopProfiles(profiles) {
     const container = document.getElementById('reports-top-profiles');

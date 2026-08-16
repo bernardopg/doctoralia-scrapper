@@ -20,201 +20,6 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   {% block head %}{% endblock %}
-  <style>
-    /* ── Utility classes ausentes no styles.css ── */
-    .text-secondary {
-      color: var(--text-secondary);
-    }
-
-    .text-tertiary {
-      color: var(--text-tertiary);
-    }
-
-    .text-error {
-      color: var(--apple-red);
-    }
-
-    /* ── API Status pill no rodapé da sidebar ── */
-    .sidebar-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: var(--radius-md);
-      background: var(--bg-tertiary);
-      margin-bottom: 12px;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--gray-400);
-      transition: background 0.3s;
-    }
-
-    .status-dot.online {
-      background: var(--apple-green);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-green) 22%, transparent);
-    }
-
-    .status-dot.offline {
-      background: var(--apple-red);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--apple-red) 22%, transparent);
-    }
-
-    .status-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      flex: 1;
-    }
-
-    .status-url {
-      font-size: 10px;
-      color: var(--text-tertiary);
-      font-family: var(--font-mono);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 110px;
-    }
-
-    /* ── Ação de scraping no nav (visual distinto) ── */
-    .nav-item.nav-action {
-      background: color-mix(in srgb, var(--apple-blue) 10%, var(--bg-primary));
-      color: var(--apple-blue);
-      border: 1px solid color-mix(in srgb, var(--apple-blue) 18%, var(--border-color));
-      margin-bottom: 8px;
-    }
-
-    .nav-item.nav-action i {
-      color: var(--apple-blue);
-    }
-
-    .nav-item.nav-action:hover {
-      background: color-mix(in srgb, var(--apple-blue) 15%, var(--bg-primary));
-      border-color: color-mix(in srgb, var(--apple-blue) 28%, var(--border-color));
-    }
-
-    /* ── Divisor externo entre seções ── */
-    .nav-divider {
-      height: 1px;
-      background: var(--divider-color);
-      margin: 8px 12px 16px;
-    }
-
-    /* ── Top-bar: remover search não-funcional, manter ações ── */
-    .top-bar-actions {
-      gap: 8px;
-    }
-
-    .workspace-pill {
-      margin: 14px 16px 0;
-      padding: 14px;
-      border-radius: var(--radius-lg);
-      background:
-        radial-gradient(circle at top left, color-mix(in srgb, var(--apple-blue) 20%, transparent), transparent 55%),
-        linear-gradient(135deg, color-mix(in srgb, var(--apple-green) 12%, transparent), color-mix(in srgb, var(--apple-blue) 9%, transparent));
-      border: 1px solid color-mix(in srgb, var(--apple-blue) 18%, var(--border-color));
-    }
-
-    .workspace-pill-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-tertiary);
-      margin-bottom: 10px;
-    }
-
-    .workspace-pill-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .workspace-pill-metric strong {
-      display: block;
-      font-size: 18px;
-      color: var(--text-primary);
-      line-height: 1.1;
-    }
-
-    .workspace-pill-metric span {
-      display: block;
-      margin-top: 4px;
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-
-    /* ── Indicador de notificações pendentes ── */
-    #scrape-status-indicator {
-      display: none;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: var(--apple-blue);
-      font-weight: 500;
-      padding: 6px 12px;
-      background: color-mix(in srgb, var(--apple-blue) 10%, var(--bg-primary));
-      border-radius: var(--radius-full);
-      cursor: pointer;
-    }
-
-    /* ── Modal backdrop close ── */
-    .modal-overlay {
-      cursor: default;
-    }
-
-    .modal-container {
-      cursor: auto;
-    }
-
-    /* ── Link para histórico após scraping ── */
-    .result-action-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 16px;
-      padding: 10px 18px;
-      background: var(--apple-blue);
-      color: var(--bg-primary);
-      border-radius: var(--radius-md);
-      font-size: 14px;
-      font-weight: 500;
-      text-decoration: none;
-      transition: opacity var(--transition-fast);
-    }
-
-    .result-action-link:hover {
-      opacity: 0.85;
-    }
-
-    .nav-item .nav-badge-muted {
-      background: var(--bg-tertiary);
-      color: var(--text-secondary);
-    }
-
-    /* ── Logo sidebar ── */
-    .sidebar-logo-img {
-      display: flex;
-      align-items: center;
-      padding: 4px 0;
-    }
-
-    .sidebar-brand-img {
-      height: 36px;
-      width: auto;
-      max-width: 160px;
-      object-fit: contain;
-    }
-
-    .sidebar-brand-dark { display: none; }
-
-    [data-theme="dark"] .sidebar-brand-light { display: none; }
-    [data-theme="dark"] .sidebar-brand-dark  { display: block; }
-  </style>
 </head>
 
 <body>
@@ -541,215 +346,6 @@
   </div>
 
   <!-- ══════════════════════════════════
-       ESTILOS GLOBAIS DO BASE
-  ══════════════════════════════════ -->
-  <style>
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: var(--overlay-backdrop);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      animation: fadeIn 0.18s var(--ease-out);
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-      }
-
-      to {
-        opacity: 1;
-      }
-    }
-
-    .modal-container {
-      background: var(--surface-raised);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-xl);
-      width: 92%;
-      max-width: 520px;
-      max-height: 90vh;
-      overflow: hidden;
-      box-shadow: var(--shadow-xl);
-      animation: slideUp 0.25s var(--ease-out);
-    }
-
-    @keyframes slideUp {
-      from {
-        transform: translateY(24px) scale(0.98);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-      }
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .modal-title {
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 0;
-    }
-
-    .modal-title i {
-      color: var(--apple-blue);
-    }
-
-    .modal-close {
-      background: var(--bg-tertiary);
-      border: none;
-      color: var(--text-secondary);
-      font-size: 14px;
-      cursor: pointer;
-      width: 28px;
-      height: 28px;
-      border-radius: var(--radius-full);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--transition-fast);
-    }
-
-    .modal-close:hover {
-      background: var(--gray-200);
-      color: var(--text-primary);
-    }
-
-    .modal-body {
-      padding: 24px;
-      max-height: calc(90vh - 140px);
-      overflow-y: auto;
-    }
-
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      padding: 16px 24px;
-      border-top: 1px solid var(--border-color);
-      background: var(--bg-secondary);
-    }
-
-    /* Progress container (modal passo 2) */
-    .progress-container {
-      text-align: center;
-      padding: 48px 20px;
-    }
-
-    .progress-icon {
-      font-size: 44px;
-      color: var(--apple-blue);
-      margin-bottom: 20px;
-      animation: pulse 1.6s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-
-      0%,
-      100% {
-        opacity: 1;
-        transform: scale(1);
-      }
-
-      50% {
-        opacity: 0.65;
-        transform: scale(0.95);
-      }
-    }
-
-    .progress-bar-container {
-      height: 6px;
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-full);
-      overflow: hidden;
-      margin-top: 20px;
-    }
-
-    .progress-bar {
-      height: 100%;
-      background: linear-gradient(90deg, var(--apple-blue), var(--apple-green));
-      border-radius: var(--radius-full);
-      transition: width 0.35s ease;
-    }
-
-    /* Result card */
-    .result-card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-    }
-
-    .result-header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-bottom: 12px;
-    }
-
-    .result-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: var(--radius-lg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      flex-shrink: 0;
-    }
-
-    .result-icon.success {
-      background: color-mix(in srgb, var(--apple-green) 14%, transparent);
-      color: var(--apple-green);
-    }
-
-    .result-icon.error {
-      background: color-mix(in srgb, var(--apple-red) 14%, transparent);
-      color: var(--apple-red);
-    }
-
-    .result-card-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin: 0 0 2px;
-    }
-
-    .result-job-id {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      font-family: var(--font-mono);
-      word-break: break-all;
-    }
-
-    .result-actions {
-      margin-top: 16px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-  </style>
-
-  <!-- ══════════════════════════════════
        SCRIPTS GLOBAIS
   ══════════════════════════════════ -->
   <script>
@@ -935,8 +531,11 @@
 
     function applyDashboardTheme(theme) {
       const resolved = theme === 'dark' ? 'dark' : 'light';
+      const root = document.documentElement;
+      root.classList.add('theme-transition');
       localStorage.setItem('dashboard-theme', resolved);
-      document.documentElement.dataset.theme = resolved;
+      root.dataset.theme = resolved;
+      window.setTimeout(() => root.classList.remove('theme-transition'), 320);
       const toggle = document.getElementById('theme-toggle');
       if (toggle) {
         const dark = resolved === 'dark';
@@ -944,6 +543,21 @@
         toggle.setAttribute('title', dark ? 'Usar tema claro' : 'Usar tema escuro');
         toggle.innerHTML = `<i class="fas fa-${dark ? 'sun' : 'moon'}"></i>`;
       }
+      syncChartTheme();
+      window.dispatchEvent(new CustomEvent('dashboard-theme-changed', { detail: { theme: resolved } }));
+    }
+
+    // ── Chart.js: cores seguem o tema ativo ────────────
+    function syncChartTheme() {
+      if (typeof Chart === 'undefined') return;
+      const styles = getComputedStyle(document.documentElement);
+      const secondary = styles.getPropertyValue('--text-secondary').trim();
+      const grid = styles.getPropertyValue('--border-color').trim();
+      if (secondary) Chart.defaults.color = secondary;
+      if (grid) Chart.defaults.borderColor = grid;
+      Object.values(Chart.instances || {}).forEach((chart) => {
+        try { chart.update('none'); } catch (error) { /* noop */ }
+      });
     }
 
     function initializeDashboardPreferences() {
@@ -1089,6 +703,7 @@
       hideDecorativeIcons();
       checkApiStatus();
       hydrateSidebarWorkspace();
+      syncChartTheme();
       _apiCheckTimer = setInterval(checkApiStatus, 30_000);
     });
 
