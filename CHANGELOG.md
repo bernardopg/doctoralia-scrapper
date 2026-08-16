@@ -6,6 +6,28 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-15
+
+### Added
+
+- **[dashboard]** Skeleton shimmer (`skeleton-block`) para conteúdo dinâmico em carregamento.
+- **[dashboard]** Breakpoint de toque (hover none) com alvos ampliados para 46px em nav, botões e ícones.
+- **[dashboard]** Estilos de impressão (`@media print`) que ocultam sidebar, scrim e modais.
+
+### Changed
+
+- **[dashboard]** Design system reescrito do zero (`src/static/styles.css`, 307 regras, zero erros de parse). Temas claro e escuro com paridade total via ~40 tokens CSS (`:root` + `[data-theme="dark"]`), incluindo rampa de neutros verde-tint, superfícies, sombras por tema, sidebar dedicada, foco e overlay. Nomes de variáveis preservados para compatibilidade com estilos inline das páginas especializadas.
+- **[dashboard]** Removidos ~425 linhas de CSS duplicado inline em `base.html`, consolidadas no design system.
+- **[dashboard]** Gráficos Chart.js (overview, relatórios, perfis) passam a ler cores das variáveis CSS e re-renderizam ao alternar tema — antes exibiam texto ilegível no tema escuro (labels fixos em preto).
+- **[dashboard]** Indicador ativo na navegação lateral, números tabulares em métricas, autofill do Chrome e date pickers corrigidos no tema escuro, scrollbars customizadas com `scrollbar-width: thin`.
+- **[dashboard]** `select.form-control` com seta customizada em SVG inline (sem dependência de fonte externa) e transição suave na troca de tema.
+
+### Fixed
+
+- **[dashboard]** Overflow horizontal eliminado em desktop (1440px), tablet (820px) e mobile (390px), verificado programaticamente em todas as 10 páginas.
+- **[dashboard]** Modal de scraping: foco automático no campo URL e fechamento via Escape confirmados por teste de browser; backdrop click fecha corretamente.
+- **[dashboard]** Contraste WCAG AA validado nos dois temas contra fundo real composto (texto principal ≥ 4.5:1).
+
 ## [2.4.3] - 2026-08-13
 
 ### Changed
