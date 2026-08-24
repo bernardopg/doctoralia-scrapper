@@ -283,8 +283,3 @@ pytest tests/test_scraper.py -k "test_method_name" -v
 - Deployment guide: `docs/deployment.md`
 - Operations runbook: `docs/operations.md`
 - Changelog: `CHANGELOG.md`
-
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
-
-This project is indexed by GitNexus as **doctoralia-scrapper** (4409 symbols, 12046 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.

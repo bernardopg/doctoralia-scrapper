@@ -6,6 +6,10 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+### Changed
+
+- Refreshed locked Python dependencies and generated requirements.
+
 ## [2.5.0] - 2026-08-15
 
 ### Added
