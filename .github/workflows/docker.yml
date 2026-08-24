@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # actions/checkout v7.0.1
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # docker/setup-buildx-action v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # docker/setup-buildx-action v4
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -108,7 +108,7 @@ jobs:
 
       - name: Set up Docker Buildx
         if: github.event_name == 'pull_request'
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # docker/setup-buildx-action v4
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # docker/setup-buildx-action v4
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
@@ -219,7 +219,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         if: ${{ always() && hashFiles(format('trivy-results-{0}.sarif', matrix.target)) != '' }}
-        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # github/codeql-action v4
+        uses: github/codeql-action/upload-sarif@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # github/codeql-action v4
         with:
           sarif_file: 'trivy-results-${{ matrix.target }}.sarif'
           category: 'trivy-${{ matrix.target }}'
