@@ -6,6 +6,14 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-08-24
+
+### Fixed
+
+- Aligned the API runtime version with the released package version.
+
+## [2.5.1] - 2026-08-24
+
 ### Changed
 
 - Refreshed locked Python dependencies and generated requirements.
