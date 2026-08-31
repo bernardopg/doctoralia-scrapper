@@ -6,6 +6,17 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.5.3] - 2026-08-31
+
+### Changed
+
+- Bumped the GitHub Actions group with 5 updates.
+- Bumped the python-minor-and-patch group with 2 updates.
+- Bumped `isort` to 9.0.1 and `types-psutil` to 7.2.2.20260827, with the import
+  formatting in `src/db/models.py` adjusted for the isort 9 style.
+- Bumped `pydantic` to 2.13.5, `rq` to 2.12.0 and `websocket-client` to 1.9.2.
+- Regenerated `poetry.lock` and `requirements.txt`.
+
 ## [2.5.2] - 2026-08-24
 
 ### Fixed
@@ -257,7 +268,8 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.3...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.3...HEAD
+- [2.5.3]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.2...v2.5.3
 - [2.4.3]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.2...v2.4.3
 - [2.4.2]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.1...v2.4.2
 - [2.4.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.0...v2.4.1
