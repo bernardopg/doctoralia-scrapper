@@ -4685,14 +4685,14 @@ jeepney = ">=0.6"
 
 [[package]]
 name = "selenium"
-version = "4.48.0"
+version = "4.49.0"
 description = "Official Python bindings for Selenium WebDriver"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "selenium-4.48.0-py3-none-any.whl", hash = "sha256:b2a1d77019db92513e59aa2376710fe3d42b65a4d493dccd0c799c1a0d574d93"},
-    {file = "selenium-4.48.0.tar.gz", hash = "sha256:045c1ec054c94e3be6c10febc509aa513b4c05e9146d1a9cf3de5375ec6ca2a1"},
+    {file = "selenium-4.49.0-py3-none-any.whl", hash = "sha256:0d1de9ec6977aa2d5f766d923d5076fdffa91681a8d4ffc9e3381a36839a20f2"},
+    {file = "selenium-4.49.0.tar.gz", hash = "sha256:c9d91274e5f55835e12b524adf1f231739ea811a8866d810e5bb42ba87cd8eda"},
 ]
 
 [package.dependencies]
@@ -6162,4 +6162,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "aaf5fe40865e6fd282d016509cac5908c2303cef743768fba905d49c535760bd"
+content-hash = "a4bb3733bceedfca3fb9ded965f42579f43769564500fe826ce832bf805a46d4"
