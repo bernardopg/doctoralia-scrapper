@@ -98,7 +98,7 @@ services:
           memory: 256M
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports:
       - "6379:6379"
     volumes:
@@ -165,7 +165,7 @@ services:
     restart: "no"
 
   selenium:
-    image: selenium/standalone-chrome:4.46.0-20260707  # pinned; aligns Grid 4.46.0 with selenium client
+    image: selenium/standalone-chrome:4.48.0-20260909  # pinned; latest Grid release (selenium client 4.49.x is wire-compatible)
     shm_size: "2g"
     ports:
       - "4444:4444"
@@ -191,7 +191,7 @@ services:
           memory: 512M
 
   n8n:
-    image: n8nio/n8n:2.32.7
+    image: n8nio/n8n:2.40.1
     ports:
       - "127.0.0.1:5678:5678"
     environment:

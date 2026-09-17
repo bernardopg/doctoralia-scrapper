@@ -89,9 +89,9 @@ jobs:
           python-version: '3.14'
 
       - name: Install Poetry
-        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1.4.2
         with:
-          version: "2.2.1"
+          version: "2.4.3"
 
       - name: Set package version
         run: poetry version ${{ needs.prepare.outputs.version_no_prefix }}
@@ -100,7 +100,7 @@ jobs:
         run: poetry build
 
       - name: Upload package artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # actions/upload-artifact v7.0.1
         with:
           name: dist
           path: dist/
@@ -125,10 +125,10 @@ jobs:
           ref: ${{ needs.prepare.outputs.tag_sha }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # docker/setup-buildx-action v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # docker/setup-buildx-action v4.4.1
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # docker/login-action v4
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # docker/login-action v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -136,7 +136,7 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # docker/metadata-action v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # docker/metadata-action v6.2.0
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.target }}
           flavor: |
@@ -148,7 +148,7 @@ jobs:
             type=semver,pattern={{major}},value=${{ needs.prepare.outputs.version }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # docker/build-push-action v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # docker/build-push-action v7.4.0
         with:
           context: .
           target: ${{ matrix.target }}
@@ -216,9 +216,9 @@ jobs:
 
       - name: Install Poetry
         if: steps.pypi.outputs.publish == 'true'
-        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1
+        uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # snok/install-poetry v1.4.2
         with:
-          version: "2.2.1"
+          version: "2.4.3"
 
       - name: Install twine
         if: steps.pypi.outputs.publish == 'true'

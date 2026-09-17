@@ -6,6 +6,25 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.5.4] - 2026-09-17
+
+### Changed
+
+- Atualizadas dependências Python: `selenium` 4.49.0, `uvicorn[standard]` 0.53.0,
+  `alembic` 1.20.0, `sqlalchemy` 2.0.54, `urllib3` 2.8.0, `httpx2`/`httpcore2` 2.13.0,
+  `greenlet` 3.5.6, `coverage` 7.16.1, `regex` 2026.9.10, `tqdm` 4.70.1 e demais
+  transitivas; `poetry.lock` e `requirements.txt` regenerados.
+- Atualizadas GitHub Actions (SHA pinned): `github/codeql-action` v4,
+  `docker/setup-buildx-action` v4.4.1, `docker/build-push-action` v7.4.0,
+  `codecov/codecov-action` v7.1.1 e `trufflesecurity/trufflehog` main;
+  comentários de versão alinhados para `actions/cache` v6.1.0,
+  `actions/upload-artifact` v7.0.1, `docker/login-action` v4.6.0,
+  `docker/metadata-action` v6.2.0 e `snok/install-poetry` v1.4.2.
+- Poetry usado na CI/release atualizado de 2.2.1 para 2.4.3.
+- Imagens Docker atualizadas: `redis` 8-alpine, `n8nio/n8n` 2.40.1 e
+  `selenium/standalone-chrome` 4.48.0-20260909 (Grid mais recente disponível).
+  `postgres` mantido em 17-alpine para evitar migração de major com volume existente.
+
 ## [2.5.3] - 2026-08-31
 
 ### Changed
