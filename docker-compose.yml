@@ -122,7 +122,7 @@ services:
           memory: 64M
 
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-doctoralia}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-doctoralia}
@@ -131,7 +131,7 @@ services:
       # Porta do host configurável (default 5432); altere se já houver Postgres local.
       - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql
     networks:
       - doctoralia-net
     restart: unless-stopped
@@ -165,7 +165,7 @@ services:
     restart: "no"
 
   selenium:
-    image: selenium/standalone-chrome:4.48.0-20260909  # pinned; latest Grid release (selenium client 4.49.x is wire-compatible)
+    image: selenium/standalone-chrome:4.49.0  # pinned; latest Grid release (selenium client 4.50.x is wire-compatible)
     shm_size: "2g"
     ports:
       - "4444:4444"
@@ -191,7 +191,7 @@ services:
           memory: 512M
 
   n8n:
-    image: n8nio/n8n:2.40.1
+    image: n8nio/n8n:2.41.7
     ports:
       - "127.0.0.1:5678:5678"
     environment:

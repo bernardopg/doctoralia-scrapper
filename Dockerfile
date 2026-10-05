@@ -84,10 +84,10 @@ COPY main.py ./
 COPY scripts ./scripts
 COPY tests ./tests
 RUN pip install --no-cache-dir \
-    "pytest>=9.1.0" \
+    "pytest>=9.1.1" \
     "pytest-asyncio>=1.4.0" \
     "pytest-cov>=7.1.0" \
     "pytest-mock>=3.15.1" \
-    "aiosqlite>=0.21.0" \
-    "httpx2>=2.4.0"
+    "aiosqlite>=0.22.1" \
+    "httpx2>=2.13.1"
 CMD ["python", "-m", "pytest", "tests"]
