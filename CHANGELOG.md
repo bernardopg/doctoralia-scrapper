@@ -6,6 +6,29 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-10-05
+
+### Changed
+
+- Atualizadas dependências Python: `fastapi` 0.142.2, `selenium` 4.50.0,
+  `sqlalchemy` 2.1.3, `black` 26.10.0, `mypy` 2.4.0, `pylint` 4.1.2,
+  `cryptography` 50.0.2, `charset-normalizer` 3.5.2, `markupsafe` 3.0.4,
+  `python-dotenv` 1.2.4, `pyflakes` 4.0.2, `uvloop` 0.23.0,
+  `websockets` 17.2 e demais transitivas; `poetry.lock` e `requirements.txt`
+  regenerados. Constraint do `fastapi` ajustado (`^0.141.1` → `^0.142.2`).
+- Atualizadas GitHub Actions (SHA pinned): Poetry na CI/release 2.4.3 → 2.5.1
+  e `anchore/sbom-action` v0.24.2 → v0.24.3; demais já no latest.
+- Imagens Docker atualizadas: `postgres` 17-alpine → 18-alpine,
+  `selenium/standalone-chrome` 4.48.0-20260909 → 4.49.0 (Chrome 153.0),
+  `n8nio/n8n` 2.40.1 → 2.41.7, `redis` 8-alpine na CI.
+
+### Fixed
+
+- Compatibilidade com PostgreSQL 18: volume do banco agora monta em
+  `/var/lib/postgresql` (layout versionado exigido pela imagem 18+).
+  **Atenção**: volumes existentes em 17 exigem `pg_dump`/`restore`
+  ou `pg_upgrade` — não há upgrade automático in-place.
+
 ## [2.5.4] - 2026-09-17
 
 ### Changed
