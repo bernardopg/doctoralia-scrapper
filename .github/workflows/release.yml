@@ -91,7 +91,7 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
         with:
-          version: "2.4.3"
+          version: "2.5.1"
 
       - name: Set package version
         run: poetry version ${{ needs.prepare.outputs.version_no_prefix }}
@@ -218,7 +218,7 @@ jobs:
         if: steps.pypi.outputs.publish == 'true'
         uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
         with:
-          version: "2.4.3"
+          version: "2.5.1"
 
       - name: Install twine
         if: steps.pypi.outputs.publish == 'true'
