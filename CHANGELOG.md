@@ -6,6 +6,28 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-10-14
+
+### Changed
+
+- Atualizadas dependências Python (29 pacotes): `fastapi` 0.143.1,
+  `selenium` 4.51.0, `pydantic` 2.14.1, `starlette` 1.8.0,
+  `sqlalchemy` 2.1.4, `asyncpg` 0.32.0, `black` 26.10.1, `pylint` 4.1.3,
+  `types-requests` 2.33.0.20261006 e demais transitivas; `poetry.lock` e
+  `requirements.txt` regenerados.
+- Atualizadas GitHub Actions (SHA pinned): `actions/upload-artifact`
+  v7.0.1 → v7.0.2, `actions/download-artifact` v8.0.1 → v8.0.2 e
+  `trufflesecurity/trufflehog` v3.97.9 → v3.99.2; demais já no latest.
+- Imagens Docker atualizadas: `selenium/standalone-chrome` 4.49.0 → 4.51.0
+  (Grid 4.51.x, compatível com o client `selenium` 4.51.0) e
+  `n8nio/n8n` 2.41.7 → 2.44.1.
+
+### Security
+
+- `pip-audit` reporta 1 vulnerabilidade sem correção disponível:
+  `nltk` 3.10.3 (PYSEC-2026-3740) — já se encontra na última versão
+  publicada; aguardando release upstream.
+
 ## [2.6.0] - 2026-10-05
 
 ### Changed
@@ -310,7 +332,10 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.3...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.1...HEAD
+- [2.6.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.0...v2.6.1
+- [2.6.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.4...v2.6.0
+- [2.5.4]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.3...v2.5.4
 - [2.5.3]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.2...v2.5.3
 - [2.4.3]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.2...v2.4.3
 - [2.4.2]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.4.1...v2.4.2

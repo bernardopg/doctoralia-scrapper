@@ -165,7 +165,7 @@ services:
     restart: "no"
 
   selenium:
-    image: selenium/standalone-chrome:4.49.0  # pinned; latest Grid release (selenium client 4.50.x is wire-compatible)
+    image: selenium/standalone-chrome:4.51.0  # pinned; latest Grid release (selenium client 4.51.x is wire-compatible)
     shm_size: "2g"
     ports:
       - "4444:4444"
@@ -191,7 +191,7 @@ services:
           memory: 512M
 
   n8n:
-    image: n8nio/n8n:2.41.7
+    image: n8nio/n8n:2.44.1
     ports:
       - "127.0.0.1:5678:5678"
     environment:
