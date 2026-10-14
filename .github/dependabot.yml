@@ -32,6 +32,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+        # Com auto-merge ativo, um cooldown protege contra releases recém
+        # publicadas e quebradas entrando direto em main.
+        cooldown:
+          default-days: 3
+          semver-major-days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
