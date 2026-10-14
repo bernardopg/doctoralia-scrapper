@@ -20,6 +20,8 @@ updates:
       - "python"
     reviewers:
       - "bernardopg"
+    assignees:
+      - "bernardopg"
     commit-message:
       prefix: "chore"
       prefix-development: "chore"
@@ -37,6 +39,16 @@ updates:
         cooldown:
           default-days: 3
           semver-major-days: 7
+      python-majors:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+        # Majors exigem atenção manual: mesmo com automerge, ficam mais tempo
+        # em observação antes de serem propostas.
+        cooldown:
+          default-days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -52,6 +64,8 @@ updates:
       - "dependencies"
       - "github-actions"
     reviewers:
+      - "bernardopg"
+    assignees:
       - "bernardopg"
     commit-message:
       prefix: "chore"
@@ -76,6 +90,8 @@ updates:
       - "dependencies"
       - "docker"
     reviewers:
+      - "bernardopg"
+    assignees:
       - "bernardopg"
     commit-message:
       prefix: "chore"
