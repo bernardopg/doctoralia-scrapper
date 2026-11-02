@@ -707,6 +707,13 @@ def test_export_helpers_and_run_cover_remaining_dashboard_helpers(tmp_path):
     assert summary["total_reviews"] == 1
     assert summary["unique_doctors"] == 1
 
-    with patch.object(dashboard.app, "run") as app_run:
+    with pytest.raises(ValueError, match="debug mode is not supported"):
         dashboard.run(host="0.0.0.0", port=5050, debug=True)
-    app_run.assert_called_once_with(host="0.0.0.0", port=5050, debug=True)
+
+
+def test_dashboard_run_serves_without_debug(tmp_path):
+    dashboard = build_dashboard(tmp_path)
+    with patch("waitress.serve") as serve:
+        dashboard.run(host="127.0.0.1", port=5050)
+
+    serve.assert_called_once_with(dashboard.app, host="127.0.0.1", port=5050)
