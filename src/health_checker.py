@@ -3,6 +3,7 @@ Health checker para monitorar a saúde do sistema
 """
 
 import asyncio
+import os
 import time
 from dataclasses import dataclass
 from typing import Dict, Optional
@@ -54,21 +55,36 @@ class HealthChecker:
 
         return health_status
 
+    def _selenium_remote_url(self) -> Optional[str]:
+        """URL do Selenium Grid, na mesma ordem de precedência do scraper."""
+        integrations = getattr(self.config, "integrations", None)
+        return getattr(integrations, "selenium_remote_url", None) or os.environ.get(
+            "SELENIUM_REMOTE_URL"
+        )
+
     async def check_webdriver(self) -> HealthStatus:
         """Verifica se o WebDriver está funcionando.
 
         Roda a inicialização real do Chrome em um thread executor para não
         bloquear o event loop e impõe um timeout duro para evitar travar a
         suíte de health checks quando o navegador não está disponível.
+
+        Com ``SELENIUM_REMOTE_URL`` configurado (caso das imagens Docker, que
+        não trazem Chrome nem o ``selenium-manager``), a sonda abre uma sessão
+        no Selenium Grid, como o scraper faz; sem ele, usa o Chrome local.
         """
         start = time.time()
         loop = asyncio.get_running_loop()
+        remote_url = self._selenium_remote_url()
 
         def _run_driver_probe() -> None:
             options = Options()
             options.add_argument("--headless")
             options.add_argument("--no-sandbox")
-            driver = webdriver.Chrome(options=options)
+            if remote_url:
+                driver = webdriver.Remote(command_executor=remote_url, options=options)
+            else:
+                driver = webdriver.Chrome(options=options)
             try:
                 driver.quit()
             except Exception:  # nosec B110
