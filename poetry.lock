@@ -760,7 +760,7 @@ files = [
     {file = "cffi-2.1.1-cp315-cp315t-win_arm64.whl", hash = "sha256:d18e5ac0f2f03f4f518d3e23db0f0cad7faa1da8620e9c09461d443bbf6e6692"},
     {file = "cffi-2.1.1.tar.gz", hash = "sha256:dd31f52ea1086513bb9df30f8fcee9b8918323ae067a3d5b78bc826a000712be"},
 ]
-markers = {main = "implementation_name != \"pypy\" and os_name == \"nt\" or platform_python_implementation != \"PyPy\"", dev = "(platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\") and (sys_platform == \"linux\" or sys_platform == \"darwin\")"}
+markers = {main = "os_name == \"nt\" and implementation_name != \"pypy\" or platform_python_implementation != \"PyPy\"", dev = "(sys_platform == \"linux\" or sys_platform == \"darwin\") and (platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\")"}
 
 [package.dependencies]
 pycparser = {version = "*", markers = "implementation_name != \"PyPy\""}
@@ -3848,7 +3848,7 @@ files = [
     {file = "pycparser-3.11-py3-none-any.whl", hash = "sha256:51d5a8ba2be0bbe440b99d2112604c95bbbc3c2748a64260186c541e1729cd80"},
     {file = "pycparser-3.11.tar.gz", hash = "sha256:d875f09c3507d00e1aba0eecc6dcadc1352f30fff09dc6bff2f1c2935e97c2bc"},
 ]
-markers = {main = "(implementation_name != \"pypy\" or platform_python_implementation != \"PyPy\") and implementation_name != \"PyPy\" and (os_name == \"nt\" or platform_python_implementation != \"PyPy\")", dev = "(platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\") and implementation_name != \"PyPy\" and (sys_platform == \"linux\" or sys_platform == \"darwin\")"}
+markers = {main = "os_name == \"nt\" and implementation_name != \"pypy\" and implementation_name != \"PyPy\" or platform_python_implementation != \"PyPy\" and implementation_name != \"PyPy\"", dev = "(sys_platform == \"linux\" or sys_platform == \"darwin\") and implementation_name != \"PyPy\" and (platform_python_implementation != \"PyPy\" or sys_platform == \"darwin\")"}
 
 [[package]]
 name = "pydantic"
@@ -4117,7 +4117,7 @@ description = "A python implementation of GNU readline."
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "python_version < \"3.13\" and platform_system == \"Windows\""
+markers = "python_version <= \"3.12\" and platform_system == \"Windows\""
 files = [
     {file = "pyreadline3-3.5.6-py3-none-any.whl", hash = "sha256:8449b734232e42a5dcd74048e39b60db2839a4c38cf3ae2bf7707d58b5389c0d"},
     {file = "pyreadline3-3.5.6.tar.gz", hash = "sha256:61e53218b99656091ddb077df9e71f25850e72e030b6183b39c9b7e6e4f4a9bf"},
@@ -4133,7 +4133,7 @@ description = "A library for building flexible command line interfaces"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
-markers = "python_version < \"3.13\""
+markers = "python_version <= \"3.12\""
 files = [
     {file = "pyrepl-0.11.5-py3-none-any.whl", hash = "sha256:ee3aeb23427c7e8e2abbecf003e59ebc7af331e61e3f6b65c10f6b3962ad1ae7"},
     {file = "pyrepl-0.11.5.tar.gz", hash = "sha256:ca5ac139835636005bed2bb0b6e2168de31a093e03a5b95edccbdbb7ca69b6fc"},
@@ -4883,20 +4883,20 @@ files = [
 
 [[package]]
 name = "rq"
-version = "2.12.0"
+version = "3.0.0"
 description = "RQ is a simple, lightweight, library for creating background jobs, and processing them."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "rq-2.12.0-py3-none-any.whl", hash = "sha256:97e349a00e9f2a18962102b3dca156cb5ce315d3ef38145e24ba9cabd16a9361"},
-    {file = "rq-2.12.0.tar.gz", hash = "sha256:78116d0c860f6285817b52d7d6d0b16a726372073ce8ea1d229732ce74ef9378"},
+    {file = "rq-3.0.0-py3-none-any.whl", hash = "sha256:71b92cb7b2880e0d0ac2a462945e3f09243122f61465cec4238689d8ddf2abf4"},
+    {file = "rq-3.0.0.tar.gz", hash = "sha256:b41e39b3c36ec3faf9e2402c638a0b25fe18ebb93a1cb15193bc69694f054618"},
 ]
 
 [package.dependencies]
 click = ">=5"
 croniter = "*"
-redis = ">=3.5,!=6"
+redis = ">=5.0.1"
 
 [[package]]
 name = "schedule"
@@ -5771,7 +5771,7 @@ description = "Fast implementation of asyncio event loop on top of libuv"
 optional = false
 python-versions = ">=3.8.1"
 groups = ["main"]
-markers = "platform_python_implementation != \"PyPy\" and sys_platform != \"win32\" and sys_platform != \"cygwin\""
+markers = "sys_platform != \"win32\" and sys_platform != \"cygwin\" and platform_python_implementation != \"PyPy\""
 files = [
     {file = "uvloop-0.23.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:ce17bc317d089f361b33521654c13e30eacfd3d2034fd34e613ca9c51c969686"},
     {file = "uvloop-0.23.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:53c2c5d7e2024e46776c2d90e6c637d01102126b61aaf5faa5edaf05f8b5722a"},
@@ -6399,4 +6399,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "44ca9d3595f185f6f1a90d53ffdf4a18dc8f248e86e4cb853cd9cfb183ade736"
+content-hash = "406dcbe04a79c543c3ac4fe56d90c18974e9d809bed37158b32d23ffd5d6b2a7"
