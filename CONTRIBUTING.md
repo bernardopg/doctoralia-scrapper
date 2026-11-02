@@ -71,7 +71,7 @@ git push origin feat/minha-feature
 
 ### Pré-requisitos
 
-- Python 3.10+
+- Python 3.11+
 - [Poetry](https://python-poetry.org/) (recomendado)
 - Chrome/Chromium
 - Redis (opcional)
