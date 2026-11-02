@@ -11,6 +11,7 @@ from typing import Optional
 
 from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.services.telegram_schedule_service import TelegramScheduleService
+from src.version import VERSION as API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,6 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-API_VERSION = "2.7.1"
 
 METRICS_MAX_SAMPLES = 500
 METRICS_ACTIVE_REQUEST_TTL_S = 3600

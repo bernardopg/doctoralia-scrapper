@@ -392,6 +392,10 @@ def test_dashboard_auth_redirects_and_keeps_public_health_route(tmp_path):
 
     public_health = client.get("/api/health")
     assert public_health.status_code == 200
+    from src.api.v1._state import API_VERSION
+    from src.version import VERSION
+
+    assert public_health.get_json()["dashboard"]["version"] == VERSION == API_VERSION
 
 
 @pytest.mark.parametrize(

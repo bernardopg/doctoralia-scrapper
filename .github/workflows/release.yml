@@ -63,8 +63,8 @@ jobs:
           VERSION_FILES="$(mktemp -d)"
           trap 'rm -rf "${VERSION_FILES}"' EXIT
           git show "${TAG_SHA}:pyproject.toml" > "${VERSION_FILES}/pyproject.toml"
-          git show "${TAG_SHA}:src/api/v1/_state.py" > "${VERSION_FILES}/_state.py"
-          python3 scripts/verify_release_version.py "${VERSION}" "${VERSION_FILES}/pyproject.toml" "${VERSION_FILES}/_state.py"
+          git show "${TAG_SHA}:src/version.py" > "${VERSION_FILES}/version.py"
+          python3 scripts/verify_release_version.py "${VERSION}" "${VERSION_FILES}/pyproject.toml" "${VERSION_FILES}/version.py"
 
           IS_PRERELEASE=false
 
