@@ -400,3 +400,12 @@ Consulte [SECURITY.md](SECURITY.md) para instruções de como reportar.
 Obrigado por dedicar seu tempo para contribuir! Toda contribuição, grande ou pequena, é valorizada.
 
 **Juntos construímos um projeto melhor! 🚀**
+
+### Publicação de uma versão
+
+Antes de criar a tag de uma release, atualize `project.version` no
+`pyproject.toml` (por exemplo, com `poetry version 2.8.0`) e integre essa
+alteração à branch principal. Crie a tag correspondente no commit integrado,
+por exemplo `v2.8.0`. O workflow de release verifica a versão declarada no
+commit da tag antes de publicar pacotes ou imagens e interrompe a execução se
+elas divergirem.

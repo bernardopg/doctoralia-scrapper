@@ -59,6 +59,12 @@ jobs:
 
           TAG_SHA="$(git rev-list -n 1 "${VERSION}")"
           VERSION_NO_PREFIX="${VERSION#v}"
+
+          PROJECT_FILE="$(mktemp)"
+          trap 'rm -f "${PROJECT_FILE}"' EXIT
+          git show "${TAG_SHA}:pyproject.toml" > "${PROJECT_FILE}"
+          python3 scripts/verify_release_version.py "${VERSION}" "${PROJECT_FILE}"
+
           IS_PRERELEASE=false
 
           if [[ "${VERSION}" == *-* ]]; then
@@ -92,9 +98,6 @@ jobs:
         uses: snok/install-poetry@a783c322200f0519c7926aa6faa857c4e23e9263 # v1.4.2
         with:
           version: "2.5.1"
-
-      - name: Set package version
-        run: poetry version ${{ needs.prepare.outputs.version_no_prefix }}
 
       - name: Build package
         run: poetry build
