@@ -6,6 +6,15 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-11-02
+
+### Fixed
+
+- Alinhadas as versões do pacote e da API à tag do release; a validação de
+  release e os testes impedem divergências entre as duas declarações.
+
+## [2.7.0] - 2026-11-02
+
 ### Changed
 
 - O health check do WebDriver usa o Selenium Grid quando
@@ -347,7 +356,9 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.1...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.7.1...HEAD
+- [2.7.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.7.0...v2.7.1
+- [2.7.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.1...v2.7.0
 - [2.6.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.0...v2.6.1
 - [2.6.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.4...v2.6.0
 - [2.5.4]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.5.3...v2.5.4

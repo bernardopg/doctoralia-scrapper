@@ -60,10 +60,11 @@ jobs:
           TAG_SHA="$(git rev-list -n 1 "${VERSION}")"
           VERSION_NO_PREFIX="${VERSION#v}"
 
-          PROJECT_FILE="$(mktemp)"
-          trap 'rm -f "${PROJECT_FILE}"' EXIT
-          git show "${TAG_SHA}:pyproject.toml" > "${PROJECT_FILE}"
-          python3 scripts/verify_release_version.py "${VERSION}" "${PROJECT_FILE}"
+          VERSION_FILES="$(mktemp -d)"
+          trap 'rm -rf "${VERSION_FILES}"' EXIT
+          git show "${TAG_SHA}:pyproject.toml" > "${VERSION_FILES}/pyproject.toml"
+          git show "${TAG_SHA}:src/api/v1/_state.py" > "${VERSION_FILES}/_state.py"
+          python3 scripts/verify_release_version.py "${VERSION}" "${VERSION_FILES}/pyproject.toml" "${VERSION_FILES}/_state.py"
 
           IS_PRERELEASE=false
 
