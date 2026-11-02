@@ -707,6 +707,5 @@ def test_export_helpers_and_run_cover_remaining_dashboard_helpers(tmp_path):
     assert summary["total_reviews"] == 1
     assert summary["unique_doctors"] == 1
 
-    with patch.object(dashboard.app, "run") as app_run:
+    with pytest.raises(ValueError, match="debug mode is not supported"):
         dashboard.run(host="0.0.0.0", port=5050, debug=True)
-    app_run.assert_called_once_with(host="0.0.0.0", port=5050, debug=True)

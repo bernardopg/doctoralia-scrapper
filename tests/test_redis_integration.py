@@ -30,7 +30,10 @@ def _build_test_redis_url(base_url: str) -> str:
 
 @pytest.fixture
 def real_redis_url() -> str:
-    return _build_test_redis_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+    url = os.getenv("TEST_REDIS_URL")
+    if not url:
+        pytest.skip("TEST_REDIS_URL must point to a disposable Redis instance")
+    return _build_test_redis_url(url)
 
 
 @pytest.fixture
