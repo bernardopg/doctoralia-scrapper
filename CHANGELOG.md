@@ -6,6 +6,21 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+### Changed
+
+- O health check do WebDriver usa o Selenium Grid quando
+  `SELENIUM_REMOTE_URL` está configurado, como o scraper já fazia; sem ele,
+  continua abrindo o Chrome local.
+
+### Security
+
+- As imagens Docker (`api`, `worker`, `dashboard`) não trazem mais o
+  `selenium-manager` embutido no wheel do `selenium`. O binário Rust nunca
+  roda nos containers, que usam o Selenium Grid, e seus crates vendorizados
+  (`zip`, `tokio`, `rustls` etc.) entravam no scan do Trivy. Isso remove
+  achados como CVE-2026-115567 (`tokio` 1.54.0) e evita que o build volte a
+  falhar a cada CVE nesses crates. Cada imagem fica ~30 MB menor.
+
 ## [2.6.1] - 2026-10-14
 
 ### Changed

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for Doctoralia Scrapper with n8n integration
 FROM python:3.14-slim AS builder
 
@@ -36,9 +37,33 @@ WORKDIR /app
 
 COPY requirements.txt ./
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --no-index /wheels/*.whl && \
-    rm -rf /wheels
+# The selenium wheel bundles selenium-manager, a Rust binary (Linux, macOS and
+# Windows builds plus its CycloneDX SBOM) that downloads browsers and drivers
+# at runtime. These images never run it: the scraper and the health check talk
+# to the Selenium Grid through SELENIUM_REMOTE_URL, and the image ships no
+# browser. Dropping it keeps its vendored Rust crates (zip, tokio, rustls, ...)
+# out of the image and out of every vulnerability scan, and saves ~30 MB.
+# It is removed in the same layer as the install, or the bytes would remain.
+RUN <<'EOF'
+set -eu
+pip install --no-cache-dir --upgrade pip setuptools wheel
+pip install --no-cache-dir --no-index /wheels/*.whl
+rm -rf /wheels
+python - <<'PY'
+import pathlib
+import shutil
+
+import selenium.webdriver.common as common
+
+root = pathlib.Path(common.__file__).parent
+targets = {p for p in root.iterdir() if p.name.startswith("selenium-manager")}
+targets |= {p.parent for p in root.glob("*/selenium-manager*")}
+if not targets:
+    raise SystemExit(f"selenium-manager not found under {root}; update this step")
+for path in targets:
+    shutil.rmtree(path) if path.is_dir() else path.unlink()
+PY
+EOF
 
 COPY src ./src
 COPY templates ./templates

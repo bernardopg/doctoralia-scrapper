@@ -3,6 +3,7 @@ Testes para o health checker
 """
 
 import asyncio
+import os
 from unittest.mock import AsyncMock, Mock, patch
 
 from src.health_checker import HealthChecker, HealthStatus
@@ -49,7 +50,11 @@ class TestHealthChecker:
         config = MockConfig()
         checker = HealthChecker(config)
 
-        with patch("selenium.webdriver.Chrome") as mock_driver:
+        with (
+            patch.dict(os.environ, {}, clear=False),
+            patch("selenium.webdriver.Chrome") as mock_driver,
+        ):
+            os.environ.pop("SELENIUM_REMOTE_URL", None)
             mock_instance = Mock()
             mock_driver.return_value = mock_instance
 
@@ -62,6 +67,27 @@ class TestHealthChecker:
             assert result.response_time_ms >= 0
 
             # Verifica se o driver foi fechado
+            mock_instance.quit.assert_called_once()
+
+    def test_check_webdriver_uses_remote_grid_when_configured(self) -> None:
+        """Com SELENIUM_REMOTE_URL, a sonda usa o Grid e não o Chrome local"""
+        config = MockConfig()
+        checker = HealthChecker(config)
+        grid_url = "http://selenium:4444/wd/hub"
+
+        with (
+            patch.dict(os.environ, {"SELENIUM_REMOTE_URL": grid_url}),
+            patch("selenium.webdriver.Remote") as mock_remote,
+            patch("selenium.webdriver.Chrome") as mock_chrome,
+        ):
+            mock_instance = Mock()
+            mock_remote.return_value = mock_instance
+
+            result = asyncio.run(checker.check_webdriver())
+
+            assert result.status == "healthy"
+            assert mock_remote.call_args.kwargs["command_executor"] == grid_url
+            mock_chrome.assert_not_called()
             mock_instance.quit.assert_called_once()
 
     def test_check_all(self) -> None:
