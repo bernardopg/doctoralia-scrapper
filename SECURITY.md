@@ -52,7 +52,7 @@ Por favor, inclua o máximo de informações possível:
 ## Ambiente
 - Versão do projeto: [ex: 0.1.0]
 - Sistema Operacional: [ex: Ubuntu 22.04]
-- Python: [ex: 3.10.12]
+- Python: [ex: 3.11.14]
 - Outros detalhes relevantes
 
 ## Evidências (se aplicável)
@@ -178,7 +178,7 @@ python -c "import secrets; print(secrets.token_hex(32))"
 USER 1000:1000
 
 # Minimize a superfície de ataque
-FROM python:3.10-slim
+FROM python:3.14-slim
 
 # Não exponha portas desnecessárias
 EXPOSE 8000

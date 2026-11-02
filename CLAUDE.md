@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Doctoralia Scrapper is a professional automation system for monitoring, analyzing, and responding to medical reviews from Doctoralia (and future sources).
 It features resilient web scraping, AI-powered response generation, REST API, n8n integration, and observability.
 
-**Tech Stack**: Python 3.10+, FastAPI, Selenium, Redis/RQ (job queue), Flask (dashboard), BeautifulSoup, n8n integration
+**Tech Stack**: Python 3.11+, FastAPI, Selenium, Redis/RQ (job queue), Flask (dashboard), BeautifulSoup, n8n integration
 
 ## Essential Commands
 
