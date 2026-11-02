@@ -11,13 +11,14 @@ from typing import Optional
 
 from src.api.v1.metrics_store import RedisAPIMetricsStore
 from src.services.telegram_schedule_service import TelegramScheduleService
-from src.version import VERSION as API_VERSION
+from src.version import VERSION
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+API_VERSION = VERSION
 
 
 METRICS_MAX_SAMPLES = 500
