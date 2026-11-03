@@ -451,7 +451,7 @@
         <td>
           <span class="report-status-pill ${dashboardEscape(item.status)}">
             <i class="fas fa-${item.is_latest ? 'star' : 'clock-rotate-left'}"></i>
-            ${item.is_latest ? 'Latest' : 'Antigo'}
+            ${item.status === 'partial' ? 'Parcial ou não verificada' : item.is_latest ? 'Atual' : 'Antigo'}
           </span>
         </td>
         <td>${dashboardEscape(item.reviews_count)}</td>

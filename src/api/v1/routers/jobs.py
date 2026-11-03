@@ -30,7 +30,7 @@ def _map_job_status(job: Any) -> str:
         return "pending"
     if job.is_started:
         return "running"
-    if job.is_finished and result_status in {"completed", "failed"}:
+    if job.is_finished and result_status in {"completed", "partial", "failed"}:
         return result_status
     if job.is_failed:
         return "failed"
@@ -108,7 +108,7 @@ async def list_jobs(
         job_ids.update(q.job_ids)
     if not normalized_filter or normalized_filter == "running":
         job_ids.update(StartedJobRegistry(queue=q).get_job_ids())
-    if not normalized_filter or normalized_filter in {"completed", "failed"}:
+    if not normalized_filter or normalized_filter in {"completed", "partial", "failed"}:
         job_ids.update(FinishedJobRegistry(queue=q).get_job_ids())
     if not normalized_filter or normalized_filter == "failed":
         job_ids.update(FailedJobRegistry(queue=q).get_job_ids())
@@ -124,7 +124,7 @@ async def list_jobs(
             continue
 
         progress = job.meta.get("progress", 0) if job.meta else 0
-        if job_status == "completed":
+        if job_status in {"completed", "partial"}:
             progress = 100
 
         jobs.append(

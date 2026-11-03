@@ -29,6 +29,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from src.error_handling import EnhancedErrorHandler
 from src.performance_monitor import PerformanceMonitor
+from src.services.scrape_completeness import advertised_review_count, collection_info
 from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
 
@@ -99,6 +100,7 @@ class DoctoraliaScraper:
         # Cache para otimizar extrações repetidas
         self._cache: Dict[str, Any] = {}
         self._last_url: Optional[str] = None
+        self._pagination_stop_reason = "unavailable"
 
         # Optional progress callback: fn(phase, detail) where phase is a string
         # and detail is a dict with context info (e.g. clicks, reviews_loaded)
@@ -361,9 +363,11 @@ class DoctoraliaScraper:
     def click_load_more_button(self) -> Tuple[int, List[Dict]]:
         """Load more reviews and return both click count and extracted reviews to avoid redirect issues."""
         if self.driver is None:
+            self._pagination_stop_reason = "unavailable"
             self.logger.error("Driver não inicializado")
             return 0, []
 
+        self._pagination_stop_reason = "click_limit"
         clicks_realizados = 0
         max_clicks = 50
         button_selectors = [
@@ -382,6 +386,7 @@ class DoctoraliaScraper:
 
         while clicks_realizados < max_clicks:
             if time.time() - method_start_time > method_timeout:
+                self._pagination_stop_reason = "time_limit"
                 self.logger.warning(
                     "Timeout de %ds atingido para carregamento de comentários",
                     method_timeout,
@@ -398,6 +403,7 @@ class DoctoraliaScraper:
                 veja_mais_button = self._find_load_more_button(button_selectors)
 
                 if not veja_mais_button:
+                    self._pagination_stop_reason = "exhausted"
                     self.logger.info(
                         "Botão 'Veja Mais' não encontrado ou não visível. "
                         "Provavelmente todos os comentários foram carregados."
@@ -463,6 +469,7 @@ class DoctoraliaScraper:
                 self.add_human_delay(2.0, 4.0)
 
             except TimeoutException:
+                self._pagination_stop_reason = "load_timeout"
                 self.logger.warning(
                     "Timeout esperando por novos comentários após clique %d. Parando.",
                     clicks_realizados,
@@ -483,12 +490,17 @@ class DoctoraliaScraper:
                     )
                 break
             except WebDriverException as e:
+                self._pagination_stop_reason = "browser_error"
                 self.logger.warning(
                     "Erro ao clicar ou carregar mais comentários: %s", e
                 )
                 break
 
-        final_count = self._count_current_reviews()
+        try:
+            final_count = self._count_current_reviews()
+        except WebDriverException:
+            self._pagination_stop_reason = "browser_error"
+            final_count = 0
         load_summary = (
             f"📊 Carregamento concluído: Cliques: {clicks_realizados}, "
             f"Inicial: {initial_reviews_count}, Final: {final_count}"
@@ -717,6 +729,7 @@ class DoctoraliaScraper:
         """Process a single scraping attempt and return data or None if failed."""
         result = None
         max_retries = self.config.scraping.max_retries
+        attempt_started = time.monotonic()
 
         self.logger.info(
             f"🚀 Iniciando scraping (tentativa {attempt + 1}/{max_retries})..."
@@ -747,6 +760,7 @@ class DoctoraliaScraper:
                 EC.presence_of_element_located((By.ID, "profile-reviews"))
             )
             self.rate_limiter.add_delay(2.0)  # Extra delay after page load
+            expected_count = advertised_review_count(self.driver.page_source)
 
             # Extract doctor information
             self.logger.info("👨‍⚕️ Extraindo nome do médico...")
@@ -768,7 +782,11 @@ class DoctoraliaScraper:
                 self.progress_callback(
                     "processing_reviews", {"clicks": clicks_realizados}
                 )
-            reviews_data = self._extract_all_reviews(force_refresh=True)
+            try:
+                reviews_data = self._extract_all_reviews(force_refresh=True)
+            except WebDriverException:
+                self._pagination_stop_reason = "browser_error"
+                reviews_data = []
 
             # If extraction failed due to redirect but we have backup data, use it
             if not reviews_data and backup_reviews:
@@ -776,12 +794,17 @@ class DoctoraliaScraper:
                 reviews_data = backup_reviews
 
             # Create result
+            collection = collection_info(
+                expected_count, len(reviews_data), self._pagination_stop_reason
+            )
+            collection["duration_ms"] = int((time.monotonic() - attempt_started) * 1000)
             result = {
                 "url": url,
                 "doctor_name": doctor_name,
                 "extraction_timestamp": datetime.now().isoformat(),
                 "reviews": reviews_data,
                 "total_reviews": len(reviews_data),
+                "collection": collection,
             }
 
             self.logger.info(

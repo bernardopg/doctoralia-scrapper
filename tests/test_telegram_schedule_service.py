@@ -850,3 +850,45 @@ def test_health_snapshot_and_report_message(tmp_path, monkeypatch):
     assert "🤖 Respostas geradas: 1" in message
     assert "*Prévia operacional*" in message
     assert "🛠️ Relatório focado em saúde operacional." in health_message
+
+
+def test_fresh_partial_snapshot_is_saved_but_not_reported_as_success(
+    tmp_path, monkeypatch
+):
+    config = build_config(tmp_path)
+    service = TelegramScheduleService(
+        redis_client=FakeRedis(), logger=MagicMock(), config_loader=lambda: config
+    )
+    scraper = MagicMock()
+    scraper.scrape_reviews.return_value = {
+        "url": config.urls.profile_url,
+        "reviews": [],
+        "collection": {"status": "partial", "stop_reason": "load_timeout"},
+    }
+    scraper.save_data.return_value = config.data_dir / "partial.json"
+    monkeypatch.setattr(
+        "src.services.telegram_schedule_service.DoctoraliaScraper",
+        lambda *args, **kwargs: scraper,
+    )
+    with pytest.raises(RuntimeError, match="relatório Telegram não enviado"):
+        service._resolve_snapshot({"trigger_new_scrape": True}, config)
+    scraper.save_data.assert_called_once()
+
+
+def test_existing_partial_snapshot_is_not_used_for_report(tmp_path):
+    config = build_config(tmp_path)
+    service = TelegramScheduleService(
+        redis_client=FakeRedis(), logger=MagicMock(), config_loader=lambda: config
+    )
+    partial = config.data_dir / "partial.json"
+    partial.write_text(
+        json.dumps(
+            {
+                "url": config.urls.profile_url,
+                "reviews": [],
+                "collection": {"status": "partial"},
+            }
+        )
+    )
+    with pytest.raises(FileNotFoundError):
+        service._load_latest_snapshot(config.data_dir, config.urls.profile_url)

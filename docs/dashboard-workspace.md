@@ -71,6 +71,10 @@ O dashboard trabalha principalmente sobre snapshots em `data/`.
 
 Se o job falhar antes de salvar snapshot, o perfil não entra no workspace.
 
+Uma coleta parcial ou não verificada aparece no histórico como tal. Quando há um snapshot completo anterior, ele continua sendo a referência dos dados atuais; a limpeza automática de snapshots antigos não remove snapshots parciais. O scheduler não envia como relatório completo uma coleta nova ou um snapshot identificado como parcial. Snapshots legados sem metadados de completude continuam disponíveis, mas sua completude não foi verificada retroativamente.
+
+Os rascunhos permanecem em JSON. Na coleta seguinte, são preservados por ID da Doctoralia ou por correspondência única de autor e comentário. Casos ambíguos e rascunhos presentes somente em snapshots mais antigos exigem conferência. A publicação é atômica e os processos atualizados compartilham um bloqueio; atualize API, worker e dashboard juntos para que todos participem dele.
+
 ## Modos de geração disponíveis
 
 | Modo | Uso |

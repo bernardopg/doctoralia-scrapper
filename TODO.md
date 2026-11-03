@@ -2,6 +2,36 @@
 
 Backlog aberto e priorizado. Funcionalidades já entregues e consideradas maduras foram movidas para [DONE.md](DONE.md).
 
+## Roadmap da revisão funcional — novembro de 2026
+
+Executar nesta ordem. Preservar snapshots, configurações e volumes existentes durante as migrações; só marcar uma etapa como concluída após validar o caminho correspondente.
+
+### P0 — Integridade e segurança
+
+- [x] Corrigir a extração de datas no HTML atual da Doctoralia, mantendo compatibilidade com o formato anterior e cobrindo datas inválidas. (`tests/test_scraper_parsing.py`)
+- [x] Corrigir e validar a extração do nome do profissional no cabeçalho atual da Doctoralia. (Validado no perfil de Bruna Pinto Gomes e em `tests/test_scraper_parsing.py`.)
+- [ ] Impedir execução de HTML/JavaScript oriundo de avaliações, perfis e respostas em todas as telas do dashboard; cobrir texto, atributos e ações. Proteções aplicadas nas telas de respostas, perfis, histórico, relatórios, overview, saúde, configurações e agendamentos; concluir auditoria de todos os fluxos e testes em navegador.
+- [ ] Substituir IDs posicionais por identidade estável de avaliação: `data-id` do Doctoralia já é usado quando presente e testado contra reordenação; falta definir fallback e reconciliação de colisões e migrar dados legados.
+- [ ] Preservar rascunhos e edições ao coletar novamente, sem associá-los a outra avaliação. Os caminhos atuais de coleta, edição e limpeza usam bloqueio entre processos, escrita atômica e nomes únicos; coletas preservam rascunhos do último snapshot quando há ID da origem ou correspondência única de autor e comentário. Ainda faltam reconciliação de ambiguidades e recuperação de rascunhos em snapshots mais antigos.
+- [ ] Distinguir coletas completas, parciais e falhas; registrar total anunciado e extraído, motivo da parada e duração, sem apresentar ausência ou incompletude como sucesso completo. O scraper registra total e motivo, a API retorna `partial` quando a coleta é incompleta ou indeterminada, o histórico sinaliza snapshots parciais e o Telegram não os envia como relatório completo. Uma coleta real do perfil de Bruna Pinto Gomes extraiu 164/164 avaliações; faltam os fluxos de interface e integração em execução.
+
+### P1 — Persistência e fluxo operacional
+
+- [ ] Modelar perfis, avaliações, rascunhos e execuções no PostgreSQL com restrições, índices e migrações versionadas.
+- [ ] Importar snapshots JSON existentes de forma reproduzível e verificável, preservando backup, lidando com duplicatas e registrando conflitos de identidade.
+- [ ] Integrar frontend e API ao banco com consultas, filtros e paginação no servidor; manter histórico de coletas e estado das respostas independentes de snapshots.
+- [ ] Unificar os caminhos síncrono e assíncrono de coleta, persistência e erros; evitar Selenium bloqueando o event loop e validar a visibilidade do resultado no dashboard.
+- [ ] Corrigir o significado dos filtros de data: distinguir data da avaliação e data da coleta na API e na interface.
+- [ ] Avaliar as requisições de paginação atuais e alternativas apropriadas ao Selenium; validar coleta completa em perfil real, respostas e campos, com testes de HTML real anonimizado e sem assumir API disponível.
+
+### P2 — Simplificação e interface
+
+- [ ] Inventariar workflows ativos, consumidores de webhooks e callbacks do n8n; identificar automações que precisam de substituição antes de removê-lo da distribuição padrão.
+- [ ] Desacoplar normalização compartilhada do pacote n8n e revisar Compose, proxy, documentação e testes; preservar o volume `n8n-data` e oferecer migração das automações existentes.
+- [ ] Reorganizar a navegação em visão geral, avaliações, respostas, perfis/coletas e configurações; colocar pendências e ações principais em destaque.
+- [ ] Melhorar estados de carregamento, vazio, erro e coleta parcial, paginação, responsividade e acessibilidade; indicar que sugestões devem ser publicadas na Doctoralia.
+- [ ] Validar a interface em tamanhos de tela diferentes e os fluxos de avaliação, edição, cópia, histórico e recuperação de falhas.
+
 ## Alta prioridade
 
 - [ ] Criar um agendamento Telegram real de monitoramento/relatório na stack em execução e validar `next_run_at` + histórico persistido.

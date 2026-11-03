@@ -36,6 +36,7 @@
           <option value="all">Todos</option>
           <option value="latest">Apenas latest</option>
           <option value="outdated">Apenas antigos</option>
+          <option value="partial">Coletas parciais</option>
         </select>
       </div>
       <div class="form-group">
@@ -226,6 +227,7 @@
   .status-pending { background: rgba(255, 149, 0, 0.15); color: #ff9500; }
   .status-running { background: rgba(10, 132, 255, 0.15); color: #0a84ff; }
   .status-completed { background: rgba(52, 199, 89, 0.15); color: #34c759; }
+  .status-partial { background: rgba(255, 149, 0, 0.15); color: #a45d00; }
   .status-failed { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
   .status-unknown { background: rgba(142, 142, 147, 0.15); color: #8e8e93; }
 
@@ -357,12 +359,13 @@
     pending: 'Pendente',
     running: 'Em andamento',
     completed: 'Concluído',
+    partial: 'Coleta parcial',
     failed: 'Falhou',
     unknown: 'Desconhecido',
   };
 
   function historyLabel(status) {
-    return status === 'latest' ? 'Latest' : 'Antigo';
+    return status === 'partial' ? 'Parcial ou não verificada' : status === 'latest' ? 'Atual' : 'Antigo';
   }
 
   function statusLabel(status) {
@@ -628,7 +631,7 @@
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const detail = await response.json();
 
-      const progress = Math.round(row.progress ?? (detail.status === 'completed' ? 100 : 0));
+      const progress = Math.round(row.progress ?? (['completed', 'partial'].includes(detail.status) ? 100 : 0));
       body.innerHTML = `
         <div class="detail-grid">
           <div class="detail-item full-width">
@@ -663,6 +666,7 @@
             <div class="detail-item-label">Mensagem</div>
             <div class="detail-item-value">${dashboardEscape(row.message || 'Sem mensagem adicional.')}</div>
           </div>
+          ${detail.collection && detail.collection.status !== 'complete' ? `<div class="detail-item full-width"><div class="detail-item-label">Coleta incompleta ou não verificada</div><div class="detail-item-value">${dashboardEscape(detail.collection.extracted_count)} de ${dashboardEscape(detail.collection.expected_count ?? '?')} avaliações; parada: ${dashboardEscape(detail.collection.stop_reason)}</div></div>` : ''}
         </div>
       `;
     } catch (error) {

@@ -132,6 +132,12 @@ make lint
 | Testes            | suíte cobrindo áreas críticas de API, dashboard, jobs, Redis e Telegram |
 | Auth do dashboard | login web, sessão assinada, bootstrap via `API_KEY` e rotação em `/me`  |
 
+### Resultado das coletas e armazenamento
+
+O resultado informa `collection.status` como `complete`, `partial` ou `unknown`, com o total anunciado, o total extraído, a duração e o motivo de parada. A API retorna o status `partial` para coletas incompletas ou cuja completude não pôde ser verificada. Consulte esses campos antes de tratar o resultado como completo; o histórico do dashboard identifica snapshots parciais e mantém a última coleta completa como referência quando disponível.
+
+Os snapshots e rascunhos ainda são armazenados em arquivos JSON em `data/`; o PostgreSQL mantém o schema inicial de usuários e workspaces. As gravações atuais usam arquivos temporários e bloqueio compartilhado para reduzir colisões entre processos atualizados. Rascunhos são reaproveitados apenas quando a correspondência entre avaliações é inequívoca. Faça backup de `data/`, Redis e configurações conforme [Operations](docs/operations.md).
+
 ## Redis em `localhost:6379`
 
 Se você abrir `http://localhost:6379` no navegador e receber `ERR_EMPTY_RESPONSE`, isso é esperado.

@@ -112,6 +112,35 @@ def test_job_preserves_legacy_draft_on_next_snapshot(tmp_path):
     )
 
 
+def test_job_reports_partial_collection(tmp_path):
+    info = {
+        "status": "partial",
+        "expected_count": 100,
+        "extracted_count": 2,
+        "stop_reason": "load_timeout",
+    }
+    url = "https://www.doctoralia.com.br/perfil/exemplo"
+    with (
+        patch(
+            "src.config.settings.AppConfig.load",
+            return_value=MagicMock(data_dir=tmp_path),
+        ),
+        patch("src.scraper.DoctoraliaScraper") as cls,
+    ):
+        scraper = cls.return_value
+        scraper.scrape_reviews.return_value = {
+            "doctor_name": "Dra Ana",
+            "url": url,
+            "reviews": [],
+            "collection": info,
+        }
+        scraper.save_data.return_value = tmp_path / "new.json"
+        result = scrape_and_process({"doctor_url": url})
+    assert result["status"] == "partial"
+    assert result["collection"] == info
+    assert scraper.save_data.call_args.args[0]["collection"] == info
+
+
 def test_job_uses_draft_edited_during_generation(tmp_path):
     url = "https://www.doctoralia.com.br/perfil/exemplo"
     snapshot = tmp_path / "old.json"

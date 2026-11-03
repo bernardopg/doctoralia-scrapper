@@ -18,6 +18,7 @@ from src.api.v1._state import (
 from src.api.v1.deps import require_api_key, verify_webhook_signature
 from src.api.v1.providers import get_app_config, get_job_queue
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
+from src.services.scrape_completeness import result_status
 
 router = APIRouter(tags=["Scraping"])
 
@@ -137,7 +138,8 @@ async def scrape_run(
             reviews_data=reviews_data,
             analysis_data=analysis_data,
             generation_data=generation_data,
-            status="completed",
+            status=result_status(scraper_result.get("collection")),
+            collection=scraper_result.get("collection"),
             start_time=start_time,
             end_time=datetime.now(),
         )

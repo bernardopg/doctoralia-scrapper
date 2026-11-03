@@ -143,6 +143,8 @@ Retorna `UnifiedResult` (ver estrutura em "Convenções de Resposta")
 
 **Status**: `200 OK` em caso de sucesso (mesmo com falhas parciais)
 
+O campo `status` do resultado diferencia `completed`, `partial` e `failed`. Em uma coleta `partial`, `collection` informa o total anunciado (`expected_count`, que pode ser `null`), o total extraído, o motivo de parada e a duração em milissegundos. `collection.status` é `unknown` quando não foi possível verificar o total. Resultados legados podem não conter esses metadados.
+
 #### Exemplo com cURL
 
 ```bash
@@ -237,6 +239,7 @@ Se o job foi concluído, retorna `UnifiedResult` completo.
 **Possíveis valores de `status`**:
 - `running`: Job em execução
 - `completed`: Job concluído com sucesso
+- `partial`: a coleta terminou, mas está incompleta ou não foi possível verificar o total anunciado. Consulte `collection.status`, `collection.expected_count`, `collection.extracted_count` e `collection.stop_reason` antes de consumir os dados como completos.
 - `failed`: Job falhou
 
 ##### Exemplo com cURL
@@ -662,7 +665,7 @@ while true; do
 
   echo "Status: $STATUS"
 
-  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ]; then
+  if [ "$STATUS" = "completed" ] || [ "$STATUS" = "partial" ] || [ "$STATUS" = "failed" ]; then
     curl -s -H "X-API-Key: $API_KEY" \
       http://localhost:8000/v1/jobs/$JOB_ID | jq '.'
     break
