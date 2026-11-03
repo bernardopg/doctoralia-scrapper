@@ -15,6 +15,10 @@ from urllib3.util.retry import Retry
 # Apply nltk security patch (CVE-2024-53889) before any nltk imports
 from src.api.v1.deps import create_webhook_signature
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
+from src.services.review_reconciliation import (
+    carry_forward_drafts as _carry_forward_drafts,
+)
+from src.services.snapshot_storage import snapshot_lock
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +61,7 @@ def _merge_generated_responses(
     for review in reviews_data:
         review_payload = dict(review)
         response_text = responses_by_review_id.get(str(review_payload.get("id", "")))
-        if response_text:
+        if response_text and not review_payload.get("generated_response"):
             review_payload["generated_response"] = response_text
         merged_reviews.append(review_payload)
 
@@ -289,13 +293,26 @@ def scrape_and_process(
             )
 
         _update_job_meta(progress=80, message="Persistindo snapshot do scraping")
-        snapshot_payload = _build_snapshot_payload(
-            scraper_result=scraper_result,
-            doctor_data=doctor_data,
-            reviews_data=reviews_data,
-            generation_data=generation_data,
+        from src.services.workspace_service import WorkspaceService
+
+        workspace = WorkspaceService(config.data_dir, logger)
+        profile_id = workspace.make_profile_id(
+            doctor_data.get("url") or "", doctor_data.get("name") or ""
         )
-        saved_file = scraper.save_data(snapshot_payload)
+        with snapshot_lock(config.data_dir):
+            previous_snapshots = workspace._filter_snapshots(
+                workspace._load_snapshots(), profile_id=profile_id
+            )
+            previous = workspace._latest_by_profile(previous_snapshots).get(profile_id)
+            if previous:
+                reviews_data = _carry_forward_drafts(reviews_data, previous["reviews"])
+            snapshot_payload = _build_snapshot_payload(
+                scraper_result=scraper_result,
+                doctor_data=doctor_data,
+                reviews_data=reviews_data,
+                generation_data=generation_data,
+            )
+            saved_file = scraper.save_data(snapshot_payload)
         if saved_file is None:
             raise RuntimeError("Scraping concluído, mas o snapshot não pôde ser salvo")
 

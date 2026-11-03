@@ -6,9 +6,11 @@ Provides profile-level aggregations, pending responses and filterable overview d
 import hashlib
 import json
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
+
+from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,15 @@ def _safe_datetime(value: Optional[str]) -> Optional[datetime]:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except Exception:
         return None
+
+
+def _comparable_datetime(value: Optional[datetime]) -> datetime:
+    """Normalize aware timestamps for comparisons with legacy naive values."""
+    if value is None:
+        return datetime.min
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
 
 
 def _safe_date(value: Optional[str]) -> Optional[date]:
@@ -89,7 +100,7 @@ class WorkspaceService:
             )
             latest_review_date = max(
                 (
-                    _safe_datetime(review.get("date")) or datetime.min
+                    _comparable_datetime(_safe_datetime(review.get("date")))
                     for review in reviews
                     if review.get("date")
                 ),
@@ -165,7 +176,11 @@ class WorkspaceService:
             snapshot_ts = snapshot["extracted_ts"]
             if current is None or (
                 snapshot_ts is not None
-                and (current_ts is None or snapshot_ts > current_ts)
+                and (
+                    current_ts is None
+                    or _comparable_datetime(snapshot_ts)
+                    > _comparable_datetime(current_ts)
+                )
             ):
                 latest[profile_id] = snapshot
         return latest
@@ -663,6 +678,14 @@ class WorkspaceService:
     def save_generated_response(
         self, profile_id: str, review_id: str, generated_response: str
     ) -> Optional[Dict[str, Any]]:
+        with snapshot_lock(self.data_dir):
+            return self._save_generated_response_locked(
+                profile_id, review_id, generated_response
+            )
+
+    def _save_generated_response_locked(
+        self, profile_id: str, review_id: str, generated_response: str
+    ) -> Optional[Dict[str, Any]]:
         snapshots = self._filter_snapshots(
             self._load_snapshots(), profile_id=profile_id
         )
@@ -675,18 +698,16 @@ class WorkspaceService:
             with open(file_path, "r", encoding="utf-8") as file:
                 payload = json.load(file)
 
-            updated = False
-            for review in payload.get("reviews", []):
-                if str(review.get("id") or "") == str(review_id):
-                    review["generated_response"] = generated_response
-                    updated = True
-                    break
-
-            if not updated:
+            matches = [
+                review
+                for review in payload.get("reviews", [])
+                if str(review.get("id") or "") == str(review_id)
+            ]
+            if len(matches) != 1:
                 return None
+            matches[0]["generated_response"] = generated_response
 
-            with open(file_path, "w", encoding="utf-8") as file:
-                json.dump(payload, file, ensure_ascii=False, indent=2)
+            write_json_atomic(file_path, payload)
 
             return {
                 "profile_id": profile_id,
@@ -701,6 +722,10 @@ class WorkspaceService:
             return None
 
     def delete_snapshot(self, filename: str) -> Optional[Dict[str, Any]]:
+        with snapshot_lock(self.data_dir):
+            return self._delete_snapshot_locked(filename)
+
+    def _delete_snapshot_locked(self, filename: str) -> Optional[Dict[str, Any]]:
         filename = Path(filename).name
         history = self.get_history()
         target = next(
@@ -725,6 +750,15 @@ class WorkspaceService:
         }
 
     def prune_outdated_snapshots(
+        self,
+        profile_id: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        with snapshot_lock(self.data_dir):
+            return self._prune_outdated_snapshots_locked(profile_id, date_from, date_to)
+
+    def _prune_outdated_snapshots_locked(
         self,
         profile_id: Optional[str] = None,
         date_from: Optional[str] = None,
