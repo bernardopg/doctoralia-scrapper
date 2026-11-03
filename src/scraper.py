@@ -267,7 +267,7 @@ class DoctoraliaScraper:
         )
 
     def extract_doctor_name(self) -> Optional[str]:
-        css_selector = '[data-test-id="doctor-header-fullname"] span[itemprop="name"]'
+        css_selector = '[data-test-id="doctor-header-fullname"]'
 
         def _extract_name() -> Optional[str]:
             if self.driver is None:
@@ -276,7 +276,9 @@ class DoctoraliaScraper:
             name_element = wait.until(
                 EC.visibility_of_element_located((By.CSS_SELECTOR, css_selector))
             )
-            text_content = name_element.get_attribute("textContent")
+            text_content = name_element.text or name_element.get_attribute(
+                "textContent"
+            )
             if text_content:
                 doctor_name = text_content.strip()
                 return self.clean_text(doctor_name)
@@ -292,12 +294,15 @@ class DoctoraliaScraper:
             try:
                 if self.driver is None:
                     return None
-                name_element = self.driver.find_element(
-                    By.CSS_SELECTOR, 'span[itemprop="name"]'
-                )
-                text_content = name_element.get_attribute("textContent")
-                if text_content:
-                    return self.clean_text(text_content.strip())
+                for selector in ('span[itemprop="name"]', "h1"):
+                    for name_element in self.driver.find_elements(
+                        By.CSS_SELECTOR, selector
+                    ):
+                        text_content = name_element.text or name_element.get_attribute(
+                            "textContent"
+                        )
+                        if text_content:
+                            return self.clean_text(text_content.strip())
                 return None
             except NoSuchElementException:
                 self.logger.error("Nome do médico não encontrado mesmo com fallback.")
@@ -543,14 +548,44 @@ class DoctoraliaScraper:
 
         try:
             date_element = soup.find("time", {"itemprop": "datePublished"})
-            if (
-                date_element
-                and isinstance(date_element, Tag)
-                and date_element.has_attr("datetime")
-            ):
+            if not date_element:
+                # Current Doctoralia markup renders the review date as plain text
+                # in the first <time> element, without schema.org attributes.
+                date_element = soup.find("time")
+            if date_element and isinstance(date_element, Tag):
                 datetime_attr = date_element.get("datetime")
-                if isinstance(datetime_attr, str):
+                if isinstance(datetime_attr, str) and datetime_attr.strip():
                     return datetime_attr
+                date_text = self.clean_text(date_element.get_text(" ", strip=True))
+                match = re.fullmatch(
+                    r"(\d{1,2})\s+de\s+([a-zç]+)\s+de\s+(\d{4})",
+                    date_text.lower(),
+                )
+                months = {
+                    "janeiro": 1,
+                    "fevereiro": 2,
+                    "março": 3,
+                    "marco": 3,
+                    "abril": 4,
+                    "maio": 5,
+                    "junho": 6,
+                    "julho": 7,
+                    "agosto": 8,
+                    "setembro": 9,
+                    "outubro": 10,
+                    "novembro": 11,
+                    "dezembro": 12,
+                }
+                if match and match.group(2) in months:
+                    return (
+                        datetime(
+                            int(match.group(3)),
+                            months[match.group(2)],
+                            int(match.group(1)),
+                        )
+                        .date()
+                        .isoformat()
+                    )
         except (ValueError, TypeError, AttributeError) as e:
             self.logger.debug("Erro ao parsear data: %s", e)
         return None
@@ -842,8 +877,15 @@ class DoctoraliaScraper:
                 if not comment:
                     continue
 
+                source_id = review_element.get("data-id")
                 review_data = {
-                    "id": review_index + 1,
+                    # Doctoralia exposes a stable ID on opinion blocks. Prefix
+                    # it so it cannot be confused with legacy positional IDs.
+                    "id": (
+                        f"doctoralia:{source_id}"
+                        if isinstance(source_id, str) and source_id.isdecimal()
+                        else review_index + 1
+                    ),
                     "author": self.extract_author_name(review_element),
                     "comment": comment,
                     "rating": self.extract_rating(review_element),
