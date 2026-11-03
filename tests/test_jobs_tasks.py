@@ -1,4 +1,5 @@
 import json
+import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -80,6 +81,13 @@ def test_recovers_source_draft_from_older_snapshot_when_absent_in_latest():
     older = [{**new[0], "generated_response": "Editado"}]
     result = carry_forward_historical_drafts(new, [[], older])
     assert result[0]["generated_response"] == "Editado"
+
+
+def test_historical_recovery_without_snapshots_leaves_reviews_unchanged():
+    review = {"id": "doctoralia:1", "comment": "Bom"}
+    result = carry_forward_historical_drafts([review], [])
+    assert result == [review]
+    assert result[0] is not review
 
 
 def test_historical_recovery_does_not_restore_cleared_or_ambiguous_drafts():
@@ -182,6 +190,45 @@ def test_job_recovers_draft_when_review_was_absent_from_previous_snapshot(tmp_pa
     assert (
         scraper.save_data.call_args.args[0]["reviews"][0]["generated_response"]
         == "Editado"
+    )
+
+
+def test_job_does_not_recover_draft_when_snapshot_times_are_ambiguous(tmp_path):
+    url = "https://www.doctoralia.com.br/perfil/exemplo"
+    review = {"id": "doctoralia:123", "author": "Ana", "comment": "Muito bom"}
+    for filename, reviews in [
+        ("a.json", []),
+        ("b.json", [{**review, "generated_response": "Editado"}]),
+    ]:
+        (tmp_path / filename).write_text(
+            json.dumps(
+                {
+                    "doctor_name": "Dra. Ana",
+                    "url": url,
+                    "extraction_timestamp": "2026-01-01T10:00:00",
+                    "reviews": reviews,
+                }
+            )
+        )
+    os.utime(tmp_path / "a.json", (100, 100))
+    os.utime(tmp_path / "b.json", (101, 101))
+    with (
+        patch(
+            "src.config.settings.AppConfig.load",
+            return_value=MagicMock(data_dir=tmp_path),
+        ),
+        patch("src.scraper.DoctoraliaScraper") as cls,
+    ):
+        scraper = cls.return_value
+        scraper.scrape_reviews.return_value = {
+            "doctor_name": "Dra. Ana",
+            "url": url,
+            "reviews": [review],
+        }
+        scraper.save_data.return_value = tmp_path / "new.json"
+        scrape_and_process({"doctor_url": url})
+    assert not scraper.save_data.call_args.args[0]["reviews"][0].get(
+        "generated_response"
     )
 
 
