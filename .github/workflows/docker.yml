@@ -99,6 +99,7 @@ jobs:
       packages: read
       security-events: write
     strategy:
+      fail-fast: false
       matrix:
         target: [api, worker]
 
@@ -126,11 +127,25 @@ jobs:
         if: github.event_name == 'pull_request'
         run: docker build --target ${{ matrix.target }} -t local/${{ matrix.target }}:${{ github.sha }} .
 
+      - name: Install Trivy from its pinned official image
+        shell: bash
+        run: |
+          set -euo pipefail
+          trivy_image="aquasec/trivy@sha256:be1190afcb28352bfddc4ddeb71470835d16462af68d310f9f4bca710961a41e"
+          docker pull "$trivy_image"
+          container_id=$(docker create "$trivy_image")
+          trap 'docker rm -f "$container_id" >/dev/null' EXIT
+          mkdir -p "$RUNNER_TEMP/trivy-bin"
+          docker cp "$container_id:/usr/local/bin/trivy" "$RUNNER_TEMP/trivy-bin/trivy"
+          "$RUNNER_TEMP/trivy-bin/trivy" --version
+          echo "$RUNNER_TEMP/trivy-bin" >> "$GITHUB_PATH"
+
       - name: Run Trivy JSON scan (PR image)
         if: github.event_name == 'pull_request'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: local/${{ matrix.target }}:${{ github.sha }}
+          skip-setup-trivy: 'true'
           cache: 'false'
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
@@ -149,6 +164,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}:${{ env.IMAGE_TAG }}
+          skip-setup-trivy: 'true'
           cache: 'false'
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
@@ -167,6 +183,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: local/${{ matrix.target }}:${{ github.sha }}
+          skip-setup-trivy: 'true'
           cache: 'false'
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
@@ -185,6 +202,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.target }}:${{ env.IMAGE_TAG }}
+          skip-setup-trivy: 'true'
           cache: 'false'
           severity: "CRITICAL,HIGH"
           ignore-unfixed: true
