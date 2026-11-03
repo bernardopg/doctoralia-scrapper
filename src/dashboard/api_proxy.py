@@ -9,6 +9,7 @@ from flask import Blueprint, jsonify, request
 
 from src.dashboard.services import DashboardServices
 from src.multi_site_scraper import ScraperFactory
+from src.version import VERSION
 
 
 def create_blueprint(svc: DashboardServices) -> Blueprint:
@@ -21,7 +22,7 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 "dashboard": {
                     "status": "healthy",
                     "timestamp": datetime.now().isoformat(),
-                    "version": "2.1.0",
+                    "version": VERSION,
                 },
                 "api": svc.get_api_health(),
             }

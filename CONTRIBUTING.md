@@ -404,7 +404,7 @@ Obrigado por dedicar seu tempo para contribuir! Toda contribuição, grande ou p
 ### Publicação de uma versão
 
 Antes de criar a tag de uma release, atualize `project.version` no
-`pyproject.toml` e `API_VERSION` em `src/api/v1/_state.py` para a mesma versão
+`pyproject.toml` e `VERSION` em `src/version.py` para a mesma versão
 (por exemplo, `2.8.0`) e integre a alteração à branch principal. Crie a tag correspondente no commit integrado,
 por exemplo `v2.8.0`. O workflow de release verifica a versão declarada no
 commit da tag e a versão da API antes de publicar pacotes ou imagens e

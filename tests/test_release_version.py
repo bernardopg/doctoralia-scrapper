@@ -12,7 +12,7 @@ SCRIPT = ROOT / "scripts" / "verify_release_version.py"
 
 
 @pytest.mark.parametrize(
-    ("tag", "project_version", "api_version", "expected"),
+    ("tag", "project_version", "source_version", "expected"),
     [
         ("v2.7.1", "2.7.1", "2.7.1", 0),
         ("v2.7.1", "2.6.1", "2.7.1", 1),
@@ -20,13 +20,13 @@ SCRIPT = ROOT / "scripts" / "verify_release_version.py"
         ("2.7.1", "2.7.1", "2.7.1", 2),
     ],
 )
-def test_release_version_gate(tmp_path, tag, project_version, api_version, expected):
+def test_release_version_gate(tmp_path, tag, project_version, source_version, expected):
     project_file = tmp_path / "pyproject.toml"
     project_file.write_text(
         f'[project]\nversion = "{project_version}"\n', encoding="utf-8"
     )
-    state_file = tmp_path / "_state.py"
-    state_file.write_text(f'API_VERSION = "{api_version}"\n', encoding="utf-8")
+    state_file = tmp_path / "version.py"
+    state_file.write_text(f'VERSION = "{source_version}"\n', encoding="utf-8")
 
     result = subprocess.run(
         [sys.executable, str(SCRIPT), tag, str(project_file), str(state_file)],
@@ -50,7 +50,7 @@ def test_repository_versions_match():
             str(SCRIPT),
             f"v{version}",
             str(project_file),
-            str(ROOT / "src" / "api" / "v1" / "_state.py"),
+            str(ROOT / "src" / "version.py"),
         ],
         check=True,
     )

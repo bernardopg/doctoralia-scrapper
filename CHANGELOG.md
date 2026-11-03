@@ -6,6 +6,13 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-11-02
+
+### Fixed
+
+- Dashboard e API usam a mesma versão, validada junto ao pacote e à tag no
+  processo de release.
+
 ## [2.7.1] - 2026-11-02
 
 ### Fixed
@@ -356,7 +363,8 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## Links
 
-- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.7.1...HEAD
+- [Unreleased]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.7.2...HEAD
+- [2.7.2]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.7.1...v2.7.2
 - [2.7.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.7.0...v2.7.1
 - [2.7.0]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.1...v2.7.0
 - [2.6.1]: https://github.com/bernardopg/doctoralia-scrapper/compare/v2.6.0...v2.6.1
