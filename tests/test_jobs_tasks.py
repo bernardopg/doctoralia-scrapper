@@ -1,8 +1,10 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.jobs.tasks import (
     _build_snapshot_payload,
+    _carry_forward_drafts,
     _merge_generated_responses,
     _run_response_generation,
     _run_sentiment_analysis,
@@ -10,6 +12,148 @@ from src.jobs.tasks import (
     post_callback,
     scrape_and_process,
 )
+
+
+def test_carry_forward_drafts_matches_legacy_without_using_position():
+    old = [
+        {
+            "id": 1,
+            "author": "Ana",
+            "comment": "Muito bom",
+            "generated_response": "Obrigada",
+        },
+        {"id": 2, "author": "Bia", "comment": "Excelente"},
+    ]
+    new = [
+        {"id": "doctoralia:2", "author": "Bia", "comment": "Excelente"},
+        {"id": "doctoralia:1", "author": "Ana", "comment": "Muito bom"},
+    ]
+    result = _carry_forward_drafts(new, old)
+    assert "generated_response" not in result[0]
+    assert result[1]["generated_response"] == "Obrigada"
+
+
+def test_carry_forward_drafts_rejects_ambiguous_legacy_matches():
+    old = [
+        {"id": 1, "author": "Ana", "comment": "Bom", "generated_response": "Rascunho"}
+    ]
+    new = [
+        {"id": "doctoralia:1", "author": "Ana", "comment": "Bom"},
+        {"id": "doctoralia:2", "author": "Ana", "comment": "Bom"},
+    ]
+    assert all(
+        "generated_response" not in item for item in _carry_forward_drafts(new, old)
+    )
+
+
+def test_carry_forward_drafts_matches_unique_source_id_and_keeps_existing():
+    old = [{"id": "doctoralia:1", "comment": "Antigo", "generated_response": "Editado"}]
+    new = [{"id": "doctoralia:1", "comment": "Atualizado"}]
+    carried = _carry_forward_drafts(new, old)
+    assert carried[0]["generated_response"] == "Editado"
+    assert (
+        _merge_generated_responses(
+            carried, {"responses": [{"review_id": "doctoralia:1", "text": "Nova"}]}
+        )[0]["generated_response"]
+        == "Editado"
+    )
+
+
+def test_carry_forward_drafts_does_not_join_distinct_source_ids():
+    old = [
+        {
+            "id": "doctoralia:1",
+            "author": "Ana",
+            "comment": "Bom",
+            "generated_response": "Rascunho",
+        }
+    ]
+    new = [{"id": "doctoralia:2", "author": "Ana", "comment": "Bom"}]
+    assert "generated_response" not in _carry_forward_drafts(new, old)[0]
+
+
+def test_job_preserves_legacy_draft_on_next_snapshot(tmp_path):
+    url = "https://www.doctoralia.com.br/perfil/exemplo"
+    old_review = {
+        "id": 1,
+        "author": "Ana",
+        "comment": "Muito bom",
+        "generated_response": "Obrigada",
+    }
+    (tmp_path / "old.json").write_text(
+        json.dumps(
+            {
+                "doctor_name": "Dra. Ana",
+                "url": url,
+                "extraction_timestamp": "2026-01-01T10:00:00",
+                "reviews": [old_review],
+            }
+        )
+    )
+    config = MagicMock(data_dir=tmp_path)
+    with (
+        patch("src.config.settings.AppConfig.load", return_value=config),
+        patch("src.scraper.DoctoraliaScraper") as cls,
+    ):
+        scraper = cls.return_value
+        scraper.scrape_reviews.return_value = {
+            "doctor_name": "Dra. Ana",
+            "url": url,
+            "reviews": [
+                {"id": "doctoralia:123", "author": "Ana", "comment": "Muito bom"}
+            ],
+        }
+        scraper.save_data.return_value = tmp_path / "new.json"
+        result = scrape_and_process({"doctor_url": url})
+    assert result["status"] == "completed"
+    assert (
+        scraper.save_data.call_args.args[0]["reviews"][0]["generated_response"]
+        == "Obrigada"
+    )
+
+
+def test_job_uses_draft_edited_during_generation(tmp_path):
+    url = "https://www.doctoralia.com.br/perfil/exemplo"
+    snapshot = tmp_path / "old.json"
+    old = {
+        "doctor_name": "Dra Ana",
+        "url": url,
+        "extraction_timestamp": "2026-01-01T10:00:00",
+        "reviews": [
+            {
+                "id": "doctoralia:123",
+                "author": "Ana",
+                "comment": "Ótimo",
+                "generated_response": "Antes",
+            }
+        ],
+    }
+    snapshot.write_text(json.dumps(old))
+    config = MagicMock(data_dir=tmp_path)
+
+    def generate(*args, **kwargs):
+        old["reviews"][0]["generated_response"] = "Editada durante geração"
+        snapshot.write_text(json.dumps(old))
+        return {"responses": [{"review_id": "doctoralia:123", "text": "Nova sugestão"}]}
+
+    with (
+        patch("src.config.settings.AppConfig.load", return_value=config),
+        patch("src.scraper.DoctoraliaScraper") as cls,
+        patch("src.jobs.tasks._run_response_generation", side_effect=generate),
+    ):
+        scraper = cls.return_value
+        scraper.scrape_reviews.return_value = {
+            "doctor_name": "Dra Ana",
+            "url": url,
+            "reviews": [{"id": "doctoralia:123", "author": "Ana", "comment": "Ótimo"}],
+        }
+        scraper.save_data.return_value = tmp_path / "new.json"
+        result = scrape_and_process({"doctor_url": url, "include_generation": True})
+    assert result["status"] == "completed"
+    assert (
+        scraper.save_data.call_args.args[0]["reviews"][0]["generated_response"]
+        == "Editada durante geração"
+    )
 
 
 def test_scrape_and_process_persists_snapshot_with_generated_responses(tmp_path):
