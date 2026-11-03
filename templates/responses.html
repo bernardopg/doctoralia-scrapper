@@ -141,6 +141,16 @@
     return `response-${item.profile_id}-${item.review_id}`;
   }
 
+  function escapeResponseHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[character]);
+  }
+
+  function responseJsArgument(value) {
+    return escapeResponseHtml(JSON.stringify(String(value ?? '')));
+  }
+
   function providerBadgeId(item) {
     return `provider-${item.profile_id}-${item.review_id}`;
   }
@@ -153,7 +163,7 @@
     const select = document.getElementById('responses-profile-filter');
     const current = select.value;
     select.innerHTML = '<option value="">Todos os perfis</option>' + filters.map((item) => `
-      <option value="${item.profile_id}">${item.doctor_name}</option>
+      <option value="${escapeResponseHtml(item.profile_id)}">${escapeResponseHtml(item.doctor_name)}</option>
     `).join('');
     select.value = current;
   }
@@ -170,34 +180,34 @@
         <div class="card-body">
           <div class="flex justify-between items-center mb-2">
             <div>
-              <div style="font-weight:700;">${item.doctor_name}</div>
-              <div class="text-secondary" style="font-size:13px;">${item.author} • ${item.date ? new Date(item.date).toLocaleDateString('pt-BR') : '-'} • ${item.rating || '-'} ★</div>
+              <div style="font-weight:700;">${escapeResponseHtml(item.doctor_name)}</div>
+              <div class="text-secondary" style="font-size:13px;">${escapeResponseHtml(item.author)} • ${dashboardReviewDate(item.date)} • ${escapeResponseHtml(item.rating || '-')} ★</div>
             </div>
             <div class="flex gap-1 items-center">
               ${item.is_favorite ? '<span class="btn btn-sm btn-secondary"><i class="fas fa-star"></i> Favorito</span>' : ''}
-              <span id="${providerBadgeId(item)}" class="text-secondary" style="font-size:12px;">${item.generated_response ? 'Sugestão salva' : 'Sem sugestão'}</span>
+              <span id="${escapeResponseHtml(providerBadgeId(item))}" class="text-secondary" style="font-size:12px;">${item.generated_response ? 'Sugestão salva' : 'Sem sugestão'}</span>
             </div>
           </div>
 
           <div style="padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md); margin-bottom: 12px; font-size: 14px;">
-            ${item.comment}
+            ${escapeResponseHtml(item.comment)}
           </div>
 
           <div class="form-group">
             <label class="form-label">Resposta sugerida</label>
-            <textarea id="${textareaId(item)}" class="form-control" rows="5" placeholder="Gere uma sugestão para este comentário...">${item.generated_response || ''}</textarea>
+            <textarea id="${escapeResponseHtml(textareaId(item))}" class="form-control" rows="5" placeholder="Gere uma sugestão para este comentário...">${escapeResponseHtml(item.generated_response || '')}</textarea>
           </div>
 
           <div class="flex gap-2" style="margin-top: 12px; flex-wrap: wrap;">
-            <button class="btn btn-primary" onclick="generateResponseForItem('${item.profile_id}', '${item.review_id}')">
+            <button class="btn btn-primary" onclick="generateResponseForItem(${responseJsArgument(item.profile_id)}, ${responseJsArgument(item.review_id)})">
               <i class="fas fa-wand-magic-sparkles"></i>
               Gerar Sugestão
             </button>
-            <button class="btn btn-secondary" onclick="saveEditedSuggestion('${item.profile_id}', '${item.review_id}')">
+            <button class="btn btn-secondary" onclick="saveEditedSuggestion(${responseJsArgument(item.profile_id)}, ${responseJsArgument(item.review_id)})">
               <i class="fas fa-save"></i>
               Salvar Edição
             </button>
-            <button class="btn btn-secondary" onclick="copySuggestion('${textareaId(item)}')">
+            <button class="btn btn-secondary" onclick="copySuggestion(${responseJsArgument(textareaId(item))})">
               <i class="fas fa-copy"></i>
               Copiar
             </button>

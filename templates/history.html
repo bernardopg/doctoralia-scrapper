@@ -380,7 +380,7 @@
     container.innerHTML = `
       <div class="alert alert-${type}">
         <i class="fas fa-${type === 'error' ? 'exclamation-circle' : type === 'success' ? 'check-circle' : 'info-circle'}"></i>
-        <div>${message}</div>
+        <div>${dashboardEscape(message)}</div>
       </div>
     `;
     setTimeout(() => { container.innerHTML = ''; }, 4000);
@@ -408,7 +408,7 @@
     const select = document.getElementById('history-profile-filter');
     const currentValue = select.value;
     select.innerHTML = '<option value="">Todos os perfis</option>' + historyState.filters.map((item) => `
-      <option value="${item.profile_id}">${item.doctor_name}</option>
+      <option value="${dashboardEscape(item.profile_id)}">${dashboardEscape(item.doctor_name)}</option>
     `).join('');
     select.value = currentValue;
   }
@@ -430,27 +430,27 @@
     tbody.innerHTML = entries.map((entry) => `
       <tr>
         <td>
-          <div style="font-weight:700;">${entry.doctor_name}</div>
-          <div class="text-secondary" style="font-size:12px;">${entry.specialty || 'Especialidade não informada'}</div>
+          <div style="font-weight:700;">${dashboardEscape(entry.doctor_name)}</div>
+          <div class="text-secondary" style="font-size:12px;">${dashboardEscape(entry.specialty || 'Especialidade não informada')}</div>
         </td>
         <td>${formatDateTime(entry.extracted_at)}</td>
         <td>
-          <span class="history-status-pill ${entry.status}">
+          <span class="history-status-pill ${dashboardEscape(entry.status)}">
             <i class="fas fa-${entry.is_latest ? 'star' : 'clock-rotate-left'}"></i>
             ${historyLabel(entry.status)}
           </span>
         </td>
-        <td>${entry.reviews_count}</td>
-        <td>${entry.unanswered_count}</td>
-        <td>${entry.generated_count}</td>
-        <td>${entry.file_size_human}</td>
-        <td><span style="font-family: var(--font-mono); font-size: 12px;">${entry.filename}</span></td>
+        <td>${dashboardEscape(entry.reviews_count)}</td>
+        <td>${dashboardEscape(entry.unanswered_count)}</td>
+        <td>${dashboardEscape(entry.generated_count)}</td>
+        <td>${dashboardEscape(entry.file_size_human)}</td>
+        <td><span style="font-family: var(--font-mono); font-size: 12px;">${dashboardEscape(entry.filename)}</span></td>
         <td>
           <div class="flex gap-1" style="flex-wrap: wrap;">
-            <button class="btn btn-secondary btn-sm" onclick="showScrapeModal('${entry.profile_url}')">
+            <button class="btn btn-secondary btn-sm" onclick="showScrapeModal(${dashboardJsArgument(entry.profile_url)})">
               <i class="fas fa-play"></i>
             </button>
-            <button class="btn btn-danger btn-sm" onclick="deleteSnapshot('${entry.filename}')">
+            <button class="btn btn-danger btn-sm" onclick="deleteSnapshot(${dashboardJsArgument(entry.filename)})">
               <i class="fas fa-trash"></i>
             </button>
           </div>
@@ -570,8 +570,8 @@
         const active = ['pending', 'running'].includes(task.status);
         return `
           <tr>
-            <td><span style="font-family: var(--font-mono); font-size: 12px;">${task.task_id}</span></td>
-            <td><span class="status-badge status-${task.status || 'unknown'}">${statusLabel(task.status)}</span></td>
+            <td><span style="font-family: var(--font-mono); font-size: 12px;">${dashboardEscape(task.task_id)}</span></td>
+            <td><span class="status-badge status-${dashboardEscape(task.status || 'unknown')}">${dashboardEscape(statusLabel(task.status))}</span></td>
             <td>
               <div style="display:flex; align-items:center; gap:8px;">
                 <div class="progress-bar-container" style="width: 120px; height: 8px;">
@@ -580,10 +580,10 @@
                 <span style="font-size:12px;">${progress}%</span>
               </div>
             </td>
-            <td style="font-size: 13px;">${task.message || '-'}</td>
+            <td style="font-size: 13px;">${dashboardEscape(task.message || '-')}</td>
             <td style="font-size: 13px;">${formatDateTime(task.created_at)}</td>
             <td>
-              <button class="icon-btn" title="Ver detalhes" onclick="viewTask('${task.task_id}')">
+              <button class="icon-btn" title="Ver detalhes" onclick="viewTask(${dashboardJsArgument(task.task_id)})">
                 <i class="fas fa-eye"></i>
               </button>
             </td>
@@ -633,11 +633,11 @@
         <div class="detail-grid">
           <div class="detail-item full-width">
             <div class="detail-item-label">Job ID</div>
-            <div class="detail-item-value" style="font-family: var(--font-mono);">${taskId}</div>
+            <div class="detail-item-value" style="font-family: var(--font-mono);">${dashboardEscape(taskId)}</div>
           </div>
           <div class="detail-item">
             <div class="detail-item-label">Status</div>
-            <div class="detail-item-value"><span class="status-badge status-${row.status || detail.status || 'unknown'}">${statusLabel(row.status || detail.status)}</span></div>
+            <div class="detail-item-value"><span class="status-badge status-${dashboardEscape(row.status || detail.status || 'unknown')}">${dashboardEscape(statusLabel(row.status || detail.status))}</span></div>
           </div>
           <div class="detail-item">
             <div class="detail-item-label">Progresso</div>
@@ -653,7 +653,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-item-label">Médico</div>
-            <div class="detail-item-value">${detail.doctor?.name || '-'}</div>
+            <div class="detail-item-value">${dashboardEscape(detail.doctor?.name || '-')}</div>
           </div>
           <div class="detail-item">
             <div class="detail-item-label">Reviews</div>
@@ -661,12 +661,12 @@
           </div>
           <div class="detail-item full-width">
             <div class="detail-item-label">Mensagem</div>
-            <div class="detail-item-value">${row.message || 'Sem mensagem adicional.'}</div>
+            <div class="detail-item-value">${dashboardEscape(row.message || 'Sem mensagem adicional.')}</div>
           </div>
         </div>
       `;
     } catch (error) {
-      body.innerHTML = `<div class="text-center text-secondary" style="padding: 40px 0;">Erro ao carregar o job ${taskId}.</div>`;
+      body.innerHTML = `<div class="text-center text-secondary" style="padding: 40px 0;">Erro ao carregar o job ${dashboardEscape(taskId)}.</div>`;
     }
   }
 

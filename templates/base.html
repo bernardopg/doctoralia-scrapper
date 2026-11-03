@@ -349,6 +349,26 @@
        SCRIPTS GLOBAIS
   ══════════════════════════════════ -->
   <script>
+    function dashboardEscape(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      })[character]);
+    }
+
+    function dashboardJsArgument(value) {
+      return dashboardEscape(JSON.stringify(String(value ?? '')));
+    }
+
+    function dashboardReviewDate(value) {
+      if (!value) return '-';
+      const text = String(value);
+      const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+      const date = dateOnly
+        ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+        : new Date(text);
+      return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString('pt-BR');
+    }
+
     const dashboardCsrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const nativeFetch = window.fetch.bind(window);
     window.fetch = (resource, options = {}) => {
@@ -834,7 +854,7 @@
                 <div class="result-icon error"><i class="fas fa-times-circle"></i></div>
                 <div>
                   <p class="result-card-title">Erro ao criar job</p>
-                  <p class="text-secondary" style="font-size:13px; margin-top:4px;">${result.error}</p>
+                    <p class="text-secondary" style="font-size:13px; margin-top:4px;">${dashboardEscape(result.error)}</p>
                 </div>
               </div>
               <div class="result-actions">
@@ -851,7 +871,7 @@
                 <div class="result-icon success"><i class="fas fa-check-circle"></i></div>
                 <div>
                   <p class="result-card-title">Scraping enfileirado com sucesso</p>
-                  <p class="result-job-id">Job: ${jobId}</p>
+              <p class="result-job-id">Job: ${dashboardEscape(jobId)}</p>
                 </div>
               </div>
               <div class="result-actions">

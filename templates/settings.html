@@ -527,7 +527,7 @@
     container.innerHTML = `
       <div class="alert ${alertClass}">
         <i class="fas fa-${iconMap[type]}"></i>
-        <div>${message}</div>
+        <div>${dashboardEscape(message)}</div>
       </div>
     `;
 

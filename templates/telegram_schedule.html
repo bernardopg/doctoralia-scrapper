@@ -1304,15 +1304,15 @@
                 </div>
               </div>
               <div class="schedule-card-actions">
-                <button class="btn btn-secondary btn-sm" type="button" onclick="editSchedule('${schedule.id}')">
+                <button class="btn btn-secondary btn-sm" type="button" onclick="editSchedule(${dashboardJsArgument(schedule.id)})">
                   <i class="fas fa-pen"></i>
                   ${isEditing ? 'Fechar edição' : 'Editar'}
                 </button>
-                <button class="btn btn-primary btn-sm" type="button" onclick="runScheduleNow('${schedule.id}')" ${isRunning ? 'disabled' : ''}>
+                <button class="btn btn-primary btn-sm" type="button" onclick="runScheduleNow(${dashboardJsArgument(schedule.id)})" ${isRunning ? 'disabled' : ''}>
                   <i class="fas fa-bolt"></i>
                   ${escapeHtml(runLabel)}
                 </button>
-                <button class="btn btn-danger btn-sm" type="button" onclick="deleteSchedule('${schedule.id}')">
+                <button class="btn btn-danger btn-sm" type="button" onclick="deleteSchedule(${dashboardJsArgument(schedule.id)})">
                   <i class="fas fa-trash"></i>
                   Excluir
                 </button>
@@ -1342,7 +1342,7 @@
               </div>
             </div>
           </div>
-          <div class="inline-edit-slot" id="schedule-edit-slot-${schedule.id}"></div>
+          <div class="inline-edit-slot" id="schedule-edit-slot-${dashboardEscape(schedule.id)}"></div>
         </article>
       `;
     }).join('');
