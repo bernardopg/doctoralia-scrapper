@@ -1,9 +1,9 @@
-import json
 import logging
 import os
 import random
 import re
 import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -29,6 +29,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from src.error_handling import EnhancedErrorHandler
 from src.performance_monitor import PerformanceMonitor
+from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
 
 class RateLimiter:
@@ -932,11 +933,26 @@ class DoctoraliaScraper:
             clean_name = (
                 re.sub(r"[^\w\s-]", "", doctor_name).strip().replace(" ", "_").lower()
             )
-            file_name = f"{timestamp}_{clean_name}.json"
+            file_name = f"{timestamp}{uuid.uuid4().hex}_{clean_name}.json"
             file_path: Path = Path(self.config.data_dir / file_name)
 
-            with open(file_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            with snapshot_lock(self.config.data_dir):
+                profile_url = data.get("url") or ""
+                if profile_url and isinstance(data.get("reviews"), list):
+                    from src.services.review_reconciliation import carry_forward_drafts
+                    from src.services.workspace_service import WorkspaceService
+
+                    workspace = WorkspaceService(self.config.data_dir, self.logger)
+                    profile_id = workspace.make_profile_id(profile_url, doctor_name)
+                    snapshots = workspace._filter_snapshots(
+                        workspace._load_snapshots(), profile_id=profile_id
+                    )
+                    previous = workspace._latest_by_profile(snapshots).get(profile_id)
+                    if previous:
+                        data["reviews"] = carry_forward_drafts(
+                            data["reviews"], previous["reviews"]
+                        )
+                write_json_atomic(file_path, data)
 
             self.logger.info("💾 Dados salvos com sucesso em: %s", file_path)
             return file_path
