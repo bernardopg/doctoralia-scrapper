@@ -338,7 +338,7 @@
     container.innerHTML = `
       <div class="alert alert-${type}">
         <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <div>${message}</div>
+      <div>${dashboardEscape(message)}</div>
       </div>
     `;
     setTimeout(() => { container.innerHTML = ''; }, 3500);
@@ -392,19 +392,19 @@
     }
 
     container.innerHTML = profilesState.profiles.map((profile) => `
-      <div class="card mb-2 ${profilesState.selectedProfileId === profile.profile_id ? 'active-profile-card' : ''}" style="box-shadow:none; cursor:pointer; border-color:${profilesState.selectedProfileId === profile.profile_id ? 'var(--apple-blue)' : 'var(--border-color)'};" onclick="selectProfile('${profile.profile_id}')">
+      <div class="card mb-2 ${profilesState.selectedProfileId === profile.profile_id ? 'active-profile-card' : ''}" style="box-shadow:none; cursor:pointer; border-color:${profilesState.selectedProfileId === profile.profile_id ? 'var(--apple-blue)' : 'var(--border-color)'};" onclick="selectProfile(${dashboardJsArgument(profile.profile_id)})">
         <div class="card-body" style="padding:16px;">
           <div class="flex justify-between items-center">
             <div>
-              <div style="font-weight:600;">${profile.doctor_name}</div>
-              <div class="text-secondary" style="font-size:13px;">${profile.specialty || 'Especialidade não informada'}</div>
+              <div style="font-weight:600;">${dashboardEscape(profile.doctor_name)}</div>
+              <div class="text-secondary" style="font-size:13px;">${dashboardEscape(profile.specialty || 'Especialidade não informada')}</div>
             </div>
-            <button class="btn btn-sm ${profile.is_favorite ? 'btn-primary' : 'btn-secondary'}" onclick="event.stopPropagation(); toggleFavoriteById('${profile.profile_id}')">
+            <button class="btn btn-sm ${profile.is_favorite ? 'btn-primary' : 'btn-secondary'}" onclick="event.stopPropagation(); toggleFavoriteById(${dashboardJsArgument(profile.profile_id)})">
               <i class="fas fa-star"></i>
             </button>
           </div>
           <div style="margin-top: 12px;" class="text-secondary">
-            ${profile.total_scrapes} rastreios • ${profile.current_unanswered} sem resposta • ${Number(profile.average_rating || 0).toFixed(1)} ★
+            ${dashboardEscape(profile.total_scrapes)} rastreios • ${dashboardEscape(profile.current_unanswered)} sem resposta • ${Number(profile.average_rating || 0).toFixed(1)} ★
           </div>
         </div>
       </div>
@@ -482,14 +482,14 @@
     container.innerHTML = reviews.map((review) => `
       <div style="padding: 14px 0; border-bottom: 1px solid var(--border-color);">
         <div class="flex justify-between items-center">
-          <div style="font-weight:600;">${review.author}</div>
+              <div style="font-weight:600;">${dashboardEscape(review.author)}</div>
           <div style="font-size:13px; color:${review.pending_response ? 'var(--apple-red)' : 'var(--apple-green)'};">
             ${review.pending_response ? 'Sem resposta' : 'Respondido'}
           </div>
         </div>
-        <div class="text-secondary" style="font-size:13px; margin:6px 0 10px;">${review.date ? new Date(review.date).toLocaleDateString('pt-BR') : '-'} • ${review.rating || '-'} ★</div>
-        <div style="font-size:14px; margin-bottom:8px;">${review.comment}</div>
-        ${review.generated_response ? `<div style="padding:12px; background: var(--bg-secondary); border-radius: var(--radius-md); font-size:13px;"><strong>Sugestão salva:</strong><br>${review.generated_response}</div>` : ''}
+        <div class="text-secondary" style="font-size:13px; margin:6px 0 10px;">${dashboardReviewDate(review.date)} • ${dashboardEscape(review.rating || '-')} ★</div>
+          <div style="font-size:14px; margin-bottom:8px;">${dashboardEscape(review.comment)}</div>
+          ${review.generated_response ? `<div style="padding:12px; background: var(--bg-secondary); border-radius: var(--radius-md); font-size:13px;"><strong>Sugestão salva:</strong><br>${dashboardEscape(review.generated_response)}</div>` : ''}
       </div>
     `).join('');
   }
@@ -505,8 +505,8 @@
 
       const profile = detail.profile || {};
       document.getElementById('profiles-detail-header').innerHTML = `
-        <div style="font-weight:700; font-size:20px;">${profile.doctor_name}</div>
-        <div class="text-secondary" style="margin-top:6px;">${profile.specialty || 'Especialidade não informada'} • ${profile.location || 'Local não informado'} • último rastreio em ${profile.last_scraped_at ? new Date(profile.last_scraped_at).toLocaleString('pt-BR') : '-'}</div>
+          <div style="font-weight:700; font-size:20px;">${dashboardEscape(profile.doctor_name)}</div>
+          <div class="text-secondary" style="margin-top:6px;">${dashboardEscape(profile.specialty || 'Especialidade não informada')} • ${dashboardEscape(profile.location || 'Local não informado')} • último rastreio em ${profile.last_scraped_at ? new Date(profile.last_scraped_at).toLocaleString('pt-BR') : '-'}</div>
       `;
       document.getElementById('profile-detail-scrapes').textContent = profile.total_scrapes ?? 0;
       document.getElementById('profile-detail-rating').textContent = profile.average_rating ? `${Number(profile.average_rating).toFixed(1)} ★` : '-';

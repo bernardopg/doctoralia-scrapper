@@ -301,20 +301,20 @@
     const cls  = status === 'healthy' ? 'status-healthy' : (status === 'degraded' ? 'status-degraded' : 'status-unhealthy');
     const txt  = status === 'healthy' ? 'OK' : (status === 'degraded' ? 'Degradado' : 'Erro');
     const detailsHtml = details && details.path
-      ? `<div style="font-size:11px; color:var(--text-tertiary); margin-top:4px; font-family:var(--font-mono); word-break:break-all;">${details.path}</div>`
+      ? `<div style="font-size:11px; color:var(--text-tertiary); margin-top:4px; font-family:var(--font-mono); word-break:break-all;">${dashboardEscape(details.path)}</div>`
       : '';
 
     return `
       <div class="component-item">
         <div class="component-name">
-          <i class="fas ${icon}"></i>
+          <i class="fas ${dashboardEscape(icon)}"></i>
           <div>
-            <div>${label}</div>
+            <div>${dashboardEscape(label)}</div>
             ${detailsHtml}
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
-          ${detail ? `<span style="font-size: 12px;" class="text-secondary">${detail}</span>` : ''}
+          ${detail ? `<span style="font-size: 12px;" class="text-secondary">${dashboardEscape(detail)}</span>` : ''}
           <span class="component-status ${cls}">${txt}</span>
         </div>
       </div>`;
@@ -347,31 +347,31 @@
           </div>
           <div class="metric-item">
             <div class="metric-label">Requisições</div>
-            <div class="metric-value">${req.total ?? '-'}</div>
+            <div class="metric-value">${dashboardEscape(req.total ?? '-')}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">Em andamento</div>
-            <div class="metric-value">${req.in_progress ?? '-'}</div>
+            <div class="metric-value">${dashboardEscape(req.in_progress ?? '-')}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">Falhas</div>
-            <div class="metric-value" style="${(req.failed || 0) > 0 ? 'color:var(--apple-red)' : ''}">${req.failed ?? 0}</div>
+            <div class="metric-value" style="${(req.failed || 0) > 0 ? 'color:var(--apple-red)' : ''}">${dashboardEscape(req.failed ?? 0)}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">P50 latência</div>
-            <div class="metric-value">${req.p50_ms != null ? req.p50_ms + 'ms' : '-'}</div>
+            <div class="metric-value">${dashboardEscape(req.p50_ms != null ? req.p50_ms + 'ms' : '-')}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">P95 latência</div>
-            <div class="metric-value">${req.p95_ms != null ? req.p95_ms + 'ms' : '-'}</div>
+            <div class="metric-value">${dashboardEscape(req.p95_ms != null ? req.p95_ms + 'ms' : '-')}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">Scrapes totais</div>
-            <div class="metric-value">${scr.scrapes_total ?? '-'}</div>
+            <div class="metric-value">${dashboardEscape(scr.scrapes_total ?? '-')}</div>
           </div>
           <div class="metric-item">
             <div class="metric-label">Análises</div>
-            <div class="metric-value">${scr.analysis_total ?? '-'}</div>
+            <div class="metric-value">${dashboardEscape(scr.analysis_total ?? '-')}</div>
           </div>
         </div>`;
     } catch (e) {

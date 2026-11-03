@@ -227,7 +227,7 @@
     container.innerHTML = `
       <div class="alert alert-${type}">
         <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <div>${message}</div>
+        <div>${dashboardEscape(message)}</div>
       </div>
     `;
     setTimeout(() => { container.innerHTML = ''; }, 4000);
@@ -237,7 +237,7 @@
     const select = document.getElementById('overview-profile-filter');
     const current = overviewState.profileId;
     select.innerHTML = '<option value="">Todos os perfis</option>' + filters.map((item) => `
-      <option value="${item.profile_id}">${item.doctor_name}</option>
+      <option value="${dashboardEscape(item.profile_id)}">${dashboardEscape(item.doctor_name)}</option>
     `).join('');
     select.value = current;
   }
@@ -254,8 +254,8 @@
         <div class="card-body" style="padding:16px;">
           <div class="flex justify-between items-center">
             <div>
-              <div style="font-weight:600;">${item.doctor_name}</div>
-              <div class="text-secondary" style="font-size:13px;">${item.reviews_count} reviews atuais • ${item.unanswered_count} pendentes</div>
+              <div style="font-weight:600;">${dashboardEscape(item.doctor_name)}</div>
+              <div class="text-secondary" style="font-size:13px;">${dashboardEscape(item.reviews_count)} reviews atuais • ${dashboardEscape(item.unanswered_count)} pendentes</div>
             </div>
             <div class="text-right">
               <div style="font-weight:700; color: var(--apple-orange);">${Number(item.average_rating || 0).toFixed(1)} ★</div>
@@ -278,8 +278,8 @@
       <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
         <div class="flex justify-between items-center">
           <div>
-            <div style="font-weight:600;">${item.doctor_name}</div>
-            <div class="text-secondary" style="font-size:13px;">${item.reviews_count} reviews • ${item.unanswered_count} sem resposta</div>
+            <div style="font-weight:600;">${dashboardEscape(item.doctor_name)}</div>
+            <div class="text-secondary" style="font-size:13px;">${dashboardEscape(item.reviews_count)} reviews • ${dashboardEscape(item.unanswered_count)} sem resposta</div>
           </div>
           <div class="text-right">
             <div style="font-weight:700;">${Number(item.average_rating || 0).toFixed(1)} ★</div>
@@ -378,8 +378,8 @@
       <div style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
         <div class="flex justify-between items-center">
           <div>
-            <div style="font-weight:600; text-transform:capitalize;">${name}</div>
-            <div class="text-secondary" style="font-size:13px;">${component.error || 'Operacional'}</div>
+            <div style="font-weight:600; text-transform:capitalize;">${dashboardEscape(name)}</div>
+            <div class="text-secondary" style="font-size:13px;">${dashboardEscape(component.error || 'Operacional')}</div>
           </div>
           <div style="font-size:13px; font-weight:600; color:${component.status ? 'var(--apple-green)' : 'var(--apple-red)'};">
             ${component.status ? 'OK' : 'Falha'}
@@ -400,7 +400,7 @@
       actions.push('Nenhum perfil favorito foi salvo ainda. Use <a href="/me">Minha Área</a> para montar uma shortlist operacional.');
     }
     if ((favorites || []).length > 0) {
-      actions.push(`Seu favorito mais crítico agora é <strong>${favorites[0].doctor_name}</strong>, com ${favorites[0].unanswered_count} comentários pendentes.`);
+      actions.push(`Seu favorito mais crítico agora é <strong>${dashboardEscape(favorites[0].doctor_name)}</strong>, com ${dashboardEscape(favorites[0].unanswered_count)} comentários pendentes.`);
     }
     if (!actions.length) {
       actions.push('Sem gargalos imediatos. Você pode revisar a página <a href="/profiles">Perfis</a> para acompanhar tendências e estabilidade.');

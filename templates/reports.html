@@ -268,7 +268,7 @@
     container.innerHTML = `
       <div class="alert alert-${type}">
         <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-        <div>${message}</div>
+        <div>${dashboardEscape(message)}</div>
       </div>
     `;
     setTimeout(() => { container.innerHTML = ''; }, 4000);
@@ -285,7 +285,7 @@
     const select = document.getElementById('reports-profile-filter');
     const current = select.value;
     select.innerHTML = '<option value="">Todos os perfis</option>' + reportsState.filters.map((item) => `
-      <option value="${item.profile_id}">${item.doctor_name}</option>
+      <option value="${dashboardEscape(item.profile_id)}">${dashboardEscape(item.doctor_name)}</option>
     `).join('');
     select.value = current;
   }
@@ -400,12 +400,12 @@
     container.innerHTML = profiles.map((profile) => `
       <div class="report-line-item">
         <div>
-          <div class="report-line-title">${profile.doctor_name}</div>
-          <div class="text-secondary">${profile.total_scrapes} rastreios • ${profile.current_unanswered} pendentes • ${Number(profile.average_rating || 0).toFixed(1)} ★</div>
+          <div class="report-line-title">${dashboardEscape(profile.doctor_name)}</div>
+          <div class="text-secondary">${dashboardEscape(profile.total_scrapes)} rastreios • ${dashboardEscape(profile.current_unanswered)} pendentes • ${Number(profile.average_rating || 0).toFixed(1)} ★</div>
         </div>
         <div class="flex gap-1">
           <a href="/profiles" class="btn btn-secondary btn-sm"><i class="fas fa-chart-line"></i></a>
-          <button class="btn btn-secondary btn-sm" onclick="showScrapeModal('${profile.profile_url}')"><i class="fas fa-play"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="showScrapeModal(${dashboardJsArgument(profile.profile_url)})"><i class="fas fa-play"></i></button>
         </div>
       </div>
     `).join('');
@@ -421,8 +421,8 @@
     container.innerHTML = candidates.map((item) => `
       <div class="report-line-item">
         <div>
-          <div class="report-line-title">${item.doctor_name}</div>
-          <div class="text-secondary">${item.outdated_snapshots} antigos de ${item.total_snapshots} snapshots</div>
+          <div class="report-line-title">${dashboardEscape(item.doctor_name)}</div>
+          <div class="text-secondary">${dashboardEscape(item.outdated_snapshots)} antigos de ${dashboardEscape(item.total_snapshots)} snapshots</div>
         </div>
         <a href="/history" class="btn btn-secondary btn-sm">
           <i class="fas fa-broom"></i>
@@ -446,18 +446,18 @@
 
     tbody.innerHTML = filteredItems.map((item) => `
       <tr>
-        <td><strong>${item.doctor_name}</strong></td>
+        <td><strong>${dashboardEscape(item.doctor_name)}</strong></td>
         <td>${formatDateTime(item.extracted_at)}</td>
         <td>
-          <span class="report-status-pill ${item.status}">
+          <span class="report-status-pill ${dashboardEscape(item.status)}">
             <i class="fas fa-${item.is_latest ? 'star' : 'clock-rotate-left'}"></i>
             ${item.is_latest ? 'Latest' : 'Antigo'}
           </span>
         </td>
-        <td>${item.reviews_count}</td>
-        <td>${item.unanswered_count}</td>
-        <td>${item.file_size_human}</td>
-        <td><span style="font-family: var(--font-mono); font-size: 12px;">${item.filename}</span></td>
+        <td>${dashboardEscape(item.reviews_count)}</td>
+        <td>${dashboardEscape(item.unanswered_count)}</td>
+        <td>${dashboardEscape(item.file_size_human)}</td>
+        <td><span style="font-family: var(--font-mono); font-size: 12px;">${dashboardEscape(item.filename)}</span></td>
       </tr>
     `).join('');
   }
