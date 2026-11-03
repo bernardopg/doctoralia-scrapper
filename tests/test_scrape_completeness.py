@@ -8,6 +8,7 @@ from src.services.scrape_completeness import (
     collection_info,
     result_status,
 )
+from src.services.workspace_service import WorkspaceService
 
 
 @pytest.mark.parametrize(
@@ -65,3 +66,23 @@ def test_finished_partial_job_is_not_mapped_to_completed():
         is_failed=False,
     )
     assert _map_job_status(job) == "partial"
+
+
+def test_missing_reviews_section_has_no_advertised_count():
+    assert advertised_review_count("<main><p>164 opiniões</p></main>") is None
+
+
+def test_complete_snapshot_replaces_partial_even_when_older():
+    from datetime import datetime
+
+    partial = {
+        "profile_id": "a",
+        "extracted_ts": datetime(2026, 2, 1),
+        "collection": {"status": "partial"},
+    }
+    complete = {
+        "profile_id": "a",
+        "extracted_ts": datetime(2026, 1, 1),
+        "collection": {"status": "complete"},
+    }
+    assert WorkspaceService._latest_by_profile([partial, complete])["a"] == complete
