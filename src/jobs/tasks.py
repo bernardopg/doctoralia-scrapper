@@ -15,9 +15,7 @@ from urllib3.util.retry import Retry
 # Apply nltk security patch (CVE-2024-53889) before any nltk imports
 from src.api.v1.deps import create_webhook_signature
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
-from src.services.review_reconciliation import (
-    carry_forward_drafts as _carry_forward_drafts,
-)
+from src.services.review_reconciliation import carry_forward_historical_drafts
 from src.services.scrape_completeness import result_status
 from src.services.snapshot_storage import snapshot_lock
 
@@ -294,7 +292,10 @@ def scrape_and_process(
             )
 
         _update_job_meta(progress=80, message="Persistindo snapshot do scraping")
-        from src.services.workspace_service import WorkspaceService
+        from src.services.workspace_service import (
+            WorkspaceService,
+            _comparable_datetime,
+        )
 
         workspace = WorkspaceService(config.data_dir, logger)
         profile_id = workspace.make_profile_id(
@@ -306,7 +307,35 @@ def scrape_and_process(
             )
             previous = workspace._latest_by_profile(previous_snapshots).get(profile_id)
             if previous:
-                reviews_data = _carry_forward_drafts(reviews_data, previous["reviews"])
+                previous_ts = previous.get("extracted_ts")
+                historical = [
+                    item
+                    for item in previous_snapshots
+                    if item is not previous
+                    and previous_ts is not None
+                    and item.get("extracted_ts") is not None
+                    and _comparable_datetime(item["extracted_ts"])
+                    != _comparable_datetime(previous_ts)
+                ]
+                # Unknown or equal timestamps make the historical ordering
+                # ambiguous, so do not resurrect any older draft.
+                if any(
+                    item is not previous and item not in historical
+                    for item in previous_snapshots
+                ) or len(
+                    {_comparable_datetime(item["extracted_ts"]) for item in historical}
+                ) != len(
+                    historical
+                ):
+                    historical = []
+                historical.sort(
+                    key=lambda item: _comparable_datetime(item["extracted_ts"]),
+                    reverse=True,
+                )
+                history = [previous["reviews"]] + [
+                    item["reviews"] for item in historical
+                ]
+                reviews_data = carry_forward_historical_drafts(reviews_data, history)
             snapshot_payload = _build_snapshot_payload(
                 scraper_result=scraper_result,
                 doctor_data=doctor_data,
