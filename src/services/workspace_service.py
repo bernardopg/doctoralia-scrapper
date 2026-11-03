@@ -121,6 +121,7 @@ class WorkspaceService:
                 "extracted_at": extracted_at,
                 "extracted_date": extracted_at[:10] if extracted_at else None,
                 "extracted_ts": _safe_datetime(extracted_at),
+                "collection": data.get("collection"),
                 "average_rating": float(average_rating or 0.0),
                 "reviews_count": data.get("total_reviews", 0) or len(reviews),
                 "unanswered_count": unanswered_count,
@@ -172,6 +173,20 @@ class WorkspaceService:
         for snapshot in snapshots:
             profile_id = snapshot["profile_id"]
             current = latest.get(profile_id)
+            snapshot_info = snapshot.get("collection")
+            snapshot_incomplete = (
+                isinstance(snapshot_info, dict)
+                and snapshot_info.get("status") != "complete"
+            )
+            current_info = current.get("collection") if current is not None else None
+            current_incomplete = (
+                isinstance(current_info, dict)
+                and current_info.get("status") != "complete"
+            )
+            if current is not None and snapshot_incomplete != current_incomplete:
+                if not snapshot_incomplete:
+                    latest[profile_id] = snapshot
+                continue
             current_ts = current["extracted_ts"] if current is not None else None
             snapshot_ts = snapshot["extracted_ts"]
             if current is None or (
@@ -341,7 +356,13 @@ class WorkspaceService:
             reverse=True,
         ):
             is_latest = self._is_snapshot_latest(snapshot, latest_by_profile)
-            snapshot_status = "latest" if is_latest else "outdated"
+            collection = snapshot.get("collection")
+            incomplete = (
+                isinstance(collection, dict) and collection.get("status") != "complete"
+            )
+            snapshot_status = (
+                "partial" if incomplete else ("latest" if is_latest else "outdated")
+            )
             if (
                 normalized_status not in {"", "all"}
                 and snapshot_status != normalized_status
@@ -362,6 +383,7 @@ class WorkspaceService:
                 "file_size": snapshot["file_size"],
                 "file_size_human": self._format_file_size(snapshot["file_size"]),
                 "status": snapshot_status,
+                "collection": collection,
                 "is_latest": is_latest,
             }
             if query and query not in json.dumps(entry, ensure_ascii=False).lower():
@@ -369,7 +391,9 @@ class WorkspaceService:
             entries.append(entry)
 
         total_storage = sum(entry["file_size"] for entry in entries)
-        outdated_snapshots = sum(1 for entry in entries if not entry["is_latest"])
+        outdated_snapshots = sum(
+            1 for entry in entries if entry["status"] == "outdated"
+        )
         latest_snapshots = sum(1 for entry in entries if entry["is_latest"])
 
         return {
@@ -631,6 +655,10 @@ class WorkspaceService:
                 1
                 for snapshot in profile_snapshots
                 if not self._is_snapshot_latest(snapshot, latest_profiles)
+                and not (
+                    isinstance(snapshot.get("collection"), dict)
+                    and snapshot["collection"].get("status") != "complete"
+                )
             )
             if outdated <= 0:
                 continue

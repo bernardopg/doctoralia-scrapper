@@ -179,6 +179,7 @@ def make_unified_result(
     status: str = "completed",
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
+    collection: Optional[Dict[str, Any]] = None,
 ) -> UnifiedResult:
     """
     Create a unified result from various data sources.
@@ -208,6 +209,7 @@ def make_unified_result(
         analysis=analysis,
         generation=generation,
         metrics=metrics,
+        collection=collection,
         job_id=job_id,
         status=status,
     )

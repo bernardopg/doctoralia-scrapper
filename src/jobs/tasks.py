@@ -18,6 +18,7 @@ from src.integrations.n8n.normalize import extract_scraper_result, make_unified_
 from src.services.review_reconciliation import (
     carry_forward_drafts as _carry_forward_drafts,
 )
+from src.services.scrape_completeness import result_status
 from src.services.snapshot_storage import snapshot_lock
 
 logger = logging.getLogger(__name__)
@@ -323,7 +324,8 @@ def scrape_and_process(
             analysis_data=analysis_data,
             generation_data=generation_data,
             job_id=job_id,
-            status="completed",
+            status=result_status(scraper_result.get("collection")),
+            collection=scraper_result.get("collection"),
             start_time=start_time,
             end_time=datetime.now(),
         )

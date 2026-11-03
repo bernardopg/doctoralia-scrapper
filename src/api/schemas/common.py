@@ -115,11 +115,14 @@ class UnifiedResult(BaseModel):
         None, description="Generated responses"
     )
     metrics: Metrics = Field(..., description="Performance metrics")
+    collection: Optional[Dict[str, Any]] = Field(
+        None, description="Collection completeness and pagination stop reason"
+    )
     job_id: Optional[str] = Field(None, description="Async job ID")
     status: str = Field(
         ...,
         description="Operation status",
-        pattern="^(completed|failed|running|pending)$",
+        pattern="^(completed|partial|failed|running|pending)$",
     )
 
 

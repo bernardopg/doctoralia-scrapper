@@ -798,6 +798,12 @@ class TelegramScheduleService:
                     "Scraper returned no data for scheduled notification"
                 )
             snapshot_path = scraper.save_data(snapshot_payload)
+            collection = snapshot_payload.get("collection")
+            if isinstance(collection, dict) and collection.get("status") != "complete":
+                raise RuntimeError(
+                    "Coleta parcial ou não verificada; relatório Telegram não enviado "
+                    f"(parada: {collection.get('stop_reason', 'desconhecida')})"
+                )
             return snapshot_payload, snapshot_path
         return self._load_latest_snapshot(runtime_config.data_dir, profile_url)
 
@@ -816,6 +822,12 @@ class TelegramScheduleService:
             try:
                 with open(json_file, "r", encoding="utf-8") as handle:
                     payload = json.load(handle)
+                collection = payload.get("collection")
+                if (
+                    isinstance(collection, dict)
+                    and collection.get("status") != "complete"
+                ):
+                    continue
                 candidate_url = _coerce_optional_str(
                     payload.get("url")
                 ) or _coerce_optional_str(payload.get("profile_url"))

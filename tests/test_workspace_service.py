@@ -8,6 +8,39 @@ def _write_snapshot(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
 
 
+def test_partial_snapshot_does_not_replace_or_prune_complete_snapshot(tmp_path):
+    url = "https://www.doctoralia.com.br/perfil/exemplo"
+    common = {"doctor_name": "Dra Ana", "url": url}
+    complete = {
+        **common,
+        "extraction_timestamp": "2026-01-01T10:00:00",
+        "reviews": [
+            {"id": "doctoralia:1", "comment": "Bom", "generated_response": "Obrigada"}
+        ],
+        "collection": {"status": "complete"},
+    }
+    partial = {
+        **common,
+        "extraction_timestamp": "2026-01-02T10:00:00",
+        "reviews": [],
+        "collection": {"status": "partial"},
+    }
+    _write_snapshot(tmp_path / "complete.json", complete)
+    _write_snapshot(tmp_path / "partial.json", partial)
+    service = WorkspaceService(tmp_path)
+    profile = service.make_profile_id(url, "Dra Ana")
+    selected = service._latest_by_profile(service._load_snapshots())[profile]
+    assert selected["filename"] == "complete.json"
+    assert selected["reviews"][0]["generated_response"] == "Obrigada"
+    history = service.get_history()
+    assert (
+        next(x for x in history["entries"] if x["filename"] == "partial.json")["status"]
+        == "partial"
+    )
+    service.prune_outdated_snapshots()
+    assert (tmp_path / "partial.json").exists()
+
+
 def test_workspace_overview_aggregates_profiles_and_pending(tmp_path):
     _write_snapshot(
         tmp_path / "profile_a_1.json",

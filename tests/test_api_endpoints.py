@@ -232,6 +232,40 @@ class TestScrapeEndpoints:
         assert data["status"] == "completed"
         assert data["doctor"]["name"] == "Dr. Teste"
 
+    def test_scrape_run_reports_incomplete_collection(
+        self, client, mock_env, api_key, tmp_path
+    ):
+        config = _make_full_config(tmp_path)
+        scraper = MagicMock()
+        collection = {
+            "status": "partial",
+            "expected_count": 10,
+            "extracted_count": 0,
+            "stop_reason": "load_timeout",
+        }
+        scraper.scrape_reviews.return_value = {
+            "doctor_name": "Dra. Teste",
+            "url": "https://www.doctoralia.com.br/medico/teste",
+            "reviews": [],
+            "collection": collection,
+        }
+        with (
+            patch("src.config.settings.AppConfig.load", return_value=config),
+            patch("src.scraper.DoctoraliaScraper", return_value=scraper),
+        ):
+            response = client.post(
+                "/v1/scrape:run",
+                json={
+                    "doctor_url": "https://www.doctoralia.com.br/medico/teste",
+                    "include_analysis": False,
+                    "include_generation": False,
+                },
+                headers={"X-API-Key": api_key},
+            )
+        assert response.status_code == 200
+        assert response.json()["status"] == "partial"
+        assert response.json()["collection"] == collection
+
     def test_scrape_run_scraper_error_returns_failed(
         self, client, mock_env, api_key, tmp_path
     ):
