@@ -26,6 +26,9 @@ def carry_forward_drafts(
         review_id = str(review.get("id") or "")
         review_key = key(review)
         old = None
+        if review_id.startswith("ambiguous:"):
+            result.append(copy)
+            continue
         if (
             review_id.startswith("doctoralia:")
             and old_ids[review_id] == new_ids[review_id] == 1
@@ -35,8 +38,11 @@ def carry_forward_drafts(
             candidate = old_by_key[review_key]
             candidate_id = str(candidate.get("id") or "")
             if not (
-                review_id.startswith("doctoralia:")
-                and candidate_id.startswith("doctoralia:")
+                candidate_id.startswith("ambiguous:")
+                or (
+                    review_id.startswith("doctoralia:")
+                    and candidate_id.startswith("doctoralia:")
+                )
             ):
                 old = candidate
         if old and old.get("generated_response") and not copy.get("generated_response"):

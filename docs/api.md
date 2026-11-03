@@ -145,6 +145,8 @@ Retorna `UnifiedResult` (ver estrutura em "Convenções de Resposta")
 
 O campo `status` do resultado diferencia `completed`, `partial` e `failed`. Em uma coleta `partial`, `collection` informa o total anunciado (`expected_count`, que pode ser `null`), o total extraído, o motivo de parada e a duração em milissegundos. `collection.status` é `unknown` quando não foi possível verificar o total. Resultados legados podem não conter esses metadados.
 
+O ID da avaliação usa `doctoralia:` quando existe ID da origem. Na ausência dele, `fingerprint:` identifica a combinação de autor, comentário e data; alterações nesses dados podem mudar o ID. Dados insuficientes ou IDs repetidos recebem um identificador temporário `ambiguous:` e `metadata.identity_status` igual a `ambiguous`. Não associe automaticamente rascunhos entre coletas nesses casos. Resultados antigos podem usar IDs posicionais.
+
 #### Exemplo com cURL
 
 ```bash
