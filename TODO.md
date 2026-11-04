@@ -18,7 +18,7 @@ Executar nesta ordem. Preservar snapshots, configurações e volumes existentes 
 ### P1 — Persistência e fluxo operacional
 
 - [ ] Modelar perfis, avaliações, rascunhos e execuções no PostgreSQL com restrições, índices e migrações versionadas. O schema inicial versionado foi criado e validado no PostgreSQL; faltam integrar os serviços e concluir a gestão de conflitos de identidade.
-- [ ] Importar snapshots JSON existentes de forma reproduzível e verificável, preservando backup, lidando com duplicatas e registrando conflitos de identidade.
+- [ ] Importar snapshots JSON existentes de forma reproduzível e verificável, preservando backup, lidando com duplicatas e registrando conflitos de identidade. Staging preserva bytes e cópias por checksum, registra indicadores de ambiguidade e evita duplicatas por workspace; faltam normalização, reconciliação de conflitos e validação das contagens migradas.
 - [ ] Integrar frontend e API ao banco com consultas, filtros e paginação no servidor; manter histórico de coletas e estado das respostas independentes de snapshots.
 - [ ] Unificar os caminhos síncrono e assíncrono de coleta, persistência e erros; evitar Selenium bloqueando o event loop e validar a visibilidade do resultado no dashboard.
 - [ ] Corrigir o significado dos filtros de data: distinguir data da avaliação e data da coleta na API e na interface.

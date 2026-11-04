@@ -67,6 +67,24 @@ Checklist quando um agendamento não dispara:
 
 ## Backups e retenção
 
+### Preparar snapshots para migração
+
+Após atualizar o esquema com `python -m src.db.init_db init`, inspecione os JSONs sem gravar no banco:
+
+```bash
+python -m src.db.snapshot_import --data-dir ./data
+```
+
+O relatório contém nomes de arquivo, checksums e contagens de IDs legados, ambíguos ou duplicados; arquivos inválidos são listados em `rejected`. Para preservar os arquivos válidos na área de staging do workspace selecionado, configure `DATABASE_URL` e execute:
+
+```bash
+python -m src.db.snapshot_import --data-dir ./data --workspace-id ID_DO_WORKSPACE --backup-dir ./backup-snapshots --apply
+```
+
+O comando cria cópias nomeadas pelo SHA-256 sem sobrescrever arquivos existentes, verifica o checksum e grava os bytes originais em `snapshot_imports`. Uma nova execução não duplica conteúdo no mesmo workspace. As cópias e o banco contêm dados de avaliações: mantenha-os protegidos e inclua-os na política de backup. Arquivos rejeitados não são copiados para staging. Esta etapa **não** normaliza avaliações, não resolve conflitos e não muda a fonte de dados do dashboard.
+
+Se houver arquivos rejeitados, o comando retorna código 2 e apresenta os motivos no relatório; com `--apply`, os arquivos válidos já terão sido preservados. A gravação dos válidos é transacional: erro de banco ou conteúdo divergente reverte toda a inserção daquela execução.
+
 | Item | Frequência sugerida | Observação |
 |---|---|---|
 | `data/` | diária | mantém snapshots e anexos |
