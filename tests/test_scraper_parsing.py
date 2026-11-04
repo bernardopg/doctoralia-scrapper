@@ -62,6 +62,56 @@ def test_review_ids_follow_doctoralia_ids_when_order_changes():
     ]
 
 
+def test_fallback_review_ids_do_not_change_when_reviews_are_reordered():
+    scraper = _build_scraper()
+    first = HTML
+    second = HTML.replace("Maria Silva", "Outra pessoa").replace(
+        "Atendimento excelente e muito atenciosa.", "Excelente atendimento."
+    )
+    driver = SimpleNamespace(
+        page_source=first + second, current_url="https://www.doctoralia.com.br/test"
+    )
+    scraper.driver = driver
+    ids = [item["id"] for item in scraper._extract_all_reviews(force_refresh=True)]
+    assert all(item.startswith("fingerprint:") for item in ids)
+    assert len(set(ids)) == 2
+    driver.page_source = second + first
+    assert [
+        item["id"] for item in scraper._extract_all_reviews(force_refresh=True)
+    ] == ids[::-1]
+
+
+def test_colliding_source_or_fingerprint_ids_are_ephemeral_and_unique():
+    scraper = _build_scraper()
+    driver = SimpleNamespace(
+        page_source=HTML + HTML, current_url="https://www.doctoralia.com.br/test"
+    )
+    scraper.driver = driver
+    first = scraper._extract_all_reviews(force_refresh=True)
+    second = scraper._extract_all_reviews(force_refresh=True)
+    assert all(item["identity_status"] == "ambiguous" for item in first)
+    assert len({item["id"] for item in first}) == 2
+    assert {item["id"] for item in first}.isdisjoint(item["id"] for item in second)
+    driver.page_source = (HTML + HTML).replace(
+        "data-test-id='opinion-block'", "data-test-id='opinion-block' data-id='123'"
+    )
+    assert all(
+        item["identity_status"] == "ambiguous"
+        for item in scraper._extract_all_reviews(force_refresh=True)
+    )
+
+
+def test_missing_author_without_source_id_is_ambiguous():
+    scraper = _build_scraper()
+    scraper.driver = SimpleNamespace(
+        page_source=HTML.replace("<h4><span>Maria Silva</span></h4>", ""),
+        current_url="https://www.doctoralia.com.br/test",
+    )
+    review = scraper._extract_all_reviews(force_refresh=True)[0]
+    assert review["identity_status"] == "ambiguous"
+    assert review["id"].startswith("ambiguous:")
+
+
 def _build_scraper():
     config = MockConfig()
     logger = MagicMock()

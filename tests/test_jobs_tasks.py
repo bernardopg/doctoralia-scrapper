@@ -76,6 +76,21 @@ def test_carry_forward_drafts_does_not_join_distinct_source_ids():
     assert "generated_response" not in _carry_forward_drafts(new, old)[0]
 
 
+def test_drafts_are_not_transferred_to_or_from_ambiguous_identity():
+    old = {
+        "id": "doctoralia:1",
+        "author": "Ana",
+        "comment": "Bom",
+        "generated_response": "Rascunho",
+    }
+    ambiguous = {"id": "ambiguous:1", "author": "Ana", "comment": "Bom"}
+    assert not _carry_forward_drafts([ambiguous], [old])[0].get("generated_response")
+    assert not _carry_forward_drafts(
+        [old | {"generated_response": ""}],
+        [ambiguous | {"generated_response": "Rascunho"}],
+    )[0].get("generated_response")
+
+
 def test_recovers_source_draft_from_older_snapshot_when_absent_in_latest():
     new = [{"id": "doctoralia:1", "author": "Ana", "comment": "Bom"}]
     older = [{**new[0], "generated_response": "Editado"}]

@@ -138,6 +138,8 @@ O resultado informa `collection.status` como `complete`, `partial` ou `unknown`,
 
 Os snapshots e rascunhos ainda são armazenados em arquivos JSON em `data/`; o PostgreSQL mantém o schema inicial de usuários e workspaces. As gravações atuais usam arquivos temporários e bloqueio compartilhado para reduzir colisões entre processos atualizados. Rascunhos são reaproveitados apenas quando a correspondência entre avaliações é inequívoca. Faça backup de `data/`, Redis e configurações conforme [Operations](docs/operations.md).
 
+As avaliações usam o ID fornecido pela Doctoralia quando disponível. Sem esse ID, autor, comentário e data geram uma identificação determinística; se os dados forem insuficientes ou houver colisão, o ID é temporário e a avaliação fica com `identity_status: ambiguous`. Nesses casos, rascunhos não são transferidos automaticamente. IDs posicionais antigos ainda exigem reconciliação e migração.
+
 ## Redis em `localhost:6379`
 
 Se você abrir `http://localhost:6379` no navegador e receber `ERR_EMPTY_RESPONSE`, isso é esperado.

@@ -29,6 +29,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from src.error_handling import EnhancedErrorHandler
 from src.performance_monitor import PerformanceMonitor
+from src.services.review_identity import assign_review_identities
 from src.services.scrape_completeness import advertised_review_count, collection_info
 from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
@@ -908,7 +909,7 @@ class DoctoraliaScraper:
                     "id": (
                         f"doctoralia:{source_id}"
                         if isinstance(source_id, str) and source_id.isdecimal()
-                        else review_index + 1
+                        else None
                     ),
                     "author": self.extract_author_name(review_element),
                     "comment": comment,
@@ -938,6 +939,7 @@ class DoctoraliaScraper:
                 continue
 
         # Atualizar cache
+        reviews_data = assign_review_identities(reviews_data)
         self._cache[cache_key] = reviews_data
         self._last_url = current_url
 
