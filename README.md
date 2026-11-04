@@ -140,6 +140,8 @@ Os snapshots e rascunhos ainda são armazenados em arquivos JSON em `data/`; o P
 
 O `db-init` também aplica migrações versionadas ao PostgreSQL para preparar perfis, avaliações, execuções, observações e rascunhos. Essas tabelas ainda não são a fonte de dados do dashboard: a importação dos JSONs e a integração da API permanecem pendentes.
 
+O comando de [preparação de snapshots](docs/operations.md#preparar-snapshots-para-migração) permite inspecionar e preservar cópias verificadas no banco antes da reconciliação; ele não altera os JSONs existentes nem ativa a leitura pelo dashboard.
+
 As avaliações usam o ID fornecido pela Doctoralia quando disponível. Sem esse ID, autor, comentário e data geram uma identificação determinística; se os dados forem insuficientes ou houver colisão, o ID é temporário e a avaliação fica com `identity_status: ambiguous`. Nesses casos, rascunhos não são transferidos automaticamente. IDs posicionais antigos ainda exigem reconciliação e migração.
 
 ## Redis em `localhost:6379`

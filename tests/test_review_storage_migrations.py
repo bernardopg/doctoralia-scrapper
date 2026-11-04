@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from src.db.base import Base
 from src.db.init_db import drop_db, init_db
+from src.db.snapshot_import import Candidate, stage_snapshots
 
 
 @pytest.mark.asyncio
@@ -44,7 +45,7 @@ async def test_upgrade_preserves_existing_workspace_and_is_idempotent(tmp_path):
         ).scalar_one() == "Existing"
         assert (
             await connection.execute(text("SELECT version_num FROM alembic_version"))
-        ).scalar_one() == "0001_review_storage"
+        ).scalar_one() == "0002_snapshot_staging"
     await drop_db(dsn)
     async with engine.connect() as connection:
         tables = await connection.run_sync(lambda conn: inspect(conn).get_table_names())
@@ -120,4 +121,21 @@ async def test_postgres_enforces_review_identity_and_profile_isolation():
                 ),
                 {"id": str(uuid4()), "profile": profile_a},
             )
+    candidate = Candidate(
+        "test.json", "a" * 64, b'{"reviews":[]}', {"ambiguous_ids": 0}
+    )
+    assert await stage_snapshots(engine, workspace, [candidate]) == {
+        "inserted": 1,
+        "duplicates": 0,
+    }
+    assert await stage_snapshots(engine, workspace, [candidate]) == {
+        "inserted": 0,
+        "duplicates": 1,
+    }
+    async with engine.connect() as connection:
+        assert (
+            await connection.execute(
+                text("SELECT original_bytes FROM snapshot_imports")
+            )
+        ).scalar_one() == candidate.content
     await engine.dispose()
