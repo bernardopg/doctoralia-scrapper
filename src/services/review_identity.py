@@ -13,7 +13,7 @@ def assign_review_identities(reviews: List[Dict[str, Any]]) -> List[Dict[str, An
     Colliding candidates get ephemeral IDs so they cannot overwrite one another
     or be mistaken for stable identity on a later collection.
     """
-    candidates = []
+    candidates: List[str | None] = []
     for review in reviews:
         source_id = str(review.get("id") or "")
         author = str(review.get("author") or "").strip()
