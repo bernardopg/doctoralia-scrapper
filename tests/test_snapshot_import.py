@@ -42,6 +42,43 @@ def test_cli_returns_nonzero_when_any_snapshot_is_rejected(
     )
 
 
+@pytest.mark.parametrize(
+    ("data", "reason"),
+    [
+        ({"reviews": "not a list"}, "not a snapshot"),
+        ({"reviews": []}, "missing collection timestamp"),
+        ({"reviews": [], "scraped_at": "2026-01-01"}, "missing profile URL"),
+        (
+            {
+                "reviews": ["not a review"],
+                "scraped_at": "2026-01-01",
+                "url": "https://example.com",
+            },
+            "invalid review entry",
+        ),
+    ],
+)
+def test_invalid_snapshot_structure_is_reported_without_import(tmp_path, data, reason):
+    (tmp_path / "bad.json").write_text(json.dumps(data))
+    candidates, rejected = inspect_snapshots(tmp_path)
+    assert not candidates
+    assert rejected == [{"filename": "bad.json", "reason": reason}]
+
+
+def test_snapshot_directory_must_exist(tmp_path):
+    with pytest.raises(ValueError, match="does not exist"):
+        inspect_snapshots(tmp_path / "missing")
+
+
+@pytest.mark.asyncio
+async def test_apply_rejects_snapshot_directory_as_backup(tmp_path):
+    args = argparse.Namespace(
+        data_dir=str(tmp_path), apply=True, workspace_id="w", backup_dir=str(tmp_path)
+    )
+    with pytest.raises(ValueError, match="Backup directory must differ"):
+        await run(args)
+
+
 @pytest.mark.asyncio
 async def test_upgrade_from_first_revision_preserves_existing_data(tmp_path):
     dsn = f"sqlite+aiosqlite:///{tmp_path / 'old.db'}"
