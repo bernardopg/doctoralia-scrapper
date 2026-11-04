@@ -1,36 +1,61 @@
-# TODO - Doctoralia Scrapper
+# TODO e roadmap — Doctoralia Scrapper
 
-Backlog aberto e priorizado. Funcionalidades já entregues e consideradas maduras foram movidas para [DONE.md](DONE.md).
+Este arquivo acompanha a revisão funcional e o trabalho para o próximo release. Os blocos P0–P3 abaixo são o escopo acordado para a revisão; o backlog adicional permanece ao final e não deve ser confundido com funcionalidades já entregues. Marque uma tarefa apenas depois da implementação **e** da validação indicada. Preserve snapshots, configurações e volumes existentes em todas as migrações.
 
-## Roadmap da revisão funcional — novembro de 2026
+## Estado confirmado — 4 de novembro de 2026
 
-Executar nesta ordem. Preservar snapshots, configurações e volumes existentes durante as migrações; só marcar uma etapa como concluída após validar o caminho correspondente.
+- A última versão publicada é `v2.7.2`. As alterações posteriores estão em `main`, mas ainda não compõem um novo release.
+- A extração foi ajustada para as datas e o cabeçalho atuais da Doctoralia. Uma coleta real anterior do perfil de Bruna Pinto Gomes obteve 164/164 avaliações; isso não comprova coletas futuras nem todos os campos e fluxos.
+- Os snapshots e rascunhos continuam em JSON. Há bloqueio entre processos, gravação atômica e reconciliação conservadora de rascunhos ([#202](https://github.com/bernardopg/doctoralia-scrapper/pull/202), [#205](https://github.com/bernardopg/doctoralia-scrapper/pull/205)); ambiguidades e dados legados ainda exigem tratamento explícito.
+- A coleta usa ID da Doctoralia, fingerprint quando possível e ID temporário para identidades ambíguas ([#201](https://github.com/bernardopg/doctoralia-scrapper/pull/201), [#206](https://github.com/bernardopg/doctoralia-scrapper/pull/206)). O fallback pode mudar quando os dados da avaliação mudam; ele não prova que duas avaliações são a mesma.
+- O dashboard recebeu proteções de renderização. A auditoria completa de entradas, atributos e ações em navegador ainda está aberta.
+- O PostgreSQL possui migrações versionadas para perfis, avaliações, execuções, observações e rascunhos ([#207](https://github.com/bernardopg/doctoralia-scrapper/pull/207)). O staging armazena bytes originais por workspace e checksum, após backup verificado ([#208](https://github.com/bernardopg/doctoralia-scrapper/pull/208)). **Staging não é migração normalizada**: não resolve conflitos e não alimenta a API ou o dashboard.
+- CI, Docker e CodeQL de `main` passaram para o merge `1f8389a`; essa evidência não substitui os testes do próximo commit ou de um release.
 
-### P0 — Integridade e segurança
+## P0 — Integridade e segurança antes da migração
 
-- [x] Corrigir a extração de datas no HTML atual da Doctoralia, mantendo compatibilidade com o formato anterior e cobrindo datas inválidas. (`tests/test_scraper_parsing.py`)
-- [x] Corrigir e validar a extração do nome do profissional no cabeçalho atual da Doctoralia. (Validado no perfil de Bruna Pinto Gomes e em `tests/test_scraper_parsing.py`.)
-- [ ] Impedir execução de HTML/JavaScript oriundo de avaliações, perfis e respostas em todas as telas do dashboard; cobrir texto, atributos e ações. Proteções aplicadas nas telas de respostas, perfis, histórico, relatórios, overview, saúde, configurações e agendamentos; concluir auditoria de todos os fluxos e testes em navegador.
-- [ ] Substituir IDs posicionais por identidade estável de avaliação: a coleta usa `data-id` quando presente, fingerprint determinístico como fallback e IDs temporários para colisões ou dados insuficientes; falta migrar dados legados e oferecer reconciliação explícita de ambiguidades.
-- [ ] Preservar rascunhos e edições ao coletar novamente, sem associá-los a outra avaliação. Os caminhos atuais de coleta, edição e limpeza usam bloqueio entre processos, escrita atômica e nomes únicos; coletas preservam rascunhos do último snapshot quando há ID da origem ou correspondência única de autor e comentário. Rascunhos mais antigos podem ser recuperados por ID estável quando a ordenação e as identidades são inequívocas; faltam reconciliação e tratamento explícito dos casos ambíguos e legados.
-- [ ] Distinguir coletas completas, parciais e falhas; registrar total anunciado e extraído, motivo da parada e duração, sem apresentar ausência ou incompletude como sucesso completo. O scraper registra total e motivo, a API retorna `partial` quando a coleta é incompleta ou indeterminada, o histórico sinaliza snapshots parciais e o Telegram não os envia como relatório completo. Uma coleta real do perfil de Bruna Pinto Gomes extraiu 164/164 avaliações; faltam os fluxos de interface e integração em execução.
+- [ ] **Identidade e conflitos.** Definir e implementar reconciliação explícita de IDs legados, fingerprints alterados, colisões e IDs de origem repetidos; manter os casos incertos separados, sem associar rascunhos automaticamente. Validar reordenação, duplicatas, edição de texto, ausência de autor e restauração de dados históricos.
+- [ ] **Rascunhos.** Preservar edições e exclusões intencionais ao recolher ou importar; recuperar rascunhos históricos somente com correspondência inequívoca. Apresentar e registrar conflitos que precisem de decisão. Testar concorrência, snapshots parciais e ausência/reaparição de avaliações.
+- [ ] **Segurança das telas.** Concluir a auditoria de avaliações, perfis e respostas em texto, atributos, URLs e ações em todas as páginas. Testar entradas hostis em navegador real, incluindo edição, cópia, histórico e relatórios.
+- [ ] **Completude da coleta.** Propagar `complete`, `partial`, `unknown` e falha, totais, motivo e duração em todos os caminhos relevantes da API, dashboard e integrações. Validar que parcial ou desconhecida não seja apresentada nem enviada como relatório completo.
 
-### P1 — Persistência e fluxo operacional
+## P1 — PostgreSQL e operação
 
-- [ ] Modelar perfis, avaliações, rascunhos e execuções no PostgreSQL com restrições, índices e migrações versionadas. O schema inicial versionado foi criado e validado no PostgreSQL; faltam integrar os serviços e concluir a gestão de conflitos de identidade.
-- [ ] Importar snapshots JSON existentes de forma reproduzível e verificável, preservando backup, lidando com duplicatas e registrando conflitos de identidade. Staging preserva bytes e cópias por checksum, registra indicadores de ambiguidade e evita duplicatas por workspace; faltam normalização, reconciliação de conflitos e validação das contagens migradas.
-- [ ] Integrar frontend e API ao banco com consultas, filtros e paginação no servidor; manter histórico de coletas e estado das respostas independentes de snapshots.
-- [ ] Unificar os caminhos síncrono e assíncrono de coleta, persistência e erros; evitar Selenium bloqueando o event loop e validar a visibilidade do resultado no dashboard.
-- [ ] Corrigir o significado dos filtros de data: distinguir data da avaliação e data da coleta na API e na interface.
-- [ ] Avaliar as requisições de paginação atuais e alternativas apropriadas ao Selenium; validar coleta completa em perfil real, respostas e campos, com testes de HTML real anonimizado e sem assumir API disponível.
+### 1. Importação e reconciliação
 
-### P2 — Simplificação e interface
+- [x] Preparar esquema inicial versionado e staging idempotente, com cópias verificadas por checksum, bytes originais e indicadores de ambiguidade.
+- [ ] Construir importador transacional de staging para perfis, avaliações, execuções, observações e rascunhos, com identidade determinística por workspace e preservação da proveniência. Não tratar fingerprints ou IDs temporários ambíguos como prova de identidade.
+- [ ] Registrar conflitos individualmente e oferecer resolução auditável; preservar originais e rascunhos não resolvidos. Definir comportamento para arquivos rejeitados, registros já existentes, dados alterados e reexecuções concorrentes.
+- [ ] Produzir relatório de migração com totais de origem, importados, duplicados, rejeitados e pendentes; conferir contagens, campos, timestamps e rascunhos antes de ativar a leitura do banco.
+- [ ] Testar migração e reexecução com snapshots representativos e PostgreSQL descartável; validar falha e retomada, rollback e restauração de backup. Fazer ensaio com cópia dos dados existentes antes de qualquer mudança na instalação em uso.
 
-- [ ] Inventariar workflows ativos, consumidores de webhooks e callbacks do n8n; identificar automações que precisam de substituição antes de removê-lo da distribuição padrão.
-- [ ] Desacoplar normalização compartilhada do pacote n8n e revisar Compose, proxy, documentação e testes; preservar o volume `n8n-data` e oferecer migração das automações existentes.
-- [ ] Reorganizar a navegação em visão geral, avaliações, respostas, perfis/coletas e configurações; colocar pendências e ações principais em destaque.
-- [ ] Melhorar estados de carregamento, vazio, erro e coleta parcial, paginação, responsividade e acessibilidade; indicar que sugestões devem ser publicadas na Doctoralia.
-- [ ] Validar a interface em tamanhos de tela diferentes e os fluxos de avaliação, edição, cópia, histórico e recuperação de falhas.
+### 2. Integração e fluxo operacional
+
+- [ ] Implementar repositórios e contratos de acesso ao PostgreSQL; integrar API, worker e dashboard com isolamento por workspace, consultas, ordenação, filtros e paginação no servidor.
+- [ ] Manter histórico de coletas e rascunhos independentes dos snapshots; definir fonte de verdade, transição e compatibilidade com JSON, incluindo falha do banco e recuperação sem perda de edições.
+- [ ] Unificar coleta síncrona e assíncrona, persistência e erros. Retirar Selenium e outras operações bloqueantes do event loop; confirmar que os resultados dos dois caminhos aparecem corretamente no dashboard.
+- [ ] Distinguir data da avaliação de data da coleta na API, no banco e na interface; testar limites, fuso horário e registros sem data.
+- [ ] Reavaliar a paginação real da Doctoralia e alternativas ao Selenium sem presumir API disponível. Validar totais, respostas e campos com HTML real anonimizado e nova coleta de perfil autorizado.
+- [ ] Validar migrações em instalação existente e limpa, inicialização concorrente, integridade das restrições, backup/restore e a política de downgrade; manter testes de PostgreSQL e Redis em serviços descartáveis no CI.
+
+## P2 — n8n e interface
+
+- [ ] Inventariar workflows ativos, consumidores de webhooks e callbacks; identificar substituições necessárias antes de remover o n8n da distribuição padrão. Preservar `n8n-data` e documentar exportação e migração.
+- [ ] Desacoplar a normalização compartilhada do pacote n8n e ajustar Compose, proxy, documentação e testes de compatibilidade das integrações existentes.
+- [ ] Reorganizar a navegação em visão geral, avaliações, respostas, perfis/coletas e configurações, destacando pendências e ações principais.
+- [ ] Melhorar carregamento, vazio, erro, progresso e coleta parcial; oferecer paginação, responsividade e acessibilidade e informar que sugestões devem ser publicadas na Doctoralia.
+- [ ] Validar em navegador, em tamanhos diferentes, avaliação, edição, cópia, histórico e recuperação de falhas. Registrar o que foi testado e os limites da validação.
+
+## P3 — Preparação e verificação do release
+
+- [ ] Resolver ou registrar explicitamente quaisquer riscos das etapas P0–P2; atualizar README, documentação operacional, migração, API e changelog conforme o comportamento entregue.
+- [ ] Executar suíte completa, verificações de estilo e tipos, CodeQL, varredura das imagens, testes de integração com bancos descartáveis e smoke tests da stack em `main`; corrigir falhas e confirmar o resultado final dos workflows.
+- [ ] Sincronizar a versão do pacote, API e dashboard e preparar notas de release e tag coerentes. Publicar somente após todas as verificações acordadas passarem.
+- [ ] Confirmar a publicação dos artefatos previstos, suas versões e checksums quando disponíveis; validar health/readiness, versões expostas e o fluxo principal na instalação atualizada, após backup.
+
+## Backlog adicional — a priorizar separadamente
+
+As próximas seções preservam ideias e necessidades anteriores. Sua inclusão no mesmo release depende de priorização; itens que se sobrepõem a P0–P3 devem ser tratados uma única vez. Os itens marcados como concluídos descrevem funcionalidades existentes, não uma validação nova.
 
 ## Alta prioridade
 
