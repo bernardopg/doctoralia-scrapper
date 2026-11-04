@@ -3,9 +3,12 @@
 import asyncio
 import logging
 import sys
+from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import select
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import inspect, select, text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     async_sessionmaker,
@@ -16,6 +19,34 @@ from src.db.base import Base, get_engine, get_sessionmaker
 from src.db.models import Membership, User, Workspace, WorkspaceRole
 
 logger = logging.getLogger(__name__)
+
+
+def _migration_config(connection) -> Config:
+    config = Config()
+    config.set_main_option("script_location", str(Path(__file__).parent / "migrations"))
+    config.attributes["connection"] = connection
+    return config
+
+
+def _initialize_schema(connection) -> None:
+    # Serialize bootstrap and migration across concurrent db-init containers.
+    if connection.dialect.name == "postgresql":
+        connection.execute(text("SELECT pg_advisory_xact_lock(782461219)"))
+    Base.metadata.create_all(
+        connection,
+        tables=[
+            Base.metadata.tables[name]
+            for name in ("users", "workspaces", "memberships")
+        ],
+    )
+    command.upgrade(_migration_config(connection), "head")
+
+
+def _drop_schema(connection) -> None:
+    if inspect(connection).has_table("alembic_version"):
+        command.downgrade(_migration_config(connection), "base")
+        connection.execute(text("DROP TABLE alembic_version"))
+    Base.metadata.drop_all(connection)
 
 
 def _resolve_engine(dsn: Optional[str]) -> AsyncEngine:
@@ -36,7 +67,7 @@ async def init_db(dsn: Optional[str] = None) -> None:
 
     try:
         async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_initialize_schema)
         logger.info("Database schema initialized (tables created if not exist)")
     except Exception as exc:
         logger.exception("Failed to initialize database schema: %s", exc)
@@ -52,7 +83,7 @@ async def drop_db(dsn: Optional[str] = None) -> None:
 
     try:
         async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(_drop_schema)
         logger.info("Database schema dropped")
     except Exception as exc:
         logger.exception("Failed to drop database schema: %s", exc)
