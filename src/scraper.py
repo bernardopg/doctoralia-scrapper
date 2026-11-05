@@ -191,6 +191,7 @@ class DoctoraliaScraper:
                 return True
 
             except SessionNotCreatedException as e:
+                self.safe_driver_quit()
                 self.logger.warning(
                     "Erro de sessão na tentativa %d: %s", attempt + 1, e
                 )
@@ -203,6 +204,7 @@ class DoctoraliaScraper:
                     return False
 
             except WebDriverException as e:
+                self.safe_driver_quit()
                 self.logger.error(
                     "❌ Erro ao inicializar navegador (tentativa %d): %s",
                     attempt + 1,
@@ -742,11 +744,11 @@ class DoctoraliaScraper:
             return None
 
         # Setup browser
-        if not self.setup_driver():
-            self.logger.error("❌ Falha na inicialização do navegador")
-            return None
-
         try:
+            if not self.setup_driver():
+                self.logger.error("❌ Falha na inicialização do navegador")
+                return None
+
             # Guard against None driver
             if self.driver is None:
                 raise RuntimeError("Driver not available after setup")

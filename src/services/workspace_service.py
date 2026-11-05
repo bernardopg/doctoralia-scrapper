@@ -298,6 +298,7 @@ class WorkspaceService:
                     "average_rating": snapshot["average_rating"],
                     "extracted_at": snapshot["extracted_at"],
                     "filename": snapshot["filename"],
+                    "collection": snapshot.get("collection"),
                 }
                 for snapshot in filtered
             ),

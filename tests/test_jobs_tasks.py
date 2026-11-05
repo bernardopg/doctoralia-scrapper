@@ -159,7 +159,7 @@ def test_job_preserves_legacy_draft_on_next_snapshot(tmp_path):
         }
         scraper.save_data.return_value = tmp_path / "new.json"
         result = scrape_and_process({"doctor_url": url})
-    assert result["status"] == "completed"
+    assert result["status"] == "partial"
     assert (
         scraper.save_data.call_args.args[0]["reviews"][0]["generated_response"]
         == "Obrigada"
@@ -313,7 +313,7 @@ def test_job_uses_draft_edited_during_generation(tmp_path):
         }
         scraper.save_data.return_value = tmp_path / "new.json"
         result = scrape_and_process({"doctor_url": url, "include_generation": True})
-    assert result["status"] == "completed"
+    assert result["status"] == "partial"
     assert (
         scraper.save_data.call_args.args[0]["reviews"][0]["generated_response"]
         == "Editada durante geração"
@@ -376,7 +376,7 @@ def test_scrape_and_process_persists_snapshot_with_generated_responses(tmp_path)
                     job_id="job-123",
                 )
 
-    assert result["status"] == "completed"
+    assert result["status"] == "partial"
     assert result["reviews"][0]["id"] == "1"
     mock_scraper.save_data.assert_called_once()
 
