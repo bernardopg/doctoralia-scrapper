@@ -34,6 +34,10 @@ from src.services.scrape_completeness import advertised_review_count, collection
 from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
 
+class BrowserSetupError(RuntimeError):
+    """Browser initialization failed after its internal retries."""
+
+
 class RateLimiter:
     """
     Rate limiter to prevent being detected as a bot by limiting request frequency.
@@ -747,7 +751,7 @@ class DoctoraliaScraper:
         try:
             if not self.setup_driver():
                 self.logger.error("❌ Falha na inicialização do navegador")
-                return None
+                raise BrowserSetupError("Browser setup failed")
 
             # Guard against None driver
             if self.driver is None:
@@ -821,7 +825,7 @@ class DoctoraliaScraper:
                 e,
                 exc_info=True,
             )
-            result = None
+            raise
 
         finally:
             self.safe_driver_quit()
@@ -850,7 +854,7 @@ class DoctoraliaScraper:
                         self.logger.info("🔄 Tentando novamente em %ds...", wait_time)
                         time.sleep(wait_time)
 
-                except WebDriverException as e:
+                except (WebDriverException, BrowserSetupError) as e:
                     self.logger.error(
                         "❌ Erro crítico na tentativa %d: %s",
                         attempt + 1,
@@ -859,6 +863,8 @@ class DoctoraliaScraper:
                     )
                     if attempt < max_retries - 1:
                         time.sleep(self.config.delays.error_recovery)
+                    else:
+                        raise
 
             return result
 

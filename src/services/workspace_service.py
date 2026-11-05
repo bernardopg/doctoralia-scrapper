@@ -63,7 +63,8 @@ class WorkspaceService:
             return snapshots
 
         for json_file in sorted(
-            self.data_dir.glob("*.json"), key=lambda item: item.stat().st_mtime
+            (item for item in self.data_dir.glob("*.json") if not item.is_symlink()),
+            key=lambda item: item.stat().st_mtime,
         ):
             snapshot = self._read_snapshot(json_file)
             if snapshot:
@@ -141,6 +142,20 @@ class WorkspaceService:
                 "Error reading workspace snapshot %s: %s", json_file, exc
             )
             return None
+
+    @staticmethod
+    def _select_snapshot(
+        snapshots: List[Dict[str, Any]], profile_id: Optional[str], filename: str
+    ) -> Dict[str, Any]:
+        if not profile_id or Path(filename).name != filename or filename in {".", ".."}:
+            raise ValueError("Snapshot não encontrado")
+        for snapshot in snapshots:
+            if (
+                snapshot["filename"] == filename
+                and snapshot["profile_id"] == profile_id
+            ):
+                return snapshot
+        raise ValueError("Snapshot não encontrado")
 
     def _filter_snapshots(
         self,
@@ -479,6 +494,7 @@ class WorkspaceService:
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         favorite_profiles: Optional[Iterable[Dict[str, Any]]] = None,
+        snapshot: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         profiles = self.list_profiles(
             profile_id=profile_id,
@@ -495,7 +511,11 @@ class WorkspaceService:
             date_from=date_from,
             date_to=date_to,
         )
-        latest = self._latest_by_profile(all_snapshots).get(profile_id)
+        latest = (
+            self._select_snapshot(all_snapshots, profile_id, snapshot)
+            if snapshot is not None
+            else self._latest_by_profile(all_snapshots).get(profile_id)
+        )
         if latest is None:
             return None
 
@@ -529,9 +549,16 @@ class WorkspaceService:
             ),
             key=lambda item: item["date"] or "",
             reverse=True,
-        )[:30]
+        )
 
         return {
+            "selected_snapshot": {
+                "filename": latest["filename"],
+                "collection": latest.get("collection"),
+                "reviews_count": len(latest["reviews"]),
+                "unanswered_count": latest["unanswered_count"],
+                "generated_count": latest["generated_count"],
+            },
             "profile": profiles[0],
             "timeline": timeline,
             "latest_reviews": latest_reviews,
@@ -545,6 +572,7 @@ class WorkspaceService:
         favorite_profiles: Optional[Iterable[Dict[str, Any]]] = None,
         favorites_only: bool = False,
         search: Optional[str] = None,
+        snapshot: Optional[str] = None,
     ) -> Dict[str, Any]:
         snapshots = self._filter_snapshots(
             self._load_snapshots(),
@@ -552,23 +580,32 @@ class WorkspaceService:
             date_from=date_from,
             date_to=date_to,
         )
-        latest_profiles = self._latest_by_profile(snapshots)
+        latest_profiles = (
+            {profile_id: self._select_snapshot(snapshots, profile_id, snapshot)}
+            if snapshot is not None and profile_id
+            else self._latest_by_profile(snapshots)
+        )
+        if snapshot is not None and not profile_id:
+            raise ValueError("Snapshot não encontrado")
         favorite_urls = self._favorite_url_set(favorite_profiles)
         query = (search or "").strip().lower()
         items: List[Dict[str, Any]] = []
 
-        for snapshot in latest_profiles.values():
-            is_favorite = snapshot["profile_url"].strip().lower() in favorite_urls
+        for current_snapshot in latest_profiles.values():
+            is_favorite = (
+                current_snapshot["profile_url"].strip().lower() in favorite_urls
+            )
             if favorites_only and not is_favorite:
                 continue
 
-            for review in snapshot["reviews"]:
+            for review in current_snapshot["reviews"]:
                 if review.get("doctor_reply"):
                     continue
                 item = {
-                    "profile_id": snapshot["profile_id"],
-                    "doctor_name": snapshot["doctor_name"],
-                    "profile_url": snapshot["profile_url"],
+                    "profile_id": current_snapshot["profile_id"],
+                    "snapshot": current_snapshot["filename"],
+                    "doctor_name": current_snapshot["doctor_name"],
+                    "profile_url": current_snapshot["profile_url"],
                     "review_id": str(review.get("id") or ""),
                     "author": review.get("author") or "Paciente",
                     "comment": review.get("comment") or review.get("text") or "",
@@ -584,7 +621,21 @@ class WorkspaceService:
         items.sort(
             key=lambda item: (item["date"] or "", item["doctor_name"]), reverse=True
         )
+        selected = (
+            next(iter(latest_profiles.values()), None) if snapshot is not None else None
+        )
         return {
+            "snapshot": (
+                {
+                    "filename": selected["filename"],
+                    "collection": selected.get("collection"),
+                    "reviews_count": len(selected["reviews"]),
+                    "unanswered_count": selected["unanswered_count"],
+                    "generated_count": selected["generated_count"],
+                }
+                if selected
+                else None
+            ),
             "summary": {
                 "pending_reviews": len(items),
                 "profiles_with_pending": len({item["profile_id"] for item in items}),
@@ -705,20 +756,32 @@ class WorkspaceService:
         }
 
     def save_generated_response(
-        self, profile_id: str, review_id: str, generated_response: str
+        self,
+        profile_id: str,
+        review_id: str,
+        generated_response: str,
+        snapshot: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         with snapshot_lock(self.data_dir):
             return self._save_generated_response_locked(
-                profile_id, review_id, generated_response
+                profile_id, review_id, generated_response, snapshot
             )
 
     def _save_generated_response_locked(
-        self, profile_id: str, review_id: str, generated_response: str
+        self,
+        profile_id: str,
+        review_id: str,
+        generated_response: str,
+        snapshot: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         snapshots = self._filter_snapshots(
             self._load_snapshots(), profile_id=profile_id
         )
-        latest = self._latest_by_profile(snapshots).get(profile_id)
+        latest = (
+            self._select_snapshot(snapshots, profile_id, snapshot)
+            if snapshot is not None
+            else self._latest_by_profile(snapshots).get(profile_id)
+        )
         if latest is None:
             return None
 

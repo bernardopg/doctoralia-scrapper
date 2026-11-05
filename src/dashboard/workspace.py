@@ -24,6 +24,8 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
             )
             overview["user_profile"] = user_profile
             return jsonify(overview)
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -41,6 +43,8 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 favorite_profiles=user_profile.get("favorite_profiles", []),
             )
             return jsonify({"profiles": profiles})
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -60,10 +64,13 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 date_from=request.args.get("date_from"),
                 date_to=request.args.get("date_to"),
                 favorite_profiles=user_profile.get("favorite_profiles", []),
+                snapshot=request.args.get("snapshot"),
             )
             if detail is None:
                 return jsonify({"error": "Perfil não encontrado"}), 404
             return jsonify(detail)
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -82,8 +89,11 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 favorite_profiles=user_profile.get("favorite_profiles", []),
                 favorites_only=request.args.get("favorites_only") == "1",
                 search=request.args.get("q"),
+                snapshot=request.args.get("snapshot"),
             )
             return jsonify(payload)
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -102,6 +112,8 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 search=request.args.get("q"),
             )
             return jsonify(payload)
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -120,6 +132,8 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
             if deleted is None:
                 return jsonify({"error": "Snapshot não encontrado"}), 404
             return jsonify({"success": True, "deleted": deleted})
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Snapshot não encontrado", status_code=404, exc=e)
         except OSError as e:
@@ -153,6 +167,8 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 favorite_profiles=user_profile.get("favorite_profiles", []),
             )
             return jsonify(payload)
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -180,10 +196,13 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 profile_id=profile_id,
                 review_id=review_id,
                 generated_response=generated_response,
+                snapshot=data.get("snapshot"),
             )
             if saved is None:
                 return jsonify({"error": "Não foi possível salvar a sugestão"}), 404
             return jsonify({"success": True, "saved": saved})
+        except ValueError:
+            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Snapshot não encontrado", status_code=404, exc=e)
         except OSError as e:
