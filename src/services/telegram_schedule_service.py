@@ -22,8 +22,8 @@ import requests
 from croniter import croniter  # type: ignore[import-untyped]
 
 from src.config.settings import AppConfig
-from src.integrations.n8n.normalize import extract_scraper_result
 from src.jobs.queue import get_redis_connection
+from src.normalization import extract_scraper_result
 from src.response_generator import ResponseGenerator
 from src.scraper import DoctoraliaScraper
 from src.telegram_notifier import TelegramNotifier
@@ -799,10 +799,14 @@ class TelegramScheduleService:
                 )
             snapshot_path = scraper.save_data(snapshot_payload)
             collection = snapshot_payload.get("collection")
-            if isinstance(collection, dict) and collection.get("status") != "complete":
+            if (
+                not isinstance(collection, dict)
+                or collection.get("status") != "complete"
+            ):
+                collection = collection if isinstance(collection, dict) else {}
                 raise RuntimeError(
                     "Coleta parcial ou não verificada; relatório Telegram não enviado "
-                    f"(parada: {collection.get('stop_reason', 'desconhecida')})"
+                    f"(parada: {(collection or {}).get('stop_reason', 'desconhecida')})"
                 )
             return snapshot_payload, snapshot_path
         return self._load_latest_snapshot(runtime_config.data_dir, profile_url)
@@ -824,8 +828,8 @@ class TelegramScheduleService:
                     payload = json.load(handle)
                 collection = payload.get("collection")
                 if (
-                    isinstance(collection, dict)
-                    and collection.get("status") != "complete"
+                    not isinstance(collection, dict)
+                    or collection.get("status") != "complete"
                 ):
                     continue
                 candidate_url = _coerce_optional_str(

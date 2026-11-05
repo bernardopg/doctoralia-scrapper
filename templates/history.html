@@ -440,7 +440,7 @@
         <td>
           <span class="history-status-pill ${dashboardEscape(entry.status)}">
             <i class="fas fa-${entry.is_latest ? 'star' : 'clock-rotate-left'}"></i>
-            ${historyLabel(entry.status)}
+            ${historyLabel(entry.status)} • ${dashboardEscape(entry.collection?.status || "unknown")}
           </span>
         </td>
         <td>${dashboardEscape(entry.reviews_count)}</td>
@@ -450,6 +450,8 @@
         <td><span style="font-family: var(--font-mono); font-size: 12px;">${dashboardEscape(entry.filename)}</span></td>
         <td>
           <div class="flex gap-1" style="flex-wrap: wrap;">
+            <a class="btn btn-secondary btn-sm" href="/profiles?profile_id=${encodeURIComponent(entry.profile_id)}&amp;snapshot=${encodeURIComponent(entry.filename)}">Avaliações</a>
+            <a class="btn btn-secondary btn-sm" href="/responses?profile_id=${encodeURIComponent(entry.profile_id)}&amp;snapshot=${encodeURIComponent(entry.filename)}">Respostas</a>
             <button class="btn btn-secondary btn-sm" onclick="showScrapeModal(${dashboardJsArgument(entry.profile_url)})">
               <i class="fas fa-play"></i>
             </button>
@@ -627,7 +629,7 @@
 
     const row = tasksCache[taskId] || {};
     try {
-      const response = await fetch(`/api/tasks/${taskId}`);
+      const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const detail = await response.json();
 
@@ -660,7 +662,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-item-label">Reviews</div>
-            <div class="detail-item-value">${detail.metrics?.scraped_count ?? detail.reviews?.length ?? 0}</div>
+            <div class="detail-item-value">${dashboardEscape(detail.metrics?.scraped_count ?? detail.reviews?.length ?? 0)}</div>
           </div>
           <div class="detail-item full-width">
             <div class="detail-item-label">Mensagem</div>
