@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
 import re
 import uuid
 from collections import Counter
@@ -30,7 +31,9 @@ def _timestamp(value: Any) -> datetime:
         result = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise ValueError("invalid collection timestamp") from exc
-    return result if result.tzinfo else result.replace(tzinfo=timezone.utc)
+    if result.tzinfo is None or result.utcoffset() is None:
+        raise ValueError("collection timestamp has no timezone")
+    return result.astimezone(timezone.utc)
 
 
 def _date(value: Any) -> date | None:
@@ -40,8 +43,40 @@ def _date(value: Any) -> date | None:
         raise ValueError("invalid review date")
     try:
         return date.fromisoformat(value)
-    except ValueError as exc:
-        raise ValueError("invalid review date") from exc
+    except ValueError:
+        try:
+            # Preserve the civil date expressed by the source, without UTC conversion.
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+        except ValueError as exc:
+            raise ValueError("invalid review date") from exc
+
+
+def _safe_json(value: Any) -> bool:
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, str):
+        return not any(ord(c) == 0 or 0xD800 <= ord(c) <= 0xDFFF for c in value)
+    if isinstance(value, list):
+        return all(_safe_json(item) for item in value)
+    if isinstance(value, dict):
+        return all(_safe_json(key) and _safe_json(item) for key, item in value.items())
+    return True
+
+
+def _rejection_payload(value: Any) -> Any:
+    return value if _safe_json(value) else {"original": "see staged snapshot bytes"}
+
+
+def _count(value: Any, field: str, default: int | None) -> int | None:
+    if value is None:
+        return default
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not 0 <= value <= 2147483647
+    ):
+        raise ValueError("invalid " + field)
+    return value
 
 
 async def _execute(conn: AsyncConnection, sql: str, **params: Any) -> Any:
@@ -70,51 +105,64 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
         doctor = data.get("doctor") or {}
         url = data.get("url") or doctor.get("profile_url")
         name = data.get("doctor_name") or doctor.get("name") or "Unknown"
+        collection = data.get("collection") or {}
+        if not isinstance(collection, dict):
+            raise ValueError("invalid collection")
+        metadata = {k: v for k, v in data.items() if k != "reviews"}
+        if not _safe_json(metadata):
+            raise ValueError("invalid snapshot characters")
+        expected = _count(collection.get("expected_count"), "expected_count", None)
+        extracted = _count(
+            collection.get("extracted_count"), "extracted_count", len(reviews)
+        )
         if (
             not isinstance(url, str)
-            or not url
+            or not url.strip()
             or len(url) > 1024
             or not isinstance(name, str)
             or len(name) > 255
         ):
             raise ValueError("invalid profile")
+        url = url.strip()
     except (ValueError, AttributeError, TypeError) as exc:
         rejections.append((None, "snapshot", str(exc), data))
         report["rejected"] = len(reviews)
     else:
-        result = await _execute(
-            conn,
-            "SELECT id FROM profiles WHERE workspace_id=:w AND source_url=:url",
-            w=workspace,
-            url=url,
-        )
-        profile = result.scalar_one_or_none()
-        if profile is None:
-            profile = _id()
+        candidates = (
             await _execute(
                 conn,
-                "INSERT INTO profiles (id, workspace_id, source_url, name) VALUES (:id,:w,:url,:name)",
-                id=profile,
+                "SELECT id,source_url FROM profiles WHERE workspace_id=:w",
                 w=workspace,
-                url=url,
-                name=name,
             )
-        collection = (
-            data.get("collection") if isinstance(data.get("collection"), dict) else {}
-        )
+        ).all()
+        matches = [
+            (pid, source)
+            for pid, source in candidates
+            if source.strip().lower() == url.lower()
+        ]
+        # Case differences in paths may identify different resources.
+        if len(matches) > 1 or (matches and matches[0][1].strip() != url):
+            rejections.append((None, "snapshot", "ambiguous profile URL", data))
+            report["rejected"] = len(reviews)
+            matches = []
+            profile = None
+        else:
+            profile = matches[0][0] if matches else _id()
+            if not matches:
+                await _execute(
+                    conn,
+                    "INSERT INTO profiles (id, workspace_id, source_url, name) VALUES (:id,:w,:url,:name)",
+                    id=profile,
+                    w=workspace,
+                    url=url,
+                    name=name,
+                )
+        if profile is None:
+            await _record_outcome(conn, snapshot_id, None, report, rejections)
+            return report
         status = collection.get("status", "unknown")
         if status not in ("complete", "partial", "unknown", "failed", "running"):
             status = "unknown"
-        expected = collection.get("expected_count")
-        if not isinstance(expected, int) or isinstance(expected, bool) or expected < 0:
-            expected = None
-        extracted = collection.get("extracted_count")
-        if (
-            not isinstance(extracted, int)
-            or isinstance(extracted, bool)
-            or extracted < 0
-        ):
-            extracted = len(reviews)
         reason = collection.get("stop_reason")
         if not isinstance(reason, str) or len(reason) > 100:
             reason = None
@@ -139,6 +187,8 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
             try:
                 if not isinstance(item, dict):
                     raise ValueError("invalid review")
+                if not _safe_json(item):
+                    raise ValueError("invalid review characters")
                 source = item.get("id")
                 if (
                     not isinstance(source, str)
@@ -203,19 +253,43 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                 payload=json.dumps(item, ensure_ascii=False),
             )
             draft = item.get("generated_response")
-            if draft is not None:
-                if not isinstance(draft, str) or not draft:
-                    rejections.append((index, "draft", "invalid draft", item))
-                    report["pending"] += 1
-                else:
-                    existing = (
+            valid = draft is None or isinstance(draft, str)
+            if not valid:
+                rejections.append((index, "draft", "invalid draft", item))
+                report["pending"] += 1
+                continue
+            # Empty and missing responses are both authoritative absence.
+            draft = draft or None
+            state = (
+                await _execute(
+                    conn,
+                    "SELECT observed_at,body FROM snapshot_draft_state WHERE review_id=:id",
+                    id=review_id,
+                )
+            ).one_or_none()
+            existing = (
+                await _execute(
+                    conn,
+                    "SELECT body FROM review_drafts WHERE review_id=:id",
+                    id=review_id,
+                )
+            ).scalar_one_or_none()
+            if state is None:
+                if existing is None and draft is not None:
+                    prior_observation = (
                         await _execute(
                             conn,
-                            "SELECT body FROM review_drafts WHERE review_id=:id",
+                            "SELECT 1 FROM review_observations WHERE review_id=:id AND run_id<>:run LIMIT 1",
                             id=review_id,
+                            run=run_id,
                         )
                     ).scalar_one_or_none()
-                    if existing is None:
+                    if prior_observation:
+                        rejections.append(
+                            (index, "draft", "unknown earlier draft provenance", item)
+                        )
+                        report["pending"] += 1
+                    else:
                         await _execute(
                             conn,
                             "INSERT INTO review_drafts (review_id,body,updated_at) VALUES (:id,:body,:ts)",
@@ -223,11 +297,46 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                             body=draft,
                             ts=timestamp,
                         )
-                    elif existing != draft:
-                        rejections.append(
-                            (index, "draft", "conflicting existing draft", item)
-                        )
-                        report["pending"] += 1
+                elif existing is not None and existing != draft:
+                    rejections.append(
+                        (index, "draft", "conflicting existing draft", item)
+                    )
+                    report["pending"] += 1
+                await _execute(
+                    conn,
+                    "INSERT INTO snapshot_draft_state (review_id,snapshot_id,observed_at,body) VALUES (:id,:snapshot,:ts,:body)",
+                    snapshot=snapshot_id,
+                    id=review_id,
+                    ts=timestamp,
+                    body=draft,
+                )
+            else:
+                previous_time, previous_body = state
+                if previous_body != draft:
+                    rejections.append(
+                        (index, "draft", "conflicting draft observations", item)
+                    )
+                    report["pending"] += 1
+                if timestamp > previous_time:
+                    await _execute(
+                        conn,
+                        "UPDATE snapshot_draft_state SET snapshot_id=:snapshot,observed_at=:ts,body=:body WHERE review_id=:id",
+                        snapshot=snapshot_id,
+                        id=review_id,
+                        ts=timestamp,
+                        body=draft,
+                    )
+    await _record_outcome(conn, snapshot_id, run_id, report, rejections)
+    return report
+
+
+async def _record_outcome(
+    conn: AsyncConnection,
+    snapshot_id: str,
+    run_id: str | None,
+    report: dict[str, int],
+    rejections: list[tuple[int | None, str, str, Any]],
+) -> None:
     await _execute(
         conn,
         "INSERT INTO snapshot_reconciliations (snapshot_id,run_id,report) VALUES (:id,:run,CAST(:report AS JSON))",
@@ -244,9 +353,8 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
             idx=item_index,
             kind=kind,
             reason=reason,
-            payload=json.dumps(payload, ensure_ascii=False),
+            payload=json.dumps(_rejection_payload(payload), ensure_ascii=False),
         )
-    return report
 
 
 async def reconcile_staged(engine: AsyncEngine, workspace_id: str) -> dict[str, int]:

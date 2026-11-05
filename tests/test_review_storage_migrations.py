@@ -45,7 +45,7 @@ async def test_upgrade_preserves_existing_workspace_and_is_idempotent(tmp_path):
         ).scalar_one() == "Existing"
         assert (
             await connection.execute(text("SELECT version_num FROM alembic_version"))
-        ).scalar_one() == "0003_snapshot_reconciliation"
+        ).scalar_one() == "0004_snapshot_draft_state"
     await drop_db(dsn)
     async with engine.connect() as connection:
         tables = await connection.run_sync(lambda conn: inspect(conn).get_table_names())

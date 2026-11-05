@@ -36,9 +36,15 @@ fingerprint, ambiguous, missing or repeated source IDs within a snapshot are
 rejected individually, including their drafts; no content matching is used.
 A source ID repeated in a later snapshot for the same profile creates an
 observation, not a new review. Its original observed payload remains available;
-review fields are not overwritten. The first imported draft is retained; a
-different later draft is recorded as a pending conflict instead of overwriting
-it. Processing order follows staging time and ID, not draft recency. A human
+review fields are not overwritten. The first imported draft is retained; differing observations, including absent
+or empty drafts, create explicit pending conflicts instead of overwriting it.
+The newest observation time and value are recorded per review, so older staged
+observations cannot create a draft after a newer absence. Equal-time differing
+observations are conflicts. If older observations predate the provenance table,
+a newly encountered draft is held as a conflict when no active draft exists.
+A draft in conflict can remain active until a human
+resolves it; inspect conflicts before using drafts. Reviews absent from a partial
+snapshot do not imply draft deletion. A human
 must inspect `snapshot_rejections` and the original `snapshot_imports` bytes;
 there is no conflict-resolution interface yet. Rejected review counts and pending
 draft counts measure different things and may not be added as review totals.
@@ -48,7 +54,13 @@ Original bytes, filenames, SHA-256 and workspace are retained in staging;
 `snapshot_rejections` records the index, payload and reason. Raw review payloads
 are preserved in observations. A collection timestamp is used as both run start
 and finish because the legacy snapshot has no start timestamp; timezone-less
-values are interpreted as UTC. A missing collection status is unknown. Invalid
+values are rejected as uncertain, without inventing an instant. Supply corrected
+source snapshots only when their original timezone is known; the staged originals
+remain available. Review datetime values retain their source civil date, without
+converting offsets to UTC. Profile URLs are trimmed; case-only differences are
+flagged as ambiguous rather than silently merging potentially distinct paths.
+Counts outside the PostgreSQL integer range and text containing NUL are rejected;
+unsafe rejection payloads refer back to the original staged bytes. A missing collection status is unknown. Invalid
 review dates, ratings and text fields are rejected rather than guessed. A
 snapshot whose profile or timestamp cannot be normalized is recorded as a
 snapshot rejection. This importer does not establish that a partial snapshot is
