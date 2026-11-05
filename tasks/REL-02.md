@@ -45,3 +45,9 @@ O gestor revisou o diff e reexecutou 103 casos sintéticos com saída zero no ch
 ```
 
 O agente executor reportou 108 testes e checks Black/isort/mypy aprovados no conjunto que executou. A repetição do gestor cobre o comando acima. CI remoto ainda em execução na consulta; revisão técnica independente pendente. Sem coleta externa, navegador interativo, notificação, migração ou deploy. A visibilidade entre processos continua dependendo de diretório JSON compartilhado. Não marcar esta tarefa como aceita apenas por testes sintéticos.
+
+## Correções após revisão e CI
+
+O CI do head `6d93948` falhou no mesmo teste n8n em Python 3.11–3.14: a fixture não fornecia `data_dir` e ainda assumia completude sem metadados. O gestor corrigiu a fixture com persistência temporária verificável e casos complete/partial/unknown. Corrigiu também a autoridade de rascunhos para ordem cronológica, incluindo parciais posteriores e ausência/limpeza de rascunho. O head `1a7c952` contém essas correções; 152 testes sintéticos passaram no conjunto anterior acrescido de `tests/n8n/test_api.py` e das regressões de cronologia. Black/isort/mypy pertinentes passaram. O CI desse novo head ainda precisa concluir.
+
+Permanecem findings da revisão para implementação: acesso identificado a avaliações/rascunhos de snapshots parciais no dashboard, sem alterar a visão corrente completa; e preservação da causa real de falhas Selenium após retries, com regressão pelo caminho real do scraper. REL-02 continua sem aceite final.
