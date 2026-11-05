@@ -5,6 +5,8 @@ import threading
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from src.api.v1.routers.scrape import scrape_run
 from src.services.scrape_completeness import ensure_collection, result_status
 
@@ -129,3 +131,71 @@ def test_sync_snapshot_is_visible_in_workspace(tmp_path):
     assert result.status == "completed"
     overview = WorkspaceService(tmp_path, MagicMock()).get_overview()
     assert overview["recent_scrapes"][0]["collection"]["status"] == "complete"
+
+
+@pytest.mark.parametrize("execution", ["sync", "worker"])
+@pytest.mark.parametrize("newer_draft", ["Recent edit", "", None])
+def test_draft_authority_uses_chronology_including_partial_snapshots(
+    tmp_path, execution, newer_draft
+):
+    import json
+    from unittest.mock import MagicMock
+
+    from src.api.v1.routers.scrape import _scrape_run
+    from src.jobs.tasks import scrape_and_process
+
+    url = "https://www.doctoralia.com.br/test"
+    review = {"id": "doctoralia:42", "author": "Test", "comment": "Review"}
+    for name, timestamp, status, draft in (
+        ("complete.json", "2026-01-01T12:00:00Z", "complete", "Old edit"),
+        ("partial.json", "2026-01-02T12:00:00Z", "partial", newer_draft),
+    ):
+        previous = dict(review)
+        if draft is not None:
+            previous["generated_response"] = draft
+        (tmp_path / name).write_text(
+            json.dumps(
+                {
+                    "url": url,
+                    "doctor_name": "Test",
+                    "extraction_timestamp": timestamp,
+                    "collection": {"status": status},
+                    "reviews": [previous],
+                }
+            ),
+            encoding="utf-8",
+        )
+    config = SimpleNamespace(data_dir=tmp_path)
+    scraper = MagicMock()
+    scraper.scrape_reviews.return_value = {
+        "url": url,
+        "doctor_name": "Test",
+        "extraction_timestamp": "2026-01-03T12:00:00Z",
+        "collection": {"status": "complete"},
+        "reviews": [review],
+    }
+
+    def save(payload):
+        target = tmp_path / "new.json"
+        target.write_text(json.dumps(payload), encoding="utf-8")
+        return target
+
+    scraper.save_data.side_effect = save
+    with (
+        patch("src.scraper.DoctoraliaScraper", return_value=scraper),
+        patch("src.config.settings.AppConfig.load", return_value=config),
+    ):
+        if execution == "sync":
+            result = _scrape_run(
+                SimpleNamespace(
+                    doctor_url=url, include_analysis=False, include_generation=False
+                ),
+                config,
+            ).model_dump()
+        else:
+            result = scrape_and_process({"doctor_url": url})
+    assert result["status"] == "completed"
+    expected = newer_draft or None
+    assert result["reviews"][0]["metadata"].get("generated_response") == expected
+    saved = json.loads((tmp_path / "new.json").read_text(encoding="utf-8"))
+    assert saved["reviews"][0].get("generated_response") == expected

@@ -262,35 +262,21 @@ def persist_collection(
         previous_snapshots = workspace._filter_snapshots(
             workspace._load_snapshots(), profile_id=profile_id
         )
-        previous = workspace._latest_by_profile(previous_snapshots).get(profile_id)
-        if previous:
-            previous_ts = previous.get("extracted_ts")
-            historical = [
-                item
-                for item in previous_snapshots
-                if item is not previous
-                and previous_ts is not None
-                and item.get("extracted_ts") is not None
-                and _comparable_datetime(item["extracted_ts"])
-                != _comparable_datetime(previous_ts)
-            ]
-            # Unknown or equal timestamps make the historical ordering
-            # ambiguous, so do not resurrect any older draft.
-            if any(
-                item is not previous and item not in historical
-                for item in previous_snapshots
-            ) or len(
-                {_comparable_datetime(item["extracted_ts"]) for item in historical}
-            ) != len(
-                historical
-            ):
-                historical = []
-            historical.sort(
-                key=lambda item: _comparable_datetime(item["extracted_ts"]),
-                reverse=True,
-            )
-            history = [previous["reviews"]] + [item["reviews"] for item in historical]
-            reviews_data = carry_forward_historical_drafts(reviews_data, history)
+        timestamps = [item.get("extracted_ts") for item in previous_snapshots]
+        # Display selection prefers complete snapshots. Draft authority instead
+        # follows collection chronology, including newer partial snapshots.
+        # Missing or tied timestamps cannot establish which edits are newer.
+        if timestamps and all(value is not None for value in timestamps):
+            comparable = [_comparable_datetime(value) for value in timestamps]
+            if len(set(comparable)) == len(comparable):
+                ordered = sorted(
+                    previous_snapshots,
+                    key=lambda item: _comparable_datetime(item["extracted_ts"]),
+                    reverse=True,
+                )
+                reviews_data = carry_forward_historical_drafts(
+                    reviews_data, [item["reviews"] for item in ordered]
+                )
         snapshot_payload = _build_snapshot_payload(
             scraper_result=scraper_result,
             doctor_data=doctor_data,

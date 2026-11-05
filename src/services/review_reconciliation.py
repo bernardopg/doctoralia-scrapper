@@ -56,8 +56,8 @@ def carry_forward_historical_drafts(
 ) -> List[Dict[str, Any]]:
     """Recover older drafts only for unambiguous, stable source identities.
 
-    The preferred snapshot comes first, followed by the remaining snapshots
-    from newest to oldest. A prior occurrence without a draft is authoritative
+    Snapshots must be supplied from newest to oldest, independently of
+    which snapshot is preferred for display. A prior occurrence without a draft is authoritative
     and must not resurrect an older draft.
     """
     if not history:
