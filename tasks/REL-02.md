@@ -63,3 +63,9 @@ O gestor inspecionou o diff desde `1a7c952` e reexecutou 276 testes, todos aprov
 ```
 
 Execução no checkout isolado da implementação, sem serviços externos. CI do novo head e revisão independente do novo diff ainda pendentes; sem teste visual interativo. A cobertura de 92,5% reportada pelo Codecov refere-se ao head anterior `1a7c952` e não prova a cobertura do novo commit. A combinação dos templates com o PR #213 precisará de validação integrada.
+
+## Segunda revisão: caminhos reais de persistência
+
+A revisão de `dc2d9ef` confirmou o acesso ao parcial e a fixture n8n, mas reproduziu dois problemas: `save_data` real reconcilia novamente usando o completo preferido e pode ressuscitar um rascunho antigo, divergindo do resultado retornado pela API; uma edição em snapshot histórico não tem autoridade temporal própria e pode se perder numa coleta posterior. Também confirmou que setup Selenium esgotado ainda é convertido em `BrowserSetupError`, perdendo o tipo original. A próxima correção deve usar reconciliação única e autoridade de edição explícita, com testes usando `save_data` real, não um gravador substituto.
+
+O Codecov de `dc2d9ef` reportou patch83,54%,13 linhas descobertas. O gestor removeu tratamentos ValueError indevidos em rotas que não selecionam snapshot e ampliou regressões de seleção inválida/sem perfil;85 testes de acesso parcial/dashboard passaram. Esse ajuste está em `d4a83fd`, mas não encerra os problemas de persistência/setup acima.

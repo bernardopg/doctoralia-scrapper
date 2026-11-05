@@ -53,3 +53,7 @@ O head `08a20dad14dc2f2d09e7cc6244766337b74e8a53` adiciona proveniência tempora
 O gestor conferiu o [CI desse head](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41968083947): Python 3.11–3.14 passaram; no [log Python 3.14](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41968083947/job/127049676189), 534 testes foram aprovados, incluindo dez de reconciliação. Docker, CodeQL e Codecov patch também passaram; o Codecov reportou 91,30% do patch e 18 linhas descobertas. Cobertura local reportada pelo executor (91% reconcile,96% staging,93% combinada) é uma medição diferente.
 
 Uma nova revisão independente ainda é exigida. Rascunhos em conflito podem continuar materializados até decisão humana; não podem ser consumidos como aprovados pelo runtime futuro. Snapshots legados sem fuso exigem tratamento explícito de origem no ensaio. Resolução auditável, cutover e ensaio com cópia representativa continuam REL-03/05/09.
+
+## Estado da rechecagem
+
+A rechecagem independente de `08a20da` falhou por limite de uso do provedor antes de produzir conclusão; isso não é aprovação. Em2026-11-05 a orquestração retomou com o mesmo modelo Terra6.1 high após conferir sua disponibilidade. Nova revisão deve ser um novo delegate, preservando o head e os critérios já definidos.
