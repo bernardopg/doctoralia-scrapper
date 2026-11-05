@@ -108,6 +108,9 @@ def test_routes_validate_snapshot_and_render_links(workspace, tmp_path):
     ]:
         query = {"profile_id": bad_profile, "snapshot": filename}
         assert (
+            client.get("/api/workspace/profile", query_string=query).status_code == 404
+        )
+        assert (
             client.get("/api/workspace/responses", query_string=query).status_code
             == 404
         )
@@ -122,3 +125,9 @@ def test_routes_validate_snapshot_and_render_links(workspace, tmp_path):
     history = open("templates/history.html", encoding="utf-8").read()
     assert "/profiles?profile_id=${encodeURIComponent(entry.profile_id)}" in history
     assert "/responses?profile_id=${encodeURIComponent(entry.profile_id)}" in history
+
+
+def test_selected_responses_require_profile(workspace):
+    service, _, _ = workspace
+    with pytest.raises(ValueError, match="Snapshot não encontrado"):
+        service.list_pending_responses(snapshot="partial.json")
