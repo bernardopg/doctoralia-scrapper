@@ -20,7 +20,17 @@ No Compose base, n8n usa `n8n-data`, depende da API saudável e publica 5678 ape
 
 ## Observado localmente
 
-Em 2026-11-05, `docker ps` mostrou `doctoralia-scrapper-n8n-1`, imagem `n8nio/n8n:2.45.7`, saudável; metadados de montagem mostram o volume `doctoralia-scrapper_n8n-data` em `/home/node/.n8n`. O banco e seu WAL são legíveis no contêiner, mas não foi estabelecido um leitor somente leitura adequado para inventariar os workflows sem alterar a instalação. Portanto nomes, IDs, estados ativos, triggers e destinos locais permanecem **não verificados**. Nenhum workflow, webhook ou notificação foi executado. Os proprietários e consumidores externos não são verificáveis a partir do repositório ou destes metadados.
+Em 2026-11-05, com a instalação parada apenas para leitura, o banco SQLite do n8n (`database.sqlite` com `-wal` e `-shm`, copiados do volume `doctoralia-scrapper_n8n-data` para fora do checkout e lidos em cópia) continha:
+
+| Tabela | Registros |
+| --- | --- |
+| `workflow_entity` | 0 |
+| `shared_workflow` | 0 |
+| `credentials_entity` | 0 |
+| `webhook_entity` | 0 |
+| `execution_entity` | 0 |
+
+`n8n list:workflow` também não listou workflows, e o backup `scripts/backup_restore.sh backup` registrou exportação vazia. Portanto esta instalação nunca executou workflows nem registrou webhooks no n8n. Chamadores externos dos endpoints da API (`/v1/hooks/n8n/scrape`, `/v1/jobs`) continuam fora do alcance desta verificação; os endpoints permanecem disponíveis.
 
 ## Exportação, migração e retorno planejados
 
@@ -33,4 +43,6 @@ Em 2026-11-05, `docker ps` mostrou `doctoralia-scrapper-n8n-1`, imagem `n8nio/n8
 
 ## Gates para tornar opcional ou remover
 
-Inventário local e externo completo e aprovado pelos responsáveis; substitutos implantados e testados para cada trigger e destino; compatibilidade e métricas comprovadas; exportação e restauração ensaiadas em stack descartável; backup e reversão verificados; confirmação explícita de que não restam dependentes. Nenhum desses gates é afirmado como concluído aqui. Este PR não remove serviço nem volume e não autoriza sua remoção.
+**Opcional (2.8.0):** atendido para esta instalação pelo inventário acima. O serviço passa a subir só com `docker compose --profile n8n up -d`; volume `n8n-data`, exemplos, endpoints e o proxy do Caddy são preservados. As credenciais do n8n só são exigidas quando o serviço sobe.
+
+**Remoção do serviço e do volume:** continua bloqueada. Exige confirmação de que nenhuma outra instalação ou chamador externo depende do n8n, e exportação/restauração ensaiadas onde houver workflows. Nada é removido nesta versão.
