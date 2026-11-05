@@ -61,6 +61,8 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 date_to=request.args.get("date_to"),
                 favorite_profiles=user_profile.get("favorite_profiles", []),
                 snapshot=request.args.get("snapshot"),
+                review_date_from=request.args.get("review_date_from"),
+                review_date_to=request.args.get("review_date_to"),
             )
             if detail is None:
                 return jsonify({"error": "Perfil não encontrado"}), 404
@@ -86,6 +88,11 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 favorites_only=request.args.get("favorites_only") == "1",
                 search=request.args.get("q"),
                 snapshot=request.args.get("snapshot"),
+                review_date_from=request.args.get("review_date_from"),
+                review_date_to=request.args.get("review_date_to"),
+                # Invalid numbers fall back to defaults instead of raising.
+                page=request.args.get("page", type=int),
+                page_size=request.args.get("page_size", type=int),
             )
             return jsonify(payload)
         except ValueError:
