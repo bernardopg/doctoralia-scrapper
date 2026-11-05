@@ -29,7 +29,7 @@ Este repositório organiza uma rotina operacional completa para reviews do Docto
 | `dashboard` | Workspace visual para operação diária, histórico, relatórios, perfil do operador e scheduler |
 | `redis`     | Fila RQ, métricas Redis-backed, agendamentos, locks e histórico                              |
 | `selenium`  | Navegador remoto para scraping resiliente                                                    |
-| `n8n`       | Orquestrações externas, callbacks e automações multi-sistema                                 |
+| `n8n`       | Opcional (`--profile n8n`): orquestrações externas e callbacks                                 |
 
 ## Tour visual
 
@@ -73,7 +73,7 @@ URLs locais esperadas:
 - API: `http://localhost:8000/docs`
 - Dashboard: `http://localhost:5000` (redireciona para `/login` quando a auth estiver ativa)
 - Telegram scheduling: `http://localhost:5000/notifications/telegram/schedule`
-- n8n: `http://localhost:5678` com Basic Auth configurada no `.env`
+- n8n (opcional): `docker compose --profile n8n up -d`, depois `http://localhost:5678` com Basic Auth configurada no `.env`
 - Selenium status: `http://localhost:4444/status`
 
 Primeiro acesso ao dashboard:
@@ -124,9 +124,9 @@ make lint
 
 | Tema              | Situação                                                                |
 | ----------------- | ----------------------------------------------------------------------- |
-| Stack Docker      | `api`, `worker`, `dashboard`, `db`/`db-init`, `redis`, `selenium`, `n8n` |
+| Stack Docker      | `api`, `worker`, `dashboard`, `db`/`db-init`, `redis`, `selenium`; `n8n` opcional |
 | Workspace web     | Operacional, autenticado e com scheduler Telegram integrado             |
-| Persistência      | Snapshots em `data/`, histórico/schedules em Redis e schema base em PostgreSQL |
+| Persistência      | Snapshots JSON em `data/` (padrão) ou PostgreSQL opt-in (`STORAGE_BACKEND=postgres`); schedules em Redis |
 | Métricas da API   | Redis-backed, multi-processo                                            |
 | n8n local         | preso em `127.0.0.1:5678`, com auth e encryption key obrigatórias       |
 | Testes            | suíte cobrindo áreas críticas de API, dashboard, jobs, Redis e Telegram |
@@ -177,6 +177,7 @@ O `README` agora é só a entrada. A documentação foi reorganizada em formato 
 | [docs/dashboard-workspace.md](docs/dashboard-workspace.md)       | Operação diária no dashboard                       |
 | [docs/telegram-notifications.md](docs/telegram-notifications.md) | Scheduler Telegram completo                        |
 | [docs/api.md](docs/api.md)                                       | Referência da API                                  |
+| [docs/storage-postgres.md](docs/storage-postgres.md) | Backend PostgreSQL: cutover e rollback |
 | [docs/n8n.md](docs/n8n.md)                                       | Workflows e integração externa                     |
 | [docs/operations.md](docs/operations.md)                         | Runbook e troubleshooting                          |
 | [docs/development.md](docs/development.md)                       | Padrões de desenvolvimento                         |

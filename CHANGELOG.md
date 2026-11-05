@@ -6,6 +6,67 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-11-05
+
+### Atualização
+
+- Faça backup antes (`scripts/backup_restore.sh backup` e `verify`). A
+  inicialização aplica as migrações `0001`–`0007`, todas aditivas; bancos da
+  2.7.x (só `users`, `workspaces`, `memberships`) são preservados.
+- O n8n deixou de subir por padrão. Quem o usa deve iniciar com
+  `docker compose --profile n8n up -d`; o volume `n8n-data` é mantido.
+- `reviews[].date` na API pode ser `null` quando a Doctoralia não informa a
+  data. Consumidores que esperavam sempre texto precisam tratar `null`.
+- Snapshots de versões até a 2.7.2 usam IDs posicionais e não são importados
+  pelo backend PostgreSQL; faça uma coleta nova antes de ativá-lo.
+
+### Added
+
+- Backend PostgreSQL opt-in (`STORAGE_BACKEND=postgres`): coletas continuam
+  gravando JSON e são sincronizadas no banco; o dashboard lê do banco; edição
+  de rascunho com conflito pendente é recusada (HTTP 409). Cutover e rollback
+  em `docs/storage-postgres.md` (`python -m src.db.review_store sync` e
+  `export-drafts`).
+- Importação verificável de snapshots: staging com checksum
+  (`src.db.snapshot_import`) e reconciliação transacional por workspace
+  (`src.db.snapshot_reconcile`) com rejeições e conflitos registrados.
+- Resolução auditável de conflitos de rascunho
+  (`python -m src.db.draft_resolution list|resolve`): `keep`, `choose` ou
+  `clear`, com ator, revisão esperada e histórico append-only.
+- Fila de respostas com filtro pela data de publicação da avaliação, datas de
+  avaliação e de coleta visíveis e paginação no servidor.
+- Avisos de coleta incompleta e de que sugestões precisam ser publicadas
+  manualmente na Doctoralia; estados de carregamento, vazio e erro com nova
+  tentativa.
+- Roteiros de navegador com dados sintéticos: `scripts/test_dashboard_browser.py`
+  (XSS) e `scripts/test_dashboard_ux.py` (estados, acessibilidade, layout).
+
+### Changed
+
+- Coleta síncrona e assíncrona compartilham o mesmo contrato e publicação;
+  o Selenium roda fora do event loop da API.
+- Coletas sem metadados de completude são marcadas como não verificadas; o
+  Telegram só envia relatório de coleta completa.
+- Identidade das avaliações usa o ID da Doctoralia (`doctoralia:<n>`), com
+  fingerprint e ID ambíguo como fallback; rascunhos são preservados entre
+  coletas por edição versionada.
+- Normalização compartilhada em `src/normalization.py`; o módulo do n8n
+  continua como compatibilidade.
+- Filtros de data das demais telas indicam que se referem à data da coleta.
+- Snapshots são lidos com cache por arquivo e gravam o horário da coleta com
+  fuso; nomes de arquivo separam horário e sufixo.
+
+### Fixed
+
+- Extração de datas e do nome do profissional no HTML atual da Doctoralia.
+- Dados de avaliações, perfis e respostas renderizados com escape em todas as
+  telas, incluindo mensagens de erro, contadores e links de favoritos.
+- Copiar sugestão funciona em HTTP sem contexto seguro.
+- O dashboard não falha mais ao iniciar quando o arquivo de log não é
+  gravável.
+- Data de avaliação ausente não é mais substituída pela hora atual nem quebra
+  a normalização da API.
+
 ## [2.7.2] - 2026-11-02
 
 ### Fixed

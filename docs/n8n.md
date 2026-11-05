@@ -2,6 +2,8 @@
 
 # Integração n8n
 
+> Desde a 2.8.0 o n8n é opcional e não sobe por padrão. Inicie com `docker compose --profile n8n up -d` (ou adicione `--profile n8n` aos demais comandos). O volume `n8n-data` é preservado.
+
 Guia completo para integrar o Doctoralia Scraper com workflows n8n.
 
 ## Quando usar n8n e quando usar o scheduler interno

@@ -4,55 +4,47 @@ Este arquivo acompanha a revisão funcional e o trabalho para o próximo release
 
 ## Estado confirmado — 5 de novembro de 2026
 
-- A última versão publicada é `v2.7.2`. As alterações posteriores estão em `main`, mas ainda não compõem um novo release.
-- Mesclados na main em 5 de novembro: contrato de coleta unificado, com Selenium fora do event loop e snapshot publicado pelos dois caminhos ([#211](https://github.com/bernardopg/doctoralia-scrapper/pull/211)); endurecimento do dashboard com roteiro de navegador ([#213](https://github.com/bernardopg/doctoralia-scrapper/pull/213)); normalização desacoplada do n8n ([#214](https://github.com/bernardopg/doctoralia-scrapper/pull/214)); reconciliação opt-in de snapshots em staging ([#212](https://github.com/bernardopg/doctoralia-scrapper/pull/212)); logger tolerante a arquivo sem permissão ([#216](https://github.com/bernardopg/doctoralia-scrapper/pull/216)); datas de avaliação e de coleta distintas com paginação da fila ([#217](https://github.com/bernardopg/doctoralia-scrapper/pull/217)).
-- Em revisão: resolução auditável de conflitos de rascunho ([#218](https://github.com/bernardopg/doctoralia-scrapper/pull/218)); estados, acessibilidade e aviso de publicação manual ([#219](https://github.com/bernardopg/doctoralia-scrapper/pull/219)).
-- Os snapshots e rascunhos usados pelo runtime continuam em JSON. O banco recebe importação, reconciliação e resolução apenas por CLI opt-in; API e dashboard ainda não leem do PostgreSQL (REL-05).
-- Testes PostgreSQL e Redis rodam em serviços descartáveis no CI. Uma coleta real anterior obteve 164/164 avaliações; não houve nova coleta real nesta rodada.
-
-## Planejamento do próximo release
-
-O [roadmap](ROADMAP.md) e as [fichas REL-01–REL-10](tasks/README.md) detalham dependências, aceite e evidências. REL-01, REL-02, REL-04, REL-06 (datas e paginação da fila) e a normalização de REL-07 estão na main; REL-03 e REL-08 estão em revisão. Pendentes: REL-05 (repositórios PostgreSQL no runtime), inventário completo do n8n, reavaliação da paginação da fonte, REL-09 (ensaio de backup/restore e instalações) e REL-10. A versão v2.8.0 é candidata sujeita ao escopo entregue; não houve bump.
+A 2.8.0 está preparada com REL-01 a REL-09 entregues; detalhes, evidências e limites em [prontidão](docs/release-readiness.md) e no [CHANGELOG](CHANGELOG.md). Os blocos P0–P3 abaixo registram o planejamento original; itens remanescentes estão em "Depois da 2.8.0" no [roadmap](ROADMAP.md).
 
 ## P0 — Integridade e segurança antes da migração
 
-- [ ] **Identidade e conflitos.** Definir e implementar reconciliação explícita de IDs legados, fingerprints alterados, colisões e IDs de origem repetidos; manter os casos incertos separados, sem associar rascunhos automaticamente. Validar reordenação, duplicatas, edição de texto, ausência de autor e restauração de dados históricos.
-- [ ] **Rascunhos.** Preservar edições e exclusões intencionais ao recolher ou importar; recuperar rascunhos históricos somente com correspondência inequívoca. Apresentar e registrar conflitos que precisem de decisão. Testar concorrência, snapshots parciais e ausência/reaparição de avaliações.
-- [ ] **Segurança das telas.** Concluir a auditoria de avaliações, perfis e respostas em texto, atributos, URLs e ações em todas as páginas. Testar entradas hostis em navegador real, incluindo edição, cópia, histórico e relatórios.
-- [ ] **Completude da coleta.** Propagar `complete`, `partial`, `unknown` e falha, totais, motivo e duração em todos os caminhos relevantes da API, dashboard e integrações. Validar que parcial ou desconhecida não seja apresentada nem enviada como relatório completo.
+- [x] **Identidade e conflitos.** Definir e implementar reconciliação explícita de IDs legados, fingerprints alterados, colisões e IDs de origem repetidos; manter os casos incertos separados, sem associar rascunhos automaticamente. Validar reordenação, duplicatas, edição de texto, ausência de autor e restauração de dados históricos.
+- [x] **Rascunhos.** Preservar edições e exclusões intencionais ao recolher ou importar; recuperar rascunhos históricos somente com correspondência inequívoca. Apresentar e registrar conflitos que precisem de decisão. Testar concorrência, snapshots parciais e ausência/reaparição de avaliações.
+- [x] **Segurança das telas.** Concluir a auditoria de avaliações, perfis e respostas em texto, atributos, URLs e ações em todas as páginas. Testar entradas hostis em navegador real, incluindo edição, cópia, histórico e relatórios.
+- [x] **Completude da coleta.** Propagar `complete`, `partial`, `unknown` e falha, totais, motivo e duração em todos os caminhos relevantes da API, dashboard e integrações. Validar que parcial ou desconhecida não seja apresentada nem enviada como relatório completo.
 
 ## P1 — PostgreSQL e operação
 
 ### 1. Importação e reconciliação
 
 - [x] Preparar esquema inicial versionado e staging idempotente, com cópias verificadas por checksum, bytes originais e indicadores de ambiguidade.
-- [ ] Construir importador transacional de staging para perfis, avaliações, execuções, observações e rascunhos, com identidade determinística por workspace e preservação da proveniência. Não tratar fingerprints ou IDs temporários ambíguos como prova de identidade.
-- [ ] Registrar conflitos individualmente e oferecer resolução auditável; preservar originais e rascunhos não resolvidos. Definir comportamento para arquivos rejeitados, registros já existentes, dados alterados e reexecuções concorrentes.
-- [ ] Produzir relatório de migração com totais de origem, importados, duplicados, rejeitados e pendentes; conferir contagens, campos, timestamps e rascunhos antes de ativar a leitura do banco.
-- [ ] Testar migração e reexecução com snapshots representativos e PostgreSQL descartável; validar falha e retomada, rollback e restauração de backup. Fazer ensaio com cópia dos dados existentes antes de qualquer mudança na instalação em uso.
+- [x] Construir importador transacional de staging para perfis, avaliações, execuções, observações e rascunhos, com identidade determinística por workspace e preservação da proveniência. Não tratar fingerprints ou IDs temporários ambíguos como prova de identidade.
+- [x] Registrar conflitos individualmente e oferecer resolução auditável; preservar originais e rascunhos não resolvidos. Definir comportamento para arquivos rejeitados, registros já existentes, dados alterados e reexecuções concorrentes.
+- [x] Produzir relatório de migração com totais de origem, importados, duplicados, rejeitados e pendentes; conferir contagens, campos, timestamps e rascunhos antes de ativar a leitura do banco.
+- [x] Testar migração e reexecução com snapshots representativos e PostgreSQL descartável; validar falha e retomada, rollback e restauração de backup. Fazer ensaio com cópia dos dados existentes antes de qualquer mudança na instalação em uso.
 
 ### 2. Integração e fluxo operacional
 
-- [ ] Implementar repositórios e contratos de acesso ao PostgreSQL; integrar API, worker e dashboard com isolamento por workspace, consultas, ordenação, filtros e paginação no servidor.
-- [ ] Manter histórico de coletas e rascunhos independentes dos snapshots; definir fonte de verdade, transição e compatibilidade com JSON, incluindo falha do banco e recuperação sem perda de edições.
-- [ ] Unificar coleta síncrona e assíncrona, persistência e erros. Retirar Selenium e outras operações bloqueantes do event loop; confirmar que os resultados dos dois caminhos aparecem corretamente no dashboard.
-- [ ] Distinguir data da avaliação de data da coleta na API, no banco e na interface; testar limites, fuso horário e registros sem data.
+- [x] Implementar repositórios e contratos de acesso ao PostgreSQL; integrar API, worker e dashboard com isolamento por workspace, consultas, ordenação, filtros e paginação no servidor.
+- [x] Manter histórico de coletas e rascunhos independentes dos snapshots; definir fonte de verdade, transição e compatibilidade com JSON, incluindo falha do banco e recuperação sem perda de edições.
+- [x] Unificar coleta síncrona e assíncrona, persistência e erros. Retirar Selenium e outras operações bloqueantes do event loop; confirmar que os resultados dos dois caminhos aparecem corretamente no dashboard.
+- [x] Distinguir data da avaliação de data da coleta na API, no banco e na interface; testar limites, fuso horário e registros sem data.
 - [ ] Reavaliar a paginação real da Doctoralia e alternativas ao Selenium sem presumir API disponível. Validar totais, respostas e campos com HTML real anonimizado e nova coleta de perfil autorizado.
-- [ ] Validar migrações em instalação existente e limpa, inicialização concorrente, integridade das restrições, backup/restore e a política de downgrade; manter testes de PostgreSQL e Redis em serviços descartáveis no CI.
+- [x] Validar migrações em instalação existente e limpa, inicialização concorrente, integridade das restrições, backup/restore e a política de downgrade; manter testes de PostgreSQL e Redis em serviços descartáveis no CI.
 
 ## P2 — n8n e interface
 
-- [ ] Inventariar workflows ativos, consumidores de webhooks e callbacks; identificar substituições necessárias antes de remover o n8n da distribuição padrão. Preservar `n8n-data` e documentar exportação e migração.
-- [ ] Desacoplar a normalização compartilhada do pacote n8n e ajustar Compose, proxy, documentação e testes de compatibilidade das integrações existentes.
+- [x] Inventariar workflows ativos, consumidores de webhooks e callbacks; identificar substituições necessárias antes de remover o n8n da distribuição padrão. Preservar `n8n-data` e documentar exportação e migração.
+- [x] Desacoplar a normalização compartilhada do pacote n8n e ajustar Compose, proxy, documentação e testes de compatibilidade das integrações existentes.
 - [ ] Reorganizar a navegação em visão geral, avaliações, respostas, perfis/coletas e configurações, destacando pendências e ações principais.
-- [ ] Melhorar carregamento, vazio, erro, progresso e coleta parcial; oferecer paginação, responsividade e acessibilidade e informar que sugestões devem ser publicadas na Doctoralia.
-- [ ] Validar em navegador, em tamanhos diferentes, avaliação, edição, cópia, histórico e recuperação de falhas. Registrar o que foi testado e os limites da validação.
+- [x] Melhorar carregamento, vazio, erro, progresso e coleta parcial; oferecer paginação, responsividade e acessibilidade e informar que sugestões devem ser publicadas na Doctoralia.
+- [x] Validar em navegador, em tamanhos diferentes, avaliação, edição, cópia, histórico e recuperação de falhas. Registrar o que foi testado e os limites da validação.
 
 ## P3 — Preparação e verificação do release
 
-- [ ] Resolver ou registrar explicitamente quaisquer riscos das etapas P0–P2; atualizar README, documentação operacional, migração, API e changelog conforme o comportamento entregue.
-- [ ] Executar suíte completa, verificações de estilo e tipos, CodeQL, varredura das imagens, testes de integração com bancos descartáveis e smoke tests da stack em `main`; corrigir falhas e confirmar o resultado final dos workflows.
-- [ ] Sincronizar a versão do pacote, API e dashboard e preparar notas de release e tag coerentes. Publicar somente após todas as verificações acordadas passarem.
+- [x] Resolver ou registrar explicitamente quaisquer riscos das etapas P0–P2; atualizar README, documentação operacional, migração, API e changelog conforme o comportamento entregue.
+- [x] Executar suíte completa, verificações de estilo e tipos, CodeQL, varredura das imagens, testes de integração com bancos descartáveis e smoke tests da stack em `main`; corrigir falhas e confirmar o resultado final dos workflows.
+- [x] Sincronizar a versão do pacote, API e dashboard e preparar notas de release e tag coerentes. Publicar somente após todas as verificações acordadas passarem.
 - [ ] Confirmar a publicação dos artefatos previstos, suas versões e checksums quando disponíveis; validar health/readiness, versões expostas e o fluxo principal na instalação atualizada, após backup.
 
 ## Backlog adicional — a priorizar separadamente
