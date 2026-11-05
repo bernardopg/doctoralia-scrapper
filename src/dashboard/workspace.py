@@ -24,8 +24,6 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
             )
             overview["user_profile"] = user_profile
             return jsonify(overview)
-        except ValueError:
-            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -43,8 +41,6 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 favorite_profiles=user_profile.get("favorite_profiles", []),
             )
             return jsonify({"profiles": profiles})
-        except ValueError:
-            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -112,8 +108,6 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 search=request.args.get("q"),
             )
             return jsonify(payload)
-        except ValueError:
-            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
@@ -132,8 +126,6 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
             if deleted is None:
                 return jsonify({"error": "Snapshot não encontrado"}), 404
             return jsonify({"success": True, "deleted": deleted})
-        except ValueError:
-            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Snapshot não encontrado", status_code=404, exc=e)
         except OSError as e:
@@ -167,8 +159,6 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
                 favorite_profiles=user_profile.get("favorite_profiles", []),
             )
             return jsonify(payload)
-        except ValueError:
-            return jsonify({"error": "Snapshot não encontrado"}), 404
         except FileNotFoundError as e:
             return svc.error_response("Dados não encontrados", status_code=404, exc=e)
         except json.JSONDecodeError as e:
