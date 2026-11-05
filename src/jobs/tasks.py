@@ -384,8 +384,8 @@ def scrape_and_process(
             end_time=datetime.now(),
         )
 
-        logger.error(f"scrape_and_process failed: {e}")
-        _update_job_meta(progress=0, message=f"Falha: {e}")
+        logger.error("scrape_and_process failed: %s", type(e).__name__)
+        _update_job_meta(progress=0, message=f"Falha: {type(e).__name__}")
 
         # Send error callback if URL provided
         if callback_url:
