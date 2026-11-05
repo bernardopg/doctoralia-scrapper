@@ -9,7 +9,7 @@ import logging
 import threading
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
@@ -130,9 +130,23 @@ class WorkspaceService:
     ``review_date_to`` select reviews by the date they were published.
     """
 
-    def __init__(self, data_dir: Path, log: Optional[logging.Logger] = None) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        log: Optional[logging.Logger] = None,
+        payload_source: Optional[Callable[[], List[Dict[str, Any]]]] = None,
+    ) -> None:
+        """``payload_source`` replaces JSON reads (e.g. the PostgreSQL backend).
+
+        Writes always go to the JSON snapshots, which remain the rollback copy.
+        """
         self.data_dir = Path(data_dir)
         self.logger = log or logger
+        self.payload_source = payload_source
+
+    @property
+    def reads_database(self) -> bool:
+        return self.payload_source is not None
 
     @staticmethod
     def make_profile_id(profile_url: str, doctor_name: str) -> str:
@@ -140,6 +154,18 @@ class WorkspaceService:
         return hashlib.md5(base.encode(), usedforsecurity=False).hexdigest()[:12]
 
     def _load_snapshots(self) -> List[Dict[str, Any]]:
+        if self.payload_source is None:
+            return self._load_json_snapshots()
+        snapshots = []
+        for payload in self.payload_source():
+            storage = payload.get("_storage") or {}
+            name = f"db:{storage.get('run_id', '')}"
+            snapshot = self._snapshot_from_payload(payload, name, name, 0)
+            if snapshot:
+                snapshots.append(snapshot)
+        return snapshots
+
+    def _load_json_snapshots(self) -> List[Dict[str, Any]]:
         snapshots: List[Dict[str, Any]] = []
         if not self.data_dir.exists():
             return snapshots
@@ -186,7 +212,19 @@ class WorkspaceService:
         try:
             with open(json_file, "r", encoding="utf-8") as file:
                 data = json.load(file)
+            return self._snapshot_from_payload(
+                data, json_file.name, str(json_file), json_file.stat().st_size
+            )
+        except Exception as exc:
+            self.logger.warning(
+                "Error reading workspace snapshot %s: %s", json_file, exc
+            )
+            return None
 
+    def _snapshot_from_payload(
+        self, data: Any, filename: str, file_path: str, file_size: int
+    ) -> Optional[Dict[str, Any]]:
+        try:
             if not isinstance(data, dict) or not isinstance(data.get("reviews"), list):
                 return None
             reviews = data["reviews"]
@@ -231,9 +269,9 @@ class WorkspaceService:
                 or data.get("doctor", {}).get("specialty"),
                 "location": data.get("location")
                 or data.get("doctor", {}).get("location"),
-                "filename": json_file.name,
-                "file_path": str(json_file),
-                "file_size": json_file.stat().st_size,
+                "filename": filename,
+                "file_path": file_path,
+                "file_size": file_size,
                 "extracted_at": extracted_at,
                 "extracted_date": extracted_at[:10] if extracted_at else None,
                 "extracted_ts": _safe_datetime(extracted_at),
@@ -254,7 +292,7 @@ class WorkspaceService:
             }
         except Exception as exc:
             self.logger.warning(
-                "Error reading workspace snapshot %s: %s", json_file, exc
+                "Error reading workspace snapshot %s: %s", filename, exc
             )
             return None
 
@@ -749,6 +787,8 @@ class WorkspaceService:
                     "review_date": published.isoformat() if published else None,
                     "collected_at": current_snapshot["extracted_at"],
                     "generated_response": review.get("generated_response"),
+                    # "pending" when the database withholds a conflicting draft.
+                    "draft_status": review.get("draft_status"),
                     "is_favorite": is_favorite,
                 }
                 if query and query not in json.dumps(item, ensure_ascii=False).lower():
@@ -924,7 +964,7 @@ class WorkspaceService:
         """Read the current edit revision while holding the publication lock."""
         with snapshot_lock(self.data_dir):
             snapshots = self._filter_snapshots(
-                self._load_snapshots(), profile_id=profile_id
+                self._load_json_snapshots(), profile_id=profile_id
             )
             return max(
                 (
@@ -956,9 +996,12 @@ class WorkspaceService:
         generated_response: str,
         snapshot: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
+        # Drafts are always written to the JSON snapshot (the rollback copy).
         snapshots = self._filter_snapshots(
-            self._load_snapshots(), profile_id=profile_id
+            self._load_json_snapshots(), profile_id=profile_id
         )
+        if snapshot is not None and snapshot.startswith("db:"):
+            snapshot = None
         latest = (
             self._select_snapshot(snapshots, profile_id, snapshot)
             if snapshot is not None
@@ -979,6 +1022,13 @@ class WorkspaceService:
             ]
             if len(matches) != 1:
                 return None
+            if self.reads_database:
+                from src.services import storage_backend
+
+                # Raises PendingDraftConflict before anything is written.
+                storage_backend.ensure_draft_editable(
+                    latest["profile_url"], str(review_id)
+                )
             versions = [
                 review.get("draft_edit", {}).get("version", 0)
                 for item in snapshots
@@ -993,6 +1043,15 @@ class WorkspaceService:
             }
 
             write_json_atomic(file_path, payload)
+            if self.reads_database:
+                from src.services import storage_backend
+
+                storage_backend.record_draft(
+                    latest["profile_url"],
+                    str(review_id),
+                    generated_response or None,
+                    matches[0]["draft_edit"]["version"],
+                )
 
             return {
                 "profile_id": profile_id,
@@ -1001,6 +1060,8 @@ class WorkspaceService:
                 "generated_response": generated_response,
             }
         except Exception as exc:
+            if type(exc).__name__ == "PendingDraftConflict":
+                raise
             self.logger.error(
                 "Error saving generated response to %s: %s", file_path, exc
             )
