@@ -90,7 +90,13 @@ def _scrape_run(request: ScrapeRequest, config):
         generation_data = None
         if request.include_generation:
             from src.response_generator import ResponseGenerator
+            from src.services.workspace_service import WorkspaceService
 
+            workspace = WorkspaceService(config.data_dir)
+            profile_id = workspace.make_profile_id(
+                doctor_data.get("url") or "", doctor_data.get("name") or ""
+            )
+            generation_revision = workspace.draft_revision(profile_id)
             generator = ResponseGenerator(config, logger=None)
             responses = []
             for idx, review in enumerate(reviews_data):
@@ -125,6 +131,7 @@ def _scrape_run(request: ScrapeRequest, config):
                     }
                 )
             generation_data = {
+                "_revision": generation_revision,
                 "template_id": request.response_template_id,
                 "responses": responses,
                 "model": {
