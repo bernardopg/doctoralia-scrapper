@@ -1,6 +1,6 @@
 # REL-04 — P0 — Auditoria XSS em navegador
 
-**Estado:** Em revisão. Implementação no [PR draft #213](https://github.com/bernardopg/doctoralia-scrapper/pull/213), head `3b1200488c82d8f3d232f42a308c852fa2c14fef`; sem merge ou aceite final.
+**Estado:** Revisado em isolamento; aguardando integração. Implementação no [PR draft #213](https://github.com/bernardopg/doctoralia-scrapper/pull/213), head `a99b2ac1a8673e1b996b6de458eaa13eb46c28df`; sem merge ou aceite integrado final.
 
 ## Problema
 
@@ -49,3 +49,9 @@ O gestor confirmou disponibilidade de namespaces de usuário/rede (`unshare --us
 ## Correção de isolamento entregue
 
 O head `a99b2ac1a8673e1b996b6de458eaa13eb46c28df` do PR #213 passou no CI remoto. O executor reportou runner Flask/Chromium em namespace apenas loopback, configuração sintética de ambos os componentes, provas negativas de rede/configuração e regressões específicas por campo e identificador. Reportou87 testes Python e runner Chromium156.0.8078.4 aprovados; remover encoding de perfil/tarefa fez os testes falharem, e falha simulada de browser launch limpou o temporário. A auditoria de arquivos cobre operações Python e não é sandbox de filesystem; clipboard/APIs seguem simulados. Revisão independente do novo head permanece pendente.
+
+## Rechecagem independente concluída
+
+A revisão de `a99b2ac` não encontrou findings acionáveis ou XSS real remanescente no diff examinado. O revisor executou independentemente o runner com ambiente limpo e dependências/Chromium temporários: exit0, Chromium156.0.8078.4 e PASS. Conferiu namespace antes dos imports, loopback sem rotas, porta Flask efêmera, bloqueio de porta8000/endereço externo e probes fetch/WebSocket/popup, configurações sintéticas e guarda Python durante requisições/cleanup. CI remoto desse head está verde.
+
+Limites: APIs e clipboard simulados; a revisão não repetiu os87 testes Python, mutações ou falha de lançamento, não testou payload HTML URL-encoded nem persistência/backend de IDs com barra. Não é prova exaustiva contra XSS ou sandbox geral de filesystem. Conflito concreto com PR #211 em `templates/profiles.html`: preservar URLSearchParams, codificação e seleção de snapshot ao integrar. A tarefa isolada foi revisada, mas o checkbox do release continua aberto até essa validação combinada.

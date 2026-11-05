@@ -1,6 +1,6 @@
 # REL-07 — P2 — Inventário n8n e normalização desacoplada
 
-**Estado:** Planejado. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
+**Estado:** Em andamento. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
 
 ## Problema
 
@@ -35,3 +35,7 @@ Inventário revisado, fixtures de contrato, ensaio isolado de exportação/retor
 ## Riscos
 
 Workflows externos não observados podem ser interrompidos.
+
+## Execução autorizada
+
+Extrair normalização compartilhada para módulo neutro com shim de importação n8n e testes de equivalência, sem mudar contratos. Inventariar fontes e consumidores do repositório e metadados da instalação local apenas por leitura, se houver acesso seguro; preservar workflows, callbacks e volume n8n-data. Não concluir inventário externo sem evidência e não remover o serviço neste PR. Dados de workflows, credenciais e URLs com segredos não devem ser commitados.
