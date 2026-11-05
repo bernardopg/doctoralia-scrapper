@@ -57,3 +57,11 @@ Uma nova revisão independente ainda é exigida. Rascunhos em conflito podem con
 ## Estado da rechecagem
 
 A rechecagem independente de `08a20da` falhou por limite de uso do provedor antes de produzir conclusão; isso não é aprovação. Em2026-11-05 a orquestração retomou com o mesmo modelo Terra6.1 high após conferir sua disponibilidade. Nova revisão deve ser um novo delegate, preservando o head e os critérios já definidos.
+
+## Rechecagem concluída e ajuste de limites
+
+A revisão independente de `08a20da` executou12 testes em PostgreSQL descartável e reproduziu dois problemas: upgrade0003→0004 deixa snapshots já processados sem proveniência/conflitos e pode reportar pending0 com draft antigo ativo; conversão UTC de timestamps extremos produz OverflowError e interrompe o lote. Os demais cinco findings anteriores foram tratados para novas reconciliações, mantendo as ressalvas documentadas.
+
+O gestor corrigiu o overflow em `39f4b1d` e adicionou regressões para ano0001 com offset+14 e ano9999 com offset−14, exigindo rejeição registrada e importação do snapshot seguinte. Passaram25 testes em PostgreSQL18 descartável recém-criado, nesta ordem: `tests/test_review_storage_migrations.py tests/test_snapshot_import.py tests/test_snapshot_reconcile.py`; o serviço foi removido após o ensaio. Black/mypy e diffcheck pertinentes passaram. A suíte de migração requer banco vazio e deve preceder as demais.
+
+O findingP1 de upgrade/proveniência continua sem aceite e requer correção específica com teste real de migração de0003 e de instalação que já aplicou0004. O runtime futuro não pode interpretar esses rascunhos antigos como aprovados apenas porque um relatório retornou pending0.
