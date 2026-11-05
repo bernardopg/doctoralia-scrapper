@@ -100,7 +100,8 @@ def _build_snapshot_payload(
     snapshot_payload["reviews"] = snapshot_reviews
     snapshot_payload["total_reviews"] = len(snapshot_reviews)
     snapshot_payload["extraction_timestamp"] = (
-        snapshot_payload.get("extraction_timestamp") or datetime.now().astimezone().isoformat()
+        snapshot_payload.get("extraction_timestamp")
+        or datetime.now().astimezone().isoformat()
     )
     return snapshot_payload
 
