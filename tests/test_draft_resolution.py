@@ -43,6 +43,8 @@ async def database():
         yield engine
     finally:
         await engine.dispose()
+        # CI shares one database across modules; later ones expect it empty.
+        await drop_db(url)
 
 
 def candidate(draft, day):
