@@ -25,7 +25,7 @@ const document = {
   getElementById: () => output,
   addEventListener: () => {},
 };
-const context = {document, console, dashboardReviewDate: () => '-'};
+const context = {document, console, URLSearchParams, location: {search: ''}, dashboardReviewDate: () => '-'};
 vm.createContext(context);
 vm.runInContext(source, context);
 context.renderResponses([{

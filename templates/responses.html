@@ -107,6 +107,8 @@
 <script>
   const responsesState = {
     items: [],
+    snapshot: new URLSearchParams(location.search).get('snapshot'),
+    snapshotProfile: new URLSearchParams(location.search).get('profile_id'),
   };
 
   function showResponsesAlert(message, type = 'info') {
@@ -128,7 +130,8 @@
     const search = document.getElementById('responses-search').value.trim();
     const favoritesOnly = document.getElementById('responses-favorites-only').checked;
 
-    if (profileId) params.set('profile_id', profileId);
+    if (responsesState.snapshot) { params.set('snapshot', responsesState.snapshot); params.set('profile_id', responsesState.snapshotProfile || ''); }
+    else if (profileId) params.set('profile_id', profileId);
     if (dateFrom) params.set('date_from', dateFrom);
     if (dateTo) params.set('date_to', dateTo);
     if (search) params.set('q', search);
@@ -232,6 +235,7 @@
           profile_id: profileId,
           review_id: reviewId,
           generated_response: responseText,
+          snapshot: responsesState.snapshot,
         }),
       });
       const data = await response.json();
@@ -297,6 +301,12 @@
 
       responsesState.items = data.items || [];
       populateResponseFilters(data.filters || []);
+      if (responsesState.snapshot) {
+        const select = document.getElementById('responses-profile-filter');
+        select.value = responsesState.snapshotProfile;
+        select.disabled = true;
+        document.getElementById('responses-alert').textContent = `Snapshot: ${responsesState.snapshot} • ${data.snapshot?.collection?.status || 'unknown'} • ${data.snapshot?.reviews_count ?? 0} avaliações • ${data.snapshot?.unanswered_count ?? 0} pendentes • ${data.snapshot?.generated_count ?? 0} sugestões`;
+      }
       document.getElementById('responses-summary-pending').textContent = data.summary?.pending_reviews ?? 0;
       document.getElementById('responses-summary-profiles').textContent = data.summary?.profiles_with_pending ?? 0;
       document.getElementById('responses-summary-favorites').textContent = data.summary?.favorite_pending ?? 0;
