@@ -64,17 +64,24 @@ def setup_logger(
     # Limpar handlers existentes
     logger.handlers.clear()
 
-    # Handler para arquivo (log completo)
-    config.logs_dir.mkdir(parents=True, exist_ok=True)
+    # Handler para arquivo (log completo). Um arquivo sem permissão de escrita
+    # (por exemplo, criado por outro usuário em um volume compartilhado) não deve
+    # impedir a inicialização: o log continua disponível no console.
     log_file = config.logs_dir / f"{name}_{datetime.now().strftime('%Y%m')}.log"
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    if structured:
-        file_handler.setFormatter(JSONFormatter())
+    file_error: OSError | None = None
+    try:
+        config.logs_dir.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    except OSError as exc:
+        file_error = exc
     else:
-        file_format = "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
-        file_handler.setFormatter(logging.Formatter(file_format))
-    file_handler.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
+        if structured:
+            file_handler.setFormatter(JSONFormatter())
+        else:
+            file_format = "%(asctime)s | %(name)s | %(levelname)s | %(funcName)s:%(lineno)d | %(message)s"
+            file_handler.setFormatter(logging.Formatter(file_format))
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
 
     # Handler para console (saída colorida e limpa)
     console_handler = logging.StreamHandler(sys.stdout)
@@ -86,5 +93,12 @@ def setup_logger(
     console_handler.setFormatter(ColoredFormatter(console_format))
     console_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
     logger.addHandler(console_handler)
+
+    if file_error is not None:
+        logger.warning(
+            "Arquivo de log indisponível (%s); usando apenas o console: %s",
+            log_file,
+            file_error.strerror or type(file_error).__name__,
+        )
 
     return logger
