@@ -627,7 +627,7 @@
 
     const row = tasksCache[taskId] || {};
     try {
-      const response = await fetch(`/api/tasks/${taskId}`);
+      const response = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const detail = await response.json();
 
@@ -660,7 +660,7 @@
           </div>
           <div class="detail-item">
             <div class="detail-item-label">Reviews</div>
-            <div class="detail-item-value">${detail.metrics?.scraped_count ?? detail.reviews?.length ?? 0}</div>
+            <div class="detail-item-value">${dashboardEscape(detail.metrics?.scraped_count ?? detail.reviews?.length ?? 0)}</div>
           </div>
           <div class="detail-item full-width">
             <div class="detail-item-label">Mensagem</div>

@@ -499,7 +499,7 @@
     renderProfilesList();
 
     try {
-      const response = await fetch(`/api/workspace/profile${profilesQuery()}${profilesQuery() ? '&' : '?'}profile_id=${profileId}`);
+      const response = await fetch(`/api/workspace/profile${profilesQuery()}${profilesQuery() ? '&' : '?'}profile_id=${encodeURIComponent(profileId)}`);
       const detail = await response.json();
       if (detail.error) throw new Error(detail.error);
 
