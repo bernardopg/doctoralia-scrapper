@@ -1,6 +1,6 @@
 # REL-01 — P1 — Importação transacional de staging
 
-**Estado:** Em revisão. Implementação no [PR draft #212](https://github.com/bernardopg/doctoralia-scrapper/pull/212), head `54db82df5e3ee52b3ee1a37d9c550e5708e7e7a6`; sem merge ou aceite final.
+**Estado:** Em revisão. Implementação no [PR draft #212](https://github.com/bernardopg/doctoralia-scrapper/pull/212), head `79149c6`; sem merge ou aceite final.
 
 ## Problema
 
@@ -65,3 +65,11 @@ A revisão independente de `08a20da` executou12 testes em PostgreSQL descartáve
 O gestor corrigiu o overflow em `39f4b1d` e adicionou regressões para ano0001 com offset+14 e ano9999 com offset−14, exigindo rejeição registrada e importação do snapshot seguinte. Passaram25 testes em PostgreSQL18 descartável recém-criado, nesta ordem: `tests/test_review_storage_migrations.py tests/test_snapshot_import.py tests/test_snapshot_reconcile.py`; o serviço foi removido após o ensaio. Black/mypy e diffcheck pertinentes passaram. A suíte de migração requer banco vazio e deve preceder as demais.
 
 O findingP1 de upgrade/proveniência continua sem aceite e requer correção específica com teste real de migração de0003 e de instalação que já aplicou0004. O runtime futuro não pode interpretar esses rascunhos antigos como aprovados apenas porque um relatório retornou pending0.
+
+## Reparo de upgrade implementado pelo gestor
+
+O agente de correção não entregou mudanças; o gestor assumiu o finding e publicou `79149c6`. A revisão0005 reconstrói estados a partir de observações já reconciliadas, preserva rascunhos ativos/originais, registra incertezas legadas ainda não sinalizadas e atualiza o relatório pending. Usa locks por workspace, não duplica pendências existentes e mantém auditoria em downgrade/re-upgrade. Nenhuma resolução humana é presumida.
+
+Passaram47 testes em PostgreSQL18 descartável, incluindo sete novos testes reais de upgrade de0003/0004, dados em ordem invertida, workspaces distintos, estados mistos, pendências existentes, reinicialização concorrente, reexecução, rollback/retomada, fuso legado incerto e observações incompletas. O serviço descartável foi removido. Black/isort/Flake8/mypy e diffcheck pertinentes passaram. O comando foi: `pytest tests/test_review_storage_migrations.py tests/test_snapshot_import.py tests/test_snapshot_reconcile.py tests/test_snapshot_upgrade.py tests/test_db_init.py -q -o addopts='' --cov=src.db --cov-report=term-missing`, usando apenas TEST_POSTGRES_URL do serviço criado para esse ensaio.
+
+CI e nova revisão independente de `79149c6` ainda pendentes. Os resultados de cobertura/CI de08a20da não são validação desse reparo novo. O aceite integrado continua dependendo de resolução de conflitos e cutover posteriores.
