@@ -39,3 +39,9 @@ Contextos dinâmicos ou dados históricos podem escapar da cobertura.
 ## Evidência reportada pelo executor
 
 Regressão em Chromium 156, dados sintéticos e API simulada; o agente reportou execução do payload de relatório antes da correção e ausência após. Reportou 87 testes Python e Black/isort/Flake8/mypy pertinentes aprovados. Clipboard foi simulado; outros navegadores, autenticação de produção e serviços reais não foram validados. A preparação inicial fez um GET à API local que recebeu 401, sem payload; o runner final bloqueia chamadas externas. Revisão independente, conferência do isolamento e CI final ainda pendentes. Matriz e comandos em `docs/dashboard-security-audit.md` no PR de implementação.
+
+## Revisão independente e correções pendentes
+
+O CI do head `3b12004` concluiu com sucesso, mas a revisão independente identificou três lacunas: `DashboardServices._get_runtime_config` ainda pode ler configuração persistida; bloqueio de requests e roteamento apenas da página não garantem isolamento de rede de todo o processo/navegador; fixtures não demonstram corretamente a codificação de identificadores e vários campos da matriz. A revisão não executou o runner por esses limites e não confirmou uma brecha XSS remanescente nos caminhos inspecionados.
+
+O gestor confirmou disponibilidade de namespaces de usuário/rede (`unshare --user --map-root-user --net true` passou nesta máquina). A correção deve isolar servidor e navegador no mesmo namespace, garantir apenas loopback efêmero, bloquear leitura de configuração real, cobrir testes negativos e limpar processos próprios mesmo em falhas iniciais. Identificadores com delimitadores URL, contadores, relatórios e histórico de notificações precisam de asserts específicos. A evidência anterior de Chromium não encerra esses critérios.
