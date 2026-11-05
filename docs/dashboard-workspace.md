@@ -41,6 +41,19 @@ O dashboard é a mesa de operação do projeto. Ele organiza o que no backend j�
 | `/notifications/telegram/schedule` | Scheduler Telegram |
 | `/health-check` | Leitura operacional da stack |
 
+## Datas e paginação
+
+O workspace distingue duas datas:
+
+- **Data da coleta** (`scraped_at` do snapshot): os parâmetros `date_from` e `date_to` de `/api/workspace/*` escolhem snapshots por ela. Overview, histórico, relatórios e perfis continuam usando esse recorte.
+- **Data da avaliação** (publicação na Doctoralia): `review_date_from` e `review_date_to` em `/api/workspace/responses` e `/api/workspace/profile` filtram avaliações por ela. A data é comparada no fuso informado pela origem (`2026-01-10T23:30-03:00` é 10 de janeiro). Avaliações sem data publicada ficam fora de qualquer filtro de data da avaliação e são contadas em `summary.undated_excluded`; elas nunca recebem a data da coleta.
+
+Cada item da fila traz `review_date` (data da avaliação, `AAAA-MM-DD` ou `null`) e `collected_at` (coleta do snapshot).
+
+`/api/workspace/responses` aceita `page` (a partir de 1) e `page_size` (1–100; padrão 25 quando só `page` é informado). A resposta inclui `pagination` com `page`, `page_size`, `total_items` e `total_pages`; `summary` sempre conta a fila filtrada inteira. Sem `page` e `page_size`, todos os itens são devolvidos, como antes. Valores inválidos são ajustados ao intervalo válido.
+
+Os snapshots lidos do disco ficam em cache por processo, invalidado por inode, tamanho e `mtime` de cada arquivo.
+
 ## Autenticação do dashboard
 
 Quando `dashboard_auth_enabled` está ativo e existe uma credencial válida, o dashboard protege as rotas web e redireciona para `/login`.

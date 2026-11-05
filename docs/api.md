@@ -84,6 +84,8 @@ API_KEY=sua_chave_secreta_aqui
 }
 ```
 
+Em `reviews[]`, `date` é a data de publicação informada pela Doctoralia e vale `null` quando a origem não a informa. Ela nunca é preenchida com a data da coleta, que fica em `metrics.start_ts` e `metrics.end_ts`.
+
 ### Resposta de Erro
 
 ```json
