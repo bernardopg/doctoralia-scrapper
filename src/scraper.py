@@ -966,7 +966,7 @@ class DoctoraliaScraper:
             clean_name = (
                 re.sub(r"[^\w\s-]", "", doctor_name).strip().replace(" ", "_").lower()
             )
-            file_name = f"{timestamp}{uuid.uuid4().hex}_{clean_name}.json"
+            file_name = f"{timestamp}_{uuid.uuid4().hex[:8]}_{clean_name}.json"
             file_path: Path = Path(self.config.data_dir / file_name)
 
             with snapshot_lock(self.config.data_dir):
