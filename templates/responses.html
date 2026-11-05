@@ -145,7 +145,7 @@
     container.innerHTML = `
       <div class="alert alert-${type}">
         <i class="fas fa-${type === 'error' ? 'exclamation-circle' : 'check-circle'}"></i>
-        <div>${message}</div>
+        <div>${escapeResponseHtml(message)}</div>
       </div>
     `;
     setTimeout(() => { container.innerHTML = ''; }, 4000);
