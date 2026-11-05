@@ -2,11 +2,11 @@
 
 import json
 import logging
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from src.api.schemas.requests import ScrapeRequest
 from src.api.v1.routers.scrape import _scrape_run
 from src.integrations.n8n.normalize import normalize_reviews
 from src.jobs.tasks import scrape_and_process
@@ -44,7 +44,7 @@ def scraper_for(tmp_path):
     scraper = DoctoraliaScraper.__new__(DoctoraliaScraper)
     scraper.config = config
     scraper.logger = logging.getLogger(__name__)
-    scraper.scrape_reviews = MagicMock(
+    scraper.scrape_reviews = MagicMock(  # type: ignore[method-assign]
         return_value={
             "doctor_name": "Test",
             "url": URL,
@@ -75,8 +75,12 @@ def test_real_publication_uses_newest_legacy_snapshot(
     ):
         if execution == "sync":
             result = _scrape_run(
-                SimpleNamespace(
-                    doctor_url=URL, include_analysis=False, include_generation=False
+                ScrapeRequest.model_validate(
+                    {
+                        "doctor_url": URL,
+                        "include_analysis": False,
+                        "include_generation": False,
+                    }
                 ),
                 config,
             ).model_dump()
@@ -170,8 +174,12 @@ def test_real_write_failure_reports_failure(tmp_path, execution):
     ):
         if execution == "sync":
             result = _scrape_run(
-                SimpleNamespace(
-                    doctor_url=URL, include_analysis=False, include_generation=False
+                ScrapeRequest.model_validate(
+                    {
+                        "doctor_url": URL,
+                        "include_analysis": False,
+                        "include_generation": False,
+                    }
                 ),
                 config,
             ).model_dump()
@@ -242,3 +250,21 @@ def test_generated_suggestions_do_not_attach_to_duplicate_ids(tmp_path):
     assert result["reviews"] == [
         item.model_dump() for item in normalize_reviews(reviews)
     ]
+
+
+@pytest.mark.parametrize("draft", ["edited", ""])
+def test_legacy_edit_does_not_transfer_to_duplicate_new_source_ids(tmp_path, draft):
+    snapshot(tmp_path / "one.json", "2026-01-01T00:00:00Z", "old")
+    original = json.loads((tmp_path / "one.json").read_text())
+    original["reviews"][0]["id"] = "legacy:1"
+    (tmp_path / "one.json").write_text(json.dumps(original))
+    service = WorkspaceService(tmp_path)
+    profile = service.make_profile_id(URL, "Test")
+    assert service.save_generated_response(profile, "legacy:1", draft, "one.json")
+    scraper, _ = scraper_for(tmp_path)
+    data = scraper.scrape_reviews(URL)
+    data["reviews"] = [dict(REVIEW), dict(REVIEW, author="Bia", comment="Outra")]
+    saved = scraper.save_data(data)
+    for review in json.loads(saved.read_text())["reviews"]:
+        assert "draft_edit" not in review
+        assert not review.get("generated_response")

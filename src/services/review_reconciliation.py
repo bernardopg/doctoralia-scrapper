@@ -142,7 +142,11 @@ def reconcile_snapshot_drafts(
     )
     candidates: List[List[tuple[int, Dict[str, Any]]]] = [[] for _ in reviews]
     target_counts = Counter(str(review.get("id") or "") for review in reviews)
-    unsafe: set[str] = set()
+    unsafe: set[str] = {
+        review_id
+        for review_id, count in target_counts.items()
+        if review_id.startswith("doctoralia:") and count > 1
+    }
     for snapshot in snapshots:
         counts = Counter(str(item.get("id") or "") for item in snapshot["reviews"])
         unsafe.update(
@@ -152,11 +156,7 @@ def reconcile_snapshot_drafts(
         )
     for index, review in enumerate(reviews):
         review_id = str(review.get("id") or "")
-        if (
-            review_id.startswith("ambiguous:")
-            or review_id in unsafe
-            or (review_id.startswith("doctoralia:") and target_counts[review_id] > 1)
-        ):
+        if review_id.startswith("ambiguous:") or review_id in unsafe:
             result[index] = dict(review)
     for snapshot in snapshots:
         previous = snapshot["reviews"]

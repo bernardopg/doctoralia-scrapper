@@ -76,16 +76,20 @@ class WorkspaceService:
             with open(json_file, "r", encoding="utf-8") as file:
                 data = json.load(file)
 
-            reviews = data.get("reviews", [])
-            doctor_name = data.get("doctor_name") or data.get("doctor", {}).get(
-                "name", "Perfil sem nome"
-            )
+            if not isinstance(data, dict) or not isinstance(data.get("reviews"), list):
+                return None
+            reviews = data["reviews"]
+            doctor_name = data.get("doctor_name") or data.get("doctor", {}).get("name")
             profile_url = data.get("url") or data.get("doctor", {}).get(
                 "profile_url", ""
             )
             extracted_at = data.get("scraped_at") or data.get("extraction_timestamp")
-            if not doctor_name and not profile_url:
+            if not any(
+                isinstance(value, str) and value.strip()
+                for value in (doctor_name, profile_url)
+            ):
                 return None
+            doctor_name = doctor_name or "Perfil sem nome"
             profile_id = self.make_profile_id(profile_url, doctor_name)
             ratings = [
                 review.get("rating") for review in reviews if review.get("rating")

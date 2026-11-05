@@ -14,4 +14,12 @@ O histórico oferece links para avaliações e respostas de um snapshot específ
 
 Cada edição salva no snapshot selecionado registra `draft_edit.version` e `draft_edit.cleared` na avaliação; a limpeza é um tombstone explícito. A versão é incrementada sob o lock compartilhado, independentemente da data da coleta. Na próxima publicação prevalece a edição identificável de maior versão; versões empatadas com conteúdo divergente são inseguras e não são associadas. A geração registra a versão observada antes de começar: uma edição posterior prevalece, enquanto uma geração solicitada após a edição pode substituí-la. Escritas concorrentes são serializadas pelo lock e o arquivo histórico original é modificado apenas quando selecionado para edição. O resultado e o callback usam as avaliações efetivamente publicadas.
 
+A barreira para IDs de origem duplicados cobre o histórico e a nova coleta,
+inclusive a associação de edições legadas por autor/comentário. Nem uma edição
+nem um tombstone são transferidos nesse caso. Arquivos JSON só entram no
+inventário de perfis quando possuem uma lista de avaliações e identidade real
+de perfil (nome ou URL); o nome de exibição padrão não fornece essa identidade.
+Snapshots legítimos sem timestamp permanecem acessíveis, com a reconciliação
+cronológica conservadora descrita acima.
+
 Erros Selenium durante a inicialização ou carregamento preservam o tipo da última exceção após os retries, com limpeza do driver em cada tentativa. `BrowserSetupError` fica reservado para falha sem causa Selenium identificável; respostas incluem somente o tipo seguro e a duração total, sem mensagem ou traceback. Os testes simulam drivers e serviços, não comprovam execução visual ou coleta real.
