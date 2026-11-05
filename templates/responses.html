@@ -5,7 +5,17 @@
 {% block page_title %}Fila de Respostas{% endblock %}
 
 {% block content %}
-<div id="responses-alert"></div>
+<div id="responses-alert" aria-live="polite"></div>
+
+<div class="alert alert-info publish-notice">
+  <i class="fas fa-circle-info" aria-hidden="true"></i>
+  <div>
+    <strong>As sugestões não são publicadas automaticamente.</strong>
+    Revise o texto, copie e publique a resposta no painel da Doctoralia. Salvar aqui guarda apenas o rascunho.
+  </div>
+</div>
+
+<div id="responses-collection-warning" role="status" aria-live="polite"></div>
 
 <div class="card mb-3">
   <div class="card-header">
@@ -14,10 +24,10 @@
       Backlog de Comentários sem Resposta
     </h3>
   </div>
-  <div class="card-body">
+  <form class="card-body" id="responses-filters" onsubmit="event.preventDefault(); applyResponsesFilters();">
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Perfil</label>
+        <label class="form-label" for="responses-profile-filter">Perfil</label>
         <select id="responses-profile-filter" class="form-control">
           <option value="">Todos os perfis</option>
         </select>
@@ -31,14 +41,14 @@
         <input type="date" id="responses-review-date-to" class="form-control" aria-describedby="responses-date-hint">
       </div>
       <div class="form-group">
-        <label class="form-label">Busca</label>
+        <label class="form-label" for="responses-search">Busca</label>
         <input type="text" id="responses-search" class="form-control" placeholder="autor, comentário ou perfil">
       </div>
     </div>
 
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Modo de Geração</label>
+        <label class="form-label" for="responses-generation-mode">Modo de geração</label>
         <select id="responses-generation-mode" class="form-control">
           <option value="default">Padrão da plataforma</option>
           <option value="local">Local</option>
@@ -48,13 +58,13 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Ações</label>
+        <span class="form-label" aria-hidden="true">&nbsp;</span>
         <div class="flex gap-2">
-          <button class="btn btn-primary" onclick="applyResponsesFilters()">
-            <i class="fas fa-sync-alt"></i>
-            Atualizar
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-filter"></i>
+            Aplicar filtros
           </button>
-          <button class="btn btn-secondary" onclick="resetResponsesFilters()">
+          <button type="button" class="btn btn-secondary" onclick="resetResponsesFilters()">
             <i class="fas fa-undo"></i>
             Limpar
           </button>
@@ -72,7 +82,7 @@
         Mostrar apenas perfis favoritos
       </label>
     </div>
-  </div>
+  </form>
 </div>
 
 <div class="stats-grid">
@@ -205,13 +215,14 @@
 
   function renderResponses(items) {
     const container = document.getElementById('responses-list');
+    container.setAttribute('aria-busy', 'false');
     if (!items.length) {
-      container.innerHTML = '<div class="text-secondary">Nenhum comentário pendente para os filtros atuais.</div>';
+      dashboardRenderState(container, 'empty', 'Nenhum comentário pendente para os filtros atuais.');
       return;
     }
 
     container.innerHTML = items.map((item) => `
-      <div class="card mb-3" style="box-shadow:none;">
+      <article class="card mb-3 response-card" aria-label="${escapeResponseHtml(`Avaliação de ${item.author || 'Paciente'}`)}">
         <div class="card-body">
           <div class="flex justify-between items-center mb-2">
             <div>
@@ -233,7 +244,7 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Resposta sugerida</label>
+            <label class="form-label" for="${escapeResponseHtml(textareaId(item))}">Resposta sugerida</label>
             <textarea id="${escapeResponseHtml(textareaId(item))}" class="form-control" rows="5" placeholder="Gere uma sugestão para este comentário...">${escapeResponseHtml(item.generated_response || '')}</textarea>
           </div>
 
@@ -252,8 +263,30 @@
             </button>
           </div>
         </div>
-      </div>
+      </article>
     `).join('');
+  }
+
+  function renderCollectionWarning(collections) {
+    const container = document.getElementById('responses-collection-warning');
+    if (!collections || !collections.length) {
+      container.innerHTML = '';
+      return;
+    }
+    const lines = collections.map((item) => {
+      const counts = item.expected_count != null
+        ? ` (${escapeResponseHtml(item.extracted_count ?? '?')} de ${escapeResponseHtml(item.expected_count)} avaliações)`
+        : '';
+      return `<li>${escapeResponseHtml(item.doctor_name)}${counts}</li>`;
+    }).join('');
+    container.innerHTML = `
+      <div class="alert alert-warning">
+        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+        <div>
+          <strong>Coleta incompleta.</strong> A fila destes perfis pode não conter todas as avaliações; colete novamente antes de considerar o backlog zerado.
+          <ul class="warning-list">${lines}</ul>
+        </div>
+      </div>`;
   }
 
   async function saveEditedSuggestion(profileId, reviewId) {
@@ -324,16 +357,31 @@
 
   async function copySuggestion(id) {
     const text = document.getElementById(id).value;
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    showResponsesAlert('Sugestão copiada para a área de transferência.', 'success');
+    if (!text) {
+      showResponsesAlert('Não há texto para copiar.', 'error');
+      return;
+    }
+    if (await dashboardCopyText(text)) {
+      showResponsesAlert('Sugestão copiada. Cole-a na resposta da avaliação na Doctoralia.', 'success');
+    } else {
+      showResponsesAlert('Não foi possível copiar automaticamente; selecione o texto e copie manualmente.', 'error');
+    }
   }
 
   async function loadResponsesWorkspace() {
+    const list = document.getElementById('responses-list');
+    dashboardRenderState(list, 'loading', 'Carregando pendências...');
     try {
       const response = await fetch(`/api/workspace/responses${responsesQuery()}`);
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        throw new Error(`resposta inválida do servidor (HTTP ${response.status})`);
+      }
       if (data.error) throw new Error(data.error);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      renderCollectionWarning(data.incomplete_collections);
 
       responsesState.items = data.items || [];
       renderResponsesPagination(data.pagination, data.summary);
@@ -350,7 +398,8 @@
       document.getElementById('responses-summary-ready').textContent = data.summary?.generated_ready ?? 0;
       renderResponses(responsesState.items);
     } catch (error) {
-      showResponsesAlert(`Erro ao carregar pendências: ${error.message}`, 'error');
+      document.getElementById('responses-pagination').hidden = true;
+      dashboardRenderState(list, 'error', `Não foi possível carregar as pendências: ${error.message}`, loadResponsesWorkspace);
     }
   }
 

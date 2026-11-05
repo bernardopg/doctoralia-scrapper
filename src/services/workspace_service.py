@@ -792,6 +792,23 @@ class WorkspaceService:
                 "review_date_to": review_end.isoformat() if review_end else None,
             },
             "pagination": pagination,
+            # Profiles whose current data comes from an incomplete collection,
+            # so operators know the queue may be missing reviews.
+            "incomplete_collections": [
+                {
+                    "profile_id": current["profile_id"],
+                    "doctor_name": current["doctor_name"],
+                    "status": current["collection"].get("status"),
+                    "expected_count": current["collection"].get("expected_count"),
+                    "extracted_count": current["collection"].get(
+                        "extracted_count", len(current["reviews"])
+                    ),
+                    "stop_reason": current["collection"].get("stop_reason"),
+                }
+                for current in latest_profiles.values()
+                if isinstance(current.get("collection"), dict)
+                and current["collection"].get("status") != "complete"
+            ],
             "items": items[start:end],
             "filters": self.build_filter_options(
                 list(latest_profiles.values()) or snapshots

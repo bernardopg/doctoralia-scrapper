@@ -20,7 +20,7 @@ def test_responses_render_untrusted_data_as_text():
 const vm = require('vm');
 const fs = require('fs');
 const source = fs.readFileSync(0, 'utf8');
-const output = {innerHTML: ''};
+const output = {innerHTML: '', setAttribute: () => {}};
 const document = {
   getElementById: () => output,
   addEventListener: () => {},
