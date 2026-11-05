@@ -54,6 +54,23 @@ Cada item da fila traz `review_date` (data da avaliação, `AAAA-MM-DD` ou `null
 
 Os snapshots lidos do disco ficam em cache por processo, invalidado por inode, tamanho e `mtime` de cada arquivo.
 
+## Estados, acessibilidade e verificação em navegador
+
+- A fila de respostas avisa que sugestões não são publicadas automaticamente: o operador revisa, copia e publica na Doctoralia.
+- Perfis cuja coleta atual está incompleta aparecem em um aviso com total extraído e anunciado (`incomplete_collections` em `/api/workspace/responses`).
+- Carregamento, lista vazia e falha usam `dashboardRenderState` (em `base.html`); falhas ficam visíveis com botão de nova tentativa, em vez de um alerta que some.
+- Copiar usa `navigator.clipboard` e, em HTTP sem contexto seguro (rede local), recorre a uma área de texto temporária.
+- O item ativo da navegação expõe `aria-current="page"`; campos e rascunhos têm rótulos associados. Uma falha em uma etapa da inicialização não impede as demais.
+- Filtros "Coletado a partir de/até" nas demais telas referem-se à data da coleta.
+
+Roteiro de navegador com dados sintéticos (rede externa bloqueada; requer Playwright e o Chromium dele):
+
+```sh
+python scripts/test_dashboard_ux.py --screenshots /tmp/ux-shots
+```
+
+Ele verifica ausência de rolagem horizontal em 375, 768 e 1280 px nas telas principais, link de salto e foco, `aria-current`, nomes acessíveis, aviso de publicação manual, aviso de coleta parcial, paginação, filtro por data da avaliação, estado de erro com nova tentativa e cópia sem a API de clipboard. Não substitui teste com leitor de tela nem com dados reais.
+
 ## Autenticação do dashboard
 
 Quando `dashboard_auth_enabled` está ativo e existe uma credencial válida, o dashboard protege as rotas web e redireciona para `/login`.

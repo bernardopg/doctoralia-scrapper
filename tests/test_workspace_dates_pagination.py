@@ -180,3 +180,34 @@ def test_dashboard_route_passes_review_dates_and_ignores_bad_page(tmp_path):
     assert kwargs["review_date_to"] == "2026-01-31"
     assert kwargs["page"] is None
     assert kwargs["page_size"] == 10
+
+
+def test_pending_responses_flag_incomplete_collections(tmp_path):
+    _write(tmp_path / "ok.json", _snapshot("2026-03-01T09:00:00", [_review(1, None)]))
+    partial = {
+        "doctor_name": "Dr Parcial",
+        "url": "https://example.test/parcial",
+        "extraction_timestamp": "2026-03-01T09:00:00",
+        "collection": {
+            "status": "partial",
+            "expected_count": 9,
+            "stop_reason": "time_limit",
+        },
+        "reviews": [_review(2, None)],
+    }
+    _write(tmp_path / "partial.json", partial)
+    flagged = WorkspaceService(tmp_path).list_pending_responses()[
+        "incomplete_collections"
+    ]
+    assert flagged == [
+        {
+            "profile_id": WorkspaceService.make_profile_id(
+                partial["url"], "Dr Parcial"
+            ),
+            "doctor_name": "Dr Parcial",
+            "status": "partial",
+            "expected_count": 9,
+            "extracted_count": 1,
+            "stop_reason": "time_limit",
+        }
+    ]
