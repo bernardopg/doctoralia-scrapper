@@ -1,7 +1,7 @@
 """Describe whether a Doctoralia collection reached the advertised total."""
 
 import re
-from typing import Optional
+from typing import Optional, cast
 
 from bs4 import BeautifulSoup
 
@@ -46,3 +46,16 @@ def result_status(info: Optional[dict]) -> str:
         if info is not None and info.get("status") != "complete"
         else "completed"
     )
+
+
+def ensure_collection(result: dict) -> dict:
+    """Annotate new results from scrapers that cannot verify completeness."""
+    if not isinstance(result.get("collection"), dict):
+        result["collection"] = {
+            "status": "unknown",
+            "expected_count": None,
+            "extracted_count": len(result.get("reviews") or []),
+            "stop_reason": "metadata_unavailable",
+            "duration_ms": None,
+        }
+    return cast(dict, result["collection"])

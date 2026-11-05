@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Request
+from starlette.concurrency import run_in_threadpool
 
 from src.api.schemas.common import UnifiedResult
 from src.api.schemas.requests import (
@@ -18,7 +19,7 @@ from src.api.v1._state import (
 from src.api.v1.deps import require_api_key, verify_webhook_signature
 from src.api.v1.providers import get_app_config, get_job_queue
 from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
-from src.services.scrape_completeness import result_status
+from src.services.scrape_completeness import ensure_collection, result_status
 
 router = APIRouter(tags=["Scraping"])
 
@@ -32,6 +33,10 @@ async def scrape_run(
     request: ScrapeRequest,
     config=Depends(get_app_config),
 ):
+    return await run_in_threadpool(_scrape_run, request, config)
+
+
+def _scrape_run(request: ScrapeRequest, config):
     start_time = datetime.now()
 
     try:
@@ -42,6 +47,7 @@ async def scrape_run(
 
         if not scraper_result:
             raise RuntimeError("Scraper returned no data")
+        ensure_collection(scraper_result)
         doctor_data, reviews_data = extract_scraper_result(scraper_result)
 
         analysis_data = None
@@ -84,7 +90,13 @@ async def scrape_run(
         generation_data = None
         if request.include_generation:
             from src.response_generator import ResponseGenerator
+            from src.services.workspace_service import WorkspaceService
 
+            workspace = WorkspaceService(config.data_dir)
+            profile_id = workspace.make_profile_id(
+                doctor_data.get("url") or "", doctor_data.get("name") or ""
+            )
+            generation_revision = workspace.draft_revision(profile_id)
             generator = ResponseGenerator(config, logger=None)
             responses = []
             for idx, review in enumerate(reviews_data):
@@ -119,6 +131,7 @@ async def scrape_run(
                     }
                 )
             generation_data = {
+                "_revision": generation_revision,
                 "template_id": request.response_template_id,
                 "responses": responses,
                 "model": {
@@ -126,6 +139,12 @@ async def scrape_run(
                     "provider": request.generation_mode or config.generation.mode,
                 },
             }
+
+        from src.jobs.tasks import persist_collection
+
+        reviews_data, _ = persist_collection(
+            scraper, config, scraper_result, doctor_data, reviews_data, generation_data
+        )
 
         increment_scrapes_metric()
         if request.include_analysis:
@@ -144,12 +163,21 @@ async def scrape_run(
             end_time=datetime.now(),
         )
 
-    except Exception:
+    except Exception as exc:
         increment_scrapes_failed_metric()
         return make_unified_result(
             doctor_data={"name": "Error", "url": str(request.doctor_url)},
             reviews_data=[],
             status="failed",
+            collection={
+                "status": "failure",
+                "expected_count": None,
+                "extracted_count": None,
+                "stop_reason": type(exc).__name__,
+                "duration_ms": int(
+                    (datetime.now() - start_time).total_seconds() * 1000
+                ),
+            },
             start_time=start_time,
             end_time=datetime.now(),
         )
