@@ -305,7 +305,9 @@
 <script>
   const profilesState = {
     profiles: [],
-    selectedProfileId: '',
+    selectedProfileId: new URLSearchParams(location.search).get('profile_id') || '',
+    snapshot: new URLSearchParams(location.search).get('snapshot'),
+    snapshotProfile: new URLSearchParams(location.search).get('profile_id'),
     listCollapsed: false,
   };
 
@@ -499,13 +501,17 @@
     renderProfilesList();
 
     try {
-      const response = await fetch(`/api/workspace/profile${profilesQuery()}${profilesQuery() ? '&' : '?'}profile_id=${profileId}`);
+      const params = new URLSearchParams(profilesQuery());
+      params.set('profile_id', profileId);
+      if (profilesState.snapshot && profileId === profilesState.snapshotProfile) params.set('snapshot', profilesState.snapshot);
+      const response = await fetch(`/api/workspace/profile?${params}`);
       const detail = await response.json();
       if (detail.error) throw new Error(detail.error);
 
       const profile = detail.profile || {};
       document.getElementById('profiles-detail-header').innerHTML = `
           <div style="font-weight:700; font-size:20px;">${dashboardEscape(profile.doctor_name)}</div>
+          ${profilesState.snapshot && profileId === profilesState.snapshotProfile ? `<div>Snapshot: ${dashboardEscape(detail.selected_snapshot.filename)} • ${dashboardEscape(detail.selected_snapshot.collection?.status || 'unknown')} • ${dashboardEscape(detail.selected_snapshot.reviews_count)} avaliações • ${dashboardEscape(detail.selected_snapshot.unanswered_count)} pendentes • ${dashboardEscape(detail.selected_snapshot.generated_count)} sugestões</div>` : ''}
           <div class="text-secondary" style="margin-top:6px;">${dashboardEscape(profile.specialty || 'Especialidade não informada')} • ${dashboardEscape(profile.location || 'Local não informado')} • último rastreio em ${profile.last_scraped_at ? new Date(profile.last_scraped_at).toLocaleString('pt-BR') : '-'}</div>
       `;
       document.getElementById('profile-detail-scrapes').textContent = profile.total_scrapes ?? 0;

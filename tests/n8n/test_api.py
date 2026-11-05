@@ -38,11 +38,12 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def dynamic_app_config_from_env():
+def dynamic_app_config_from_env(tmp_path):
     """Keep tests isolated from the developer's local config.json while preserving env-based behavior."""
 
     def _build_config():
         return SimpleNamespace(
+            data_dir=tmp_path,
             api=SimpleNamespace(debug=False),
             security=SimpleNamespace(
                 api_key=os.getenv("API_KEY", ""),
@@ -759,8 +760,11 @@ class TestTelegramNotificationEndpoints:
 class TestScrapeEndpoint:
     """Test synchronous scraping endpoint."""
 
+    @pytest.mark.parametrize("collection_status", ["complete", "partial", None])
     @patch("src.scraper.DoctoraliaScraper")
-    def test_scrape_run_success(self, mock_scraper, client, mock_env, api_key):
+    def test_scrape_run_success(
+        self, mock_scraper, client, mock_env, api_key, tmp_path, collection_status
+    ):
         """Test successful scraping."""
         # Mock scraper
         mock_instance = MagicMock()
@@ -779,6 +783,22 @@ class TestScrapeEndpoint:
                 }
             ],
         }
+        if collection_status:
+            mock_instance.scrape_reviews.return_value["collection"] = {
+                "status": collection_status,
+                "expected_count": 1 if collection_status == "complete" else 2,
+                "extracted_count": 1,
+                "stop_reason": (
+                    "exhausted" if collection_status == "complete" else "timeout"
+                ),
+            }
+
+        def save(payload):
+            snapshot = tmp_path / "collected.json"
+            snapshot.write_text(json.dumps(payload), encoding="utf-8")
+            return snapshot
+
+        mock_instance.save_data.side_effect = save
         mock_scraper.return_value = mock_instance
 
         # Make request
@@ -792,10 +812,22 @@ class TestScrapeEndpoint:
         data = response.json()
 
         # Verify response structure
-        assert data["status"] == "completed"
+        assert data["status"] == (
+            "completed" if collection_status == "complete" else "partial"
+        )
+        assert data["collection"]["status"] == (collection_status or "unknown")
         assert data["doctor"]["name"] == "Dr. Test"
         assert len(data["reviews"]) == 1
         assert data["metrics"]["scraped_count"] == 1
+        persisted = json.loads(
+            (tmp_path / "collected.json").read_text(encoding="utf-8")
+        )
+        assert persisted["collection"] == data["collection"]
+        assert (
+            persisted["reviews"][0]["comment"]
+            == data["reviews"][0]["text"]
+            == "Excellent doctor!"
+        )
 
     @patch("src.response_quality_analyzer.ResponseQualityAnalyzer")
     @patch("src.scraper.DoctoraliaScraper")

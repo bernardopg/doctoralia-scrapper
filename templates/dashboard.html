@@ -280,6 +280,7 @@
           <div>
             <div style="font-weight:600;">${dashboardEscape(item.doctor_name)}</div>
             <div class="text-secondary" style="font-size:13px;">${dashboardEscape(item.reviews_count)} reviews • ${dashboardEscape(item.unanswered_count)} sem resposta</div>
+          <div class="text-secondary" style="font-size:13px;">Coleta: ${dashboardEscape(({complete: "Completa", partial: "Parcial", unknown: "Não verificada"})[item.collection?.status] || "Não verificada")} ${item.collection ? `(${dashboardEscape(item.collection.extracted_count)} de ${dashboardEscape(item.collection.expected_count ?? "?")}; ${dashboardEscape(item.collection.stop_reason)})` : ""}</div>
           </div>
           <div class="text-right">
             <div style="font-weight:700;">${Number(item.average_rating || 0).toFixed(1)} ★</div>
