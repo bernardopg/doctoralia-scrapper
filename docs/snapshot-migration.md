@@ -74,3 +74,37 @@ suite drops and recreates its schema. Never point it at a real database:
 TEST_POSTGRES_URL='postgresql+asyncpg://USER:PASSWORD@HOST/DISPOSABLE_DB' \
   pytest -q tests/test_review_storage_migrations.py tests/test_snapshot_reconcile.py
 ```
+
+## Repairing already reconciled installations
+
+Run `python -m src.db.init_db init` before reconciliation, including on a database
+that already applied revisions 0003 or 0004. Revision 0005 repairs the missing
+provenance from existing observations and records unresolved legacy histories as
+explicit draft rejections. It preserves active drafts, original observations and
+staged bytes; it does not approve or choose a draft on the operator's behalf.
+Missing provenance is reconstructed from the newest observed collection time.
+Conflicting or insufficient observations and legacy timezone uncertainty require
+human review. Existing draft rejections are preserved without a second pending
+entry for the same review. The cumulative pending report increases only when a
+previously unreported legacy uncertainty is discovered.
+
+The repair serializes each workspace with the same advisory lock as reconciliation.
+Migration failure rolls back the repair; rerunning initialization resumes safely.
+Repeated initialization and downgrade/re-upgrade preserve the audit records and
+do not duplicate pending counts. A schema downgrade intentionally does not undo
+these data repairs; returning to the original data requires the verified database
+backup. Future runtime repositories must exclude unresolved drafts from approved
+response flows even when an old draft remains physically stored.
+
+The upgrade regression creates legacy observations and cached reports at revision
+0003 or 0004 in a disposable PostgreSQL, then applies the actual Alembic upgrade.
+It covers removal, mixed existing provenance, separate workspaces, existing
+conflicts, chronology independent of staging order, repeated/concurrent startup,
+legacy timezone uncertainty and failure/rollback/resume. Run the schema tests
+first because their PostgreSQL check requires an empty disposable database:
+
+```sh
+TEST_POSTGRES_URL='postgresql+asyncpg://USER:PASSWORD@HOST/DISPOSABLE_DB' \
+  pytest -q tests/test_review_storage_migrations.py tests/test_snapshot_import.py \
+  tests/test_snapshot_reconcile.py tests/test_snapshot_upgrade.py
+```
