@@ -6,9 +6,10 @@ Provides profile-level aggregations, pending responses and filterable overview d
 import hashlib
 import json
 import logging
+import threading
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
@@ -45,8 +46,89 @@ def _safe_date(value: Optional[str]) -> Optional[date]:
     return None
 
 
+DEFAULT_PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
+
+# Parsed snapshots keyed by path and validated by inode, size and mtime. Every
+# dashboard page re-aggregates all snapshots, so re-parsing unchanged files on
+# each request dominated response time. Entries are copied before being
+# returned so callers can never mutate the cached state.
+_SnapshotKey = Tuple[int, int, int]
+_snapshot_cache: Dict[str, Tuple[_SnapshotKey, Optional[Dict[str, Any]]]] = {}
+_snapshot_cache_lock = threading.Lock()
+
+
+def _copy_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    copied = dict(snapshot)
+    copied["reviews"] = [dict(review) for review in snapshot["reviews"]]
+    return copied
+
+
+def _review_date(review: Dict[str, Any]) -> Optional[date]:
+    """Return the calendar date on which the review was published.
+
+    Offsets are kept as published by the source: ``2026-01-01T23:30-03:00`` is
+    1 January, not 2 January in UTC. Values without a parsable date are
+    reported as undated instead of being replaced by the collection date.
+    """
+    value = review.get("date")
+    return _safe_date(value) if isinstance(value, str) else None
+
+
+def _in_review_range(
+    published: Optional[date], start: Optional[date], end: Optional[date]
+) -> bool:
+    """Apply a review-date range; undated reviews only pass when it is open."""
+    if start is None and end is None:
+        return True
+    if published is None:
+        return False
+    return not ((start and published < start) or (end and published > end))
+
+
+def _page_bounds(
+    total: int, page: Optional[int], page_size: Optional[int]
+) -> Tuple[int, int, Dict[str, Any]]:
+    """Clamp pagination input and return slice bounds plus metadata.
+
+    Without ``page`` and ``page_size`` every item is returned, which keeps
+    existing API consumers working.
+    """
+    if page is None and page_size is None:
+        return (
+            0,
+            total,
+            {
+                "page": 1,
+                "page_size": total,
+                "total_items": total,
+                "total_pages": 1,
+            },
+        )
+    requested_size = DEFAULT_PAGE_SIZE if page_size is None else page_size
+    size = min(max(int(requested_size), 1), MAX_PAGE_SIZE)
+    total_pages = max((total + size - 1) // size, 1)
+    current = min(max(int(1 if page is None else page), 1), total_pages)
+    start = (current - 1) * size
+    return (
+        start,
+        min(start + size, total),
+        {
+            "page": current,
+            "page_size": size,
+            "total_items": total,
+            "total_pages": total_pages,
+        },
+    )
+
+
 class WorkspaceService:
-    """Aggregate Doctoralia scraping data for multi-page dashboard views."""
+    """Aggregate Doctoralia scraping data for multi-page dashboard views.
+
+    Date filters have two distinct meanings. ``date_from``/``date_to`` select
+    snapshots by collection date (``scraped_at``). ``review_date_from`` and
+    ``review_date_to`` select reviews by the date they were published.
+    """
 
     def __init__(self, data_dir: Path, log: Optional[logging.Logger] = None) -> None:
         self.data_dir = Path(data_dir)
@@ -62,13 +144,42 @@ class WorkspaceService:
         if not self.data_dir.exists():
             return snapshots
 
-        for json_file in sorted(
-            (item for item in self.data_dir.glob("*.json") if not item.is_symlink()),
-            key=lambda item: item.stat().st_mtime,
-        ):
-            snapshot = self._read_snapshot(json_file)
+        entries = []
+        for json_file in self.data_dir.glob("*.json"):
+            try:
+                if json_file.is_symlink():
+                    continue
+                stat = json_file.stat()
+            except OSError:
+                continue
+            entries.append((stat.st_mtime, json_file, stat))
+
+        seen: set[str] = set()
+        for _, json_file, stat in sorted(entries, key=lambda item: item[0]):
+            cache_path = str(json_file.resolve())
+            seen.add(cache_path)
+            key = (stat.st_ino, stat.st_size, stat.st_mtime_ns)
+            with _snapshot_cache_lock:
+                cached = _snapshot_cache.get(cache_path)
+            if cached is not None and cached[0] == key:
+                snapshot = cached[1]
+            else:
+                snapshot = self._read_snapshot(json_file)
+                with _snapshot_cache_lock:
+                    _snapshot_cache[cache_path] = (key, snapshot)
             if snapshot:
-                snapshots.append(snapshot)
+                snapshots.append(_copy_snapshot(snapshot))
+
+        prefix = str(self.data_dir.resolve()) + "/"
+        with _snapshot_cache_lock:
+            for stale in [
+                path
+                for path in _snapshot_cache
+                if path.startswith(prefix)
+                and "/" not in path[len(prefix) :]
+                and path not in seen
+            ]:
+                del _snapshot_cache[stale]
         return snapshots
 
     def _read_snapshot(self, json_file: Path) -> Optional[Dict[str, Any]]:
@@ -499,7 +610,11 @@ class WorkspaceService:
         date_to: Optional[str] = None,
         favorite_profiles: Optional[Iterable[Dict[str, Any]]] = None,
         snapshot: Optional[str] = None,
+        review_date_from: Optional[str] = None,
+        review_date_to: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
+        review_start = _safe_date(review_date_from)
+        review_end = _safe_date(review_date_to)
         profiles = self.list_profiles(
             profile_id=profile_id,
             date_from=date_from,
@@ -545,11 +660,16 @@ class WorkspaceService:
                     "comment": review.get("comment") or review.get("text") or "",
                     "rating": review.get("rating"),
                     "date": review.get("date"),
+                    "review_date": published.isoformat() if published else None,
+                    "collected_at": latest["extracted_at"],
                     "doctor_reply": review.get("doctor_reply"),
                     "generated_response": review.get("generated_response"),
                     "pending_response": not bool(review.get("doctor_reply")),
                 }
-                for review in latest["reviews"]
+                for review, published in (
+                    (review, _review_date(review)) for review in latest["reviews"]
+                )
+                if _in_review_range(published, review_start, review_end)
             ),
             key=lambda item: item["date"] or "",
             reverse=True,
@@ -577,7 +697,14 @@ class WorkspaceService:
         favorites_only: bool = False,
         search: Optional[str] = None,
         snapshot: Optional[str] = None,
+        review_date_from: Optional[str] = None,
+        review_date_to: Optional[str] = None,
+        page: Optional[int] = None,
+        page_size: Optional[int] = None,
     ) -> Dict[str, Any]:
+        review_start = _safe_date(review_date_from)
+        review_end = _safe_date(review_date_to)
+        undated_excluded = 0
         snapshots = self._filter_snapshots(
             self._load_snapshots(),
             profile_id=profile_id,
@@ -605,6 +732,10 @@ class WorkspaceService:
             for review in current_snapshot["reviews"]:
                 if review.get("doctor_reply"):
                     continue
+                published = _review_date(review)
+                if not _in_review_range(published, review_start, review_end):
+                    undated_excluded += int(published is None)
+                    continue
                 item = {
                     "profile_id": current_snapshot["profile_id"],
                     "snapshot": current_snapshot["filename"],
@@ -615,6 +746,8 @@ class WorkspaceService:
                     "comment": review.get("comment") or review.get("text") or "",
                     "rating": review.get("rating"),
                     "date": review.get("date"),
+                    "review_date": published.isoformat() if published else None,
+                    "collected_at": current_snapshot["extracted_at"],
                     "generated_response": review.get("generated_response"),
                     "is_favorite": is_favorite,
                 }
@@ -625,6 +758,7 @@ class WorkspaceService:
         items.sort(
             key=lambda item: (item["date"] or "", item["doctor_name"]), reverse=True
         )
+        start, end, pagination = _page_bounds(len(items), page, page_size)
         selected = (
             next(iter(latest_profiles.values()), None) if snapshot is not None else None
         )
@@ -647,8 +781,18 @@ class WorkspaceService:
                 "generated_ready": sum(
                     1 for item in items if item.get("generated_response")
                 ),
+                "undated_excluded": undated_excluded,
             },
-            "items": items,
+            "date_filters": {
+                "collected_from": date_from,
+                "collected_to": date_to,
+                "review_date_from": (
+                    review_start.isoformat() if review_start else None
+                ),
+                "review_date_to": review_end.isoformat() if review_end else None,
+            },
+            "pagination": pagination,
+            "items": items[start:end],
             "filters": self.build_filter_options(
                 list(latest_profiles.values()) or snapshots
             ),
