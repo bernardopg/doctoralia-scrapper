@@ -25,7 +25,7 @@ const document = {
   getElementById: () => output,
   addEventListener: () => {},
 };
-const context = {document, console, dashboardReviewDate: () => '-'};
+const context = {document, console, URLSearchParams, location: {search: ''}, dashboardReviewDate: () => '-'};
 vm.createContext(context);
 vm.runInContext(source, context);
 context.renderResponses([{
@@ -127,3 +127,33 @@ def test_review_date_does_not_shift_in_sao_paulo():
     subprocess.run(
         [node, "-e", script], env={**os.environ, "TZ": "America/Sao_Paulo"}, check=True
     )
+
+
+def test_responses_alert_renders_error_messages_as_text():
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required for the JavaScript rendering regression")
+
+    template = (
+        Path(__file__).resolve().parents[1] / "templates/responses.html"
+    ).read_text()
+    script = template.split("<script>", 1)[1].split("</script>", 1)[0]
+    harness = r"""
+const vm = require('vm');
+const fs = require('fs');
+const source = fs.readFileSync(0, 'utf8');
+const output = {innerHTML: ''};
+const document = {
+  getElementById: () => output,
+  addEventListener: () => {},
+};
+const context = {document, console, URLSearchParams, location: {search: ''}, setTimeout: () => {}};
+vm.createContext(context);
+vm.runInContext(source, context);
+context.showResponsesAlert('Erro: <img src=x onerror=alert(1)>', 'error');
+const html = output.innerHTML;
+if (html.includes('<img') || !html.includes('&lt;img')) {
+  throw new Error('Alert message was not escaped: ' + html);
+}
+"""
+    subprocess.run([node, "-e", harness], input=script, text=True, check=True)

@@ -302,21 +302,21 @@
           <div class="report-line-title">Perfis ativos</div>
           <div class="text-secondary">Perfis cobertos pelo filtro atual.</div>
         </div>
-        <strong>${summary.profiles_tracked || 0}</strong>
+        <strong>${dashboardEscape(summary.profiles_tracked || 0)}</strong>
       </div>
       <div class="report-line-item">
         <div>
           <div class="report-line-title">Reviews atuais</div>
           <div class="text-secondary">Volume consolidado do snapshot mais recente por perfil.</div>
         </div>
-        <strong>${summary.total_reviews_current || 0}</strong>
+        <strong>${dashboardEscape(summary.total_reviews_current || 0)}</strong>
       </div>
       <div class="report-line-item">
         <div>
           <div class="report-line-title">Sugestões salvas</div>
           <div class="text-secondary">Sugestões persistidas no snapshot atual.</div>
         </div>
-        <strong>${summary.generated_current || 0}</strong>
+        <strong>${dashboardEscape(summary.generated_current || 0)}</strong>
       </div>
       <div class="report-line-item">
         <div>
@@ -330,7 +330,7 @@
           <div class="report-line-title">Snapshots antigos</div>
           <div class="text-secondary">Arquivos candidatos à limpeza para evitar dados defasados.</div>
         </div>
-        <strong>${summary.outdated_snapshots || 0}</strong>
+        <strong>${dashboardEscape(summary.outdated_snapshots || 0)}</strong>
       </div>
     `;
   }

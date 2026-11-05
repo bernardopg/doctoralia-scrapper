@@ -34,6 +34,10 @@ from src.services.scrape_completeness import advertised_review_count, collection
 from src.services.snapshot_storage import snapshot_lock, write_json_atomic
 
 
+class BrowserSetupError(RuntimeError):
+    """Browser initialization failed after its internal retries."""
+
+
 class RateLimiter:
     """
     Rate limiter to prevent being detected as a bot by limiting request frequency.
@@ -191,6 +195,7 @@ class DoctoraliaScraper:
                 return True
 
             except SessionNotCreatedException as e:
+                self.safe_driver_quit()
                 self.logger.warning(
                     "Erro de sessão na tentativa %d: %s", attempt + 1, e
                 )
@@ -200,9 +205,10 @@ class DoctoraliaScraper:
                     self.logger.error(
                         "Falha ao criar sessão do navegador após todas as tentativas"
                     )
-                    return False
+                    raise
 
             except WebDriverException as e:
+                self.safe_driver_quit()
                 self.logger.error(
                     "❌ Erro ao inicializar navegador (tentativa %d): %s",
                     attempt + 1,
@@ -211,7 +217,7 @@ class DoctoraliaScraper:
                 if attempt < max_attempts - 1:
                     time.sleep(self.config.delays.retry_base)
                 else:
-                    return False
+                    raise
 
         return False
 
@@ -742,11 +748,11 @@ class DoctoraliaScraper:
             return None
 
         # Setup browser
-        if not self.setup_driver():
-            self.logger.error("❌ Falha na inicialização do navegador")
-            return None
-
         try:
+            if not self.setup_driver():
+                self.logger.error("❌ Falha na inicialização do navegador")
+                raise BrowserSetupError("Browser setup failed")
+
             # Guard against None driver
             if self.driver is None:
                 raise RuntimeError("Driver not available after setup")
@@ -819,7 +825,7 @@ class DoctoraliaScraper:
                 e,
                 exc_info=True,
             )
-            result = None
+            raise
 
         finally:
             self.safe_driver_quit()
@@ -848,7 +854,7 @@ class DoctoraliaScraper:
                         self.logger.info("🔄 Tentando novamente em %ds...", wait_time)
                         time.sleep(wait_time)
 
-                except WebDriverException as e:
+                except (WebDriverException, BrowserSetupError) as e:
                     self.logger.error(
                         "❌ Erro crítico na tentativa %d: %s",
                         attempt + 1,
@@ -857,6 +863,8 @@ class DoctoraliaScraper:
                     )
                     if attempt < max_retries - 1:
                         time.sleep(self.config.delays.error_recovery)
+                    else:
+                        raise
 
             return result
 
@@ -962,9 +970,12 @@ class DoctoraliaScraper:
             file_path: Path = Path(self.config.data_dir / file_name)
 
             with snapshot_lock(self.config.data_dir):
+                generation_revision = data.pop("_draft_generation_revision", None)
                 profile_url = data.get("url") or ""
                 if profile_url and isinstance(data.get("reviews"), list):
-                    from src.services.review_reconciliation import carry_forward_drafts
+                    from src.services.review_reconciliation import (
+                        reconcile_snapshot_drafts,
+                    )
                     from src.services.workspace_service import WorkspaceService
 
                     workspace = WorkspaceService(self.config.data_dir, self.logger)
@@ -972,11 +983,9 @@ class DoctoraliaScraper:
                     snapshots = workspace._filter_snapshots(
                         workspace._load_snapshots(), profile_id=profile_id
                     )
-                    previous = workspace._latest_by_profile(snapshots).get(profile_id)
-                    if previous:
-                        data["reviews"] = carry_forward_drafts(
-                            data["reviews"], previous["reviews"]
-                        )
+                    data["reviews"] = reconcile_snapshot_drafts(
+                        data["reviews"], snapshots, generation_revision
+                    )
                 write_json_atomic(file_path, data)
 
             self.logger.info("💾 Dados salvos com sucesso em: %s", file_path)

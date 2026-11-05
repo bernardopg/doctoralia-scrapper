@@ -12,6 +12,10 @@ Este arquivo acompanha a revisão funcional e o trabalho para o próximo release
 - O PostgreSQL possui migrações versionadas para perfis, avaliações, execuções, observações e rascunhos ([#207](https://github.com/bernardopg/doctoralia-scrapper/pull/207)). O staging armazena bytes originais por workspace e checksum, após backup verificado ([#208](https://github.com/bernardopg/doctoralia-scrapper/pull/208)). **Staging não é migração normalizada**: não resolve conflitos e não alimenta a API ou o dashboard.
 - CI, Docker e CodeQL de `main` passaram para o merge `1f8389a`; essa evidência não substitui os testes do próximo commit ou de um release.
 
+## Planejamento do próximo release
+
+O [roadmap](ROADMAP.md) e as [fichas REL-01–REL-10](tasks/README.md) detalham dependências, aceite e evidências das prioridades abaixo. A [foto de prontidão](docs/release-readiness.md) registra a base e os checks consultados. REL-01 (importação transacional) e REL-02 (contrato de coleta) estão **em revisão**, ainda sem aceite. REL-04 foi revisada em isolamento e aguarda integração; REL-07 entregou normalização e inventário parcial, também em revisão. A versão v2.8.0 é candidata sujeita ao escopo entregue; não houve bump. O backlog adicional permanece para priorização separada.
+
 ## P0 — Integridade e segurança antes da migração
 
 - [ ] **Identidade e conflitos.** Definir e implementar reconciliação explícita de IDs legados, fingerprints alterados, colisões e IDs de origem repetidos; manter os casos incertos separados, sem associar rascunhos automaticamente. Validar reordenação, duplicatas, edição de texto, ausência de autor e restauração de dados históricos.

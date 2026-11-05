@@ -8,8 +8,8 @@ from src.api.schemas.common import UnifiedResult
 from src.api.schemas.requests import JobCreateRequest, JobResponse
 from src.api.v1.deps import require_api_key
 from src.api.v1.providers import get_app_config, get_job_queue
-from src.integrations.n8n.normalize import make_unified_result
 from src.jobs.tasks import scrape_and_process
+from src.normalization import make_unified_result
 
 router = APIRouter(tags=["Jobs"])
 

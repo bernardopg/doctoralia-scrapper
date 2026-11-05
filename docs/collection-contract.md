@@ -1,0 +1,25 @@
+# Contrato de coleta
+
+A API síncrona e o worker usam o mesmo mecanismo de publicação de snapshots JSON, incluindo a reconciliação de rascunhos sob o lock do diretório. Uma resposta de sucesso só é produzida depois da publicação. A rota síncrona executa a operação bloqueante em uma thread, deixando o event loop livre. O backend permanece JSON; não há migração de dados.
+
+`collection` contém `status`, `expected_count` (nulo quando não anunciado), `extracted_count`, `stop_reason` e `duration_ms` quando disponível. `complete` exige paginação esgotada e contagens iguais, inclusive zero real; interrupção ou divergência produz `partial`; contagem desconhecida produz `unknown`. Se um scraper legado não fornecer metadados, novas execuções recebem `unknown` com motivo `metadata_unavailable`. Falhas retornam `failure` no campo de coleta com o tipo da exceção, contagem anunciada desconhecida e duração. O status externo existente permanece `completed`, `partial` (inclusive `unknown`) ou `failed`, para compatibilidade com consumidores de jobs. Resultados históricos sem `collection` continuam legíveis, mas não demonstram completude.
+
+Análise e geração podem processar os dados extraídos, mas o resultado mantém o estado parcial. O Telegram agendado não envia um relatório como completo quando a coleta é parcial, desconhecida ou sem metadados; snapshots antigos sem metadados não são elegíveis para esse envio. O histórico conserva snapshots incompletos, e o dashboard apresenta o estado e as contagens das coletas recentes. Um snapshot incompleto não substitui um completo na seleção do perfil atual. A publicação por `save_data` reconcilia uma única vez, sob o mesmo lock da gravação atômica, em todos os caminhos. Para snapshots legados sem metadados de edição, usa a cronologia das coletas, incluindo parciais; uma ocorrência mais nova sem rascunho impede ressuscitar uma sugestão antiga. Timestamps ausentes, inválidos ou empatados impedem transferência por cronologia. Identidades duplicadas ou ambíguas não são associadas automaticamente. As APIs existentes não expõem um identificador de snapshot no resultado; a visibilidade depende do diretório JSON compartilhado entre API, worker e dashboard. Uma persistência compartilhada entre máquinas é trabalho futuro.
+
+## Evidências e limites
+
+Os testes usam dados sintéticos e mocks. A sincronização por eventos verifica que outra corrotina progride enquanto o scraper está bloqueado; o teste de inicialização verifica o fechamento do driver. Os testes existentes cobrem contagem zero, divergência, contagem desconhecida, timeout de paginação, snapshots parciais e preservação de rascunhos. Nenhuma coleta externa, notificação ou serviço de IA é executado. Não há teste visual interativo de navegador ou infraestrutura real nesta validação.
+
+O histórico oferece links para avaliações e respostas de um snapshot específico. As rotas `/api/workspace/profile` e `/api/workspace/responses` aceitam `profile_id` e `snapshot` (nome de arquivo); o salvamento recebe os mesmos campos no JSON. A seleção é validada entre snapshots carregados do diretório, exige o perfil correspondente e rejeita caminhos e links simbólicos. Sem seleção explícita, a visão atual continua preferindo o snapshot completo. A visão selecionada mostra todas as avaliações, o estado (`partial`, `unknown` ou `complete`) e contagens; a edição salva apenas no arquivo selecionado. Dados legados sem metadados são exibidos como `unknown`.
+
+Cada edição salva no snapshot selecionado registra `draft_edit.version` e `draft_edit.cleared` na avaliação; a limpeza é um tombstone explícito. A versão é incrementada sob o lock compartilhado, independentemente da data da coleta. Na próxima publicação prevalece a edição identificável de maior versão; versões empatadas com conteúdo divergente são inseguras e não são associadas. A geração registra a versão observada antes de começar: uma edição posterior prevalece, enquanto uma geração solicitada após a edição pode substituí-la. Escritas concorrentes são serializadas pelo lock e o arquivo histórico original é modificado apenas quando selecionado para edição. O resultado e o callback usam as avaliações efetivamente publicadas.
+
+A barreira para IDs de origem duplicados cobre o histórico e a nova coleta,
+inclusive a associação de edições legadas por autor/comentário. Nem uma edição
+nem um tombstone são transferidos nesse caso. Arquivos JSON só entram no
+inventário de perfis quando possuem uma lista de avaliações e identidade real
+de perfil (nome ou URL); o nome de exibição padrão não fornece essa identidade.
+Snapshots legítimos sem timestamp permanecem acessíveis, com a reconciliação
+cronológica conservadora descrita acima.
+
+Erros Selenium durante a inicialização ou carregamento preservam o tipo da última exceção após os retries, com limpeza do driver em cada tentativa. `BrowserSetupError` fica reservado para falha sem causa Selenium identificável; respostas incluem somente o tipo seguro e a duração total, sem mensagem ou traceback. Os testes simulam drivers e serviços, não comprovam execução visual ou coleta real.
