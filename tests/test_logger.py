@@ -68,3 +68,29 @@ class TestLogger:
             logger.info(f"Teste com f-string: {'valor'}")
         except Exception as e:
             assert False, f"Logger falhou com formatação: {e}"
+
+
+def test_logger_falls_back_to_console_when_log_file_is_not_writable(
+    tmp_path, monkeypatch
+):
+    """Um arquivo de log sem permissão não deve impedir a inicialização."""
+    import logging
+    from datetime import datetime
+
+    import src.logger as logger_module
+
+    file_handler_type = logging.FileHandler
+
+    def deny(*_args, **_kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(logger_module.logging, "FileHandler", deny)
+    config = Mock()
+    config.logs_dir = tmp_path
+
+    logger = setup_logger(name="unwritable-log-test", config=config)
+
+    assert not any(isinstance(h, file_handler_type) for h in logger.handlers)
+    assert any(isinstance(h, logging.StreamHandler) for h in logger.handlers)
+    expected = tmp_path / f"unwritable-log-test_{datetime.now():%Y%m}.log"
+    assert not expected.exists()
