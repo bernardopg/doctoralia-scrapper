@@ -4,7 +4,7 @@ Cada ID é estável; atualize estado, SHA, PR e evidências conforme o trabalho 
 
 | ID | Prioridade | Frente | Estado | Dependências para aceite |
 |---|---|---|---|---|
-| [REL-01](REL-01.md) | P1 | Importação transacional | Em andamento | staging existente |
+| [REL-01](REL-01.md) | P1 | Importação transacional | Em revisão ([#212](https://github.com/bernardopg/doctoralia-scrapper/pull/212)) | staging existente |
 | [REL-02](REL-02.md) | P0/P1 | Contrato de coleta | Em revisão ([#211](https://github.com/bernardopg/doctoralia-scrapper/pull/211)) | nenhuma |
 | [REL-03](REL-03.md) | P0 | Identidade, conflitos e rascunhos | Planejado | REL-01 para integração |
 | [REL-04](REL-04.md) | P0 | Auditoria XSS em navegador | Em andamento | nenhuma |

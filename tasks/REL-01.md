@@ -1,6 +1,6 @@
 # REL-01 — P1 — Importação transacional de staging
 
-**Estado:** Em andamento. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
+**Estado:** Em revisão. Implementação no [PR draft #212](https://github.com/bernardopg/doctoralia-scrapper/pull/212), head `54db82df5e3ee52b3ee1a37d9c550e5708e7e7a6`; sem merge ou aceite final.
 
 ## Problema
 
@@ -35,3 +35,9 @@ SHA, comandos, relatórios de comparação, caso de rollback e CI; distinguir te
 ## Riscos
 
 Colisão de identidade e rollback incompleto podem causar perda ou associação indevida.
+
+## Evidência observada em 2026-11-05
+
+O agente executor reportou 21 testes pertinentes com PostgreSQL descartável, incluindo isolamento, concorrência, rollback e retomada, além de Black/isort/Flake8/mypy. O gestor conferiu o [CI desse head](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41965168019): os jobs Python 3.11–3.14 e o agregador All Checks Passed concluíram com sucesso. No [log Python 3.14](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41965168019/job/127040387079), a suíte terminou com 526 testes aprovados, incluindo migrações, staging e os dois testes de reconciliação contra o serviço descartável do CI. CodeQL, builds e scans também passaram; o agregador Docker ainda estava pendente na consulta.
+
+Revisão técnica independente e ensaio de migração/restore com cópia representativa continuam pendentes. O importador mantém JSON como backend runtime e conflitos para análise; não há resolução humana implementada ou ativação PostgreSQL. A interpretação UTC de timestamps sem fuso está documentada e precisa de conferência no ensaio com dados existentes.
