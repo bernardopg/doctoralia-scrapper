@@ -1553,7 +1553,7 @@
 
     try {
       const payload = serializeScheduleForm('edit');
-      await apiRequest(`/api/notifications/telegram/schedules/${notificationState.editingId}`, {
+      await apiRequest(`/api/notifications/telegram/schedules/${encodeURIComponent(notificationState.editingId)}`, {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
@@ -1572,7 +1572,7 @@
     }
 
     try {
-      await apiRequest(`/api/notifications/telegram/schedules/${scheduleId}`, {
+      await apiRequest(`/api/notifications/telegram/schedules/${encodeURIComponent(scheduleId)}`, {
         method: 'DELETE',
       });
 
@@ -1592,7 +1592,7 @@
     renderScheduleCards(notificationState.schedules);
 
     try {
-      const result = await apiRequest(`/api/notifications/telegram/schedules/${scheduleId}/run`, {
+      const result = await apiRequest(`/api/notifications/telegram/schedules/${encodeURIComponent(scheduleId)}/run`, {
         method: 'POST',
         body: JSON.stringify({}),
       });

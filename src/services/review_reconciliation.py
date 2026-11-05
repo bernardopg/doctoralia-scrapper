@@ -56,8 +56,8 @@ def carry_forward_historical_drafts(
 ) -> List[Dict[str, Any]]:
     """Recover older drafts only for unambiguous, stable source identities.
 
-    The preferred snapshot comes first, followed by the remaining snapshots
-    from newest to oldest. A prior occurrence without a draft is authoritative
+    Snapshots must be supplied from newest to oldest, independently of
+    which snapshot is preferred for display. A prior occurrence without a draft is authoritative
     and must not resurrect an older draft.
     """
     if not history:
@@ -102,4 +102,113 @@ def carry_forward_historical_drafts(
             for item in snapshot
             if item.get("author") and (item.get("comment") or item.get("text"))
         )
+    return result
+
+
+def reconcile_snapshot_drafts(
+    reviews: List[Dict[str, Any]],
+    snapshots: List[Dict[str, Any]],
+    generation_revision: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Resolve legacy collection chronology, then explicitly versioned edits."""
+    from src.services.workspace_service import _comparable_datetime
+
+    timestamps = [item.get("extracted_ts") for item in snapshots]
+    if timestamps and all(value is not None for value in timestamps):
+        ordered_times = [_comparable_datetime(value) for value in timestamps]
+        if len(set(ordered_times)) == len(ordered_times):
+            ordered = sorted(
+                snapshots,
+                key=lambda item: _comparable_datetime(item["extracted_ts"]),
+                reverse=True,
+            )
+            result = carry_forward_historical_drafts(
+                reviews, [item["reviews"] for item in ordered]
+            )
+        else:
+            result = [dict(review) for review in reviews]
+    else:
+        result = [dict(review) for review in reviews]
+
+    max_revision = max(
+        (
+            item["draft_edit"]["version"]
+            for snapshot in snapshots
+            for item in snapshot["reviews"]
+            if isinstance(item.get("draft_edit"), dict)
+            and type(item["draft_edit"].get("version")) is int
+        ),
+        default=0,
+    )
+    candidates: List[List[tuple[int, Dict[str, Any]]]] = [[] for _ in reviews]
+    target_counts = Counter(str(review.get("id") or "") for review in reviews)
+    unsafe: set[str] = {
+        review_id
+        for review_id, count in target_counts.items()
+        if review_id.startswith("doctoralia:") and count > 1
+    }
+    for snapshot in snapshots:
+        counts = Counter(str(item.get("id") or "") for item in snapshot["reviews"])
+        unsafe.update(
+            review_id
+            for review_id, count in counts.items()
+            if review_id.startswith("doctoralia:") and count > 1
+        )
+    for index, review in enumerate(reviews):
+        review_id = str(review.get("id") or "")
+        if review_id.startswith("ambiguous:") or review_id in unsafe:
+            result[index] = dict(review)
+    for snapshot in snapshots:
+        previous = snapshot["reviews"]
+        marked = []
+        for index, old in enumerate(previous):
+            item = dict(old)
+            item["generated_response"] = str(index + 1)
+            marked.append(item)
+        targets = [dict(review, generated_response="") for review in reviews]
+        matched = carry_forward_drafts(targets, marked)
+        for index, item in enumerate(matched):
+            review_id = str(reviews[index].get("id") or "")
+            if review_id in unsafe or review_id.startswith("ambiguous:"):
+                continue
+            marker = item.get("generated_response")
+            if not marker:
+                continue
+            old = previous[int(marker) - 1]
+            metadata = old.get("draft_edit")
+            if isinstance(metadata, dict) and type(metadata.get("version")) is int:
+                candidates[index].append((metadata["version"], old))
+
+    for index, choices in enumerate(candidates):
+        if not choices:
+            continue
+        newest = max(version for version, _ in choices)
+        winners = [old for version, old in choices if version == newest]
+        states = {
+            (
+                str(old.get("generated_response") or ""),
+                bool(old["draft_edit"].get("cleared")),
+            )
+            for old in winners
+        }
+        if len(states) != 1:
+            result[index] = dict(reviews[index])
+            continue
+        # A requested generation started after the edit may create a new draft.
+        if (
+            generation_revision is not None
+            and newest <= generation_revision
+            and reviews[index].get("generated_response")
+        ):
+            result[index]["draft_edit"] = {
+                "version": max_revision + 1,
+                "cleared": False,
+            }
+            continue
+        old = winners[0]
+        result[index]["draft_edit"] = dict(old["draft_edit"])
+        if old["draft_edit"].get("cleared"):
+            result[index]["generated_response"] = ""
+        else:
+            result[index]["generated_response"] = old.get("generated_response", "")
     return result

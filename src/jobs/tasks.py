@@ -5,6 +5,7 @@ Async job tasks for scraping and processing.
 import json
 import logging
 import time
+from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -14,10 +15,8 @@ from urllib3.util.retry import Retry
 
 # Apply nltk security patch (CVE-2024-53889) before any nltk imports
 from src.api.v1.deps import create_webhook_signature
-from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
-from src.services.review_reconciliation import carry_forward_historical_drafts
-from src.services.scrape_completeness import result_status
-from src.services.snapshot_storage import snapshot_lock
+from src.normalization import extract_scraper_result, make_unified_result
+from src.services.scrape_completeness import ensure_collection, result_status
 
 logger = logging.getLogger(__name__)
 
@@ -50,10 +49,20 @@ def _merge_generated_responses(
     if not generation_data:
         return [dict(review) for review in reviews_data]
 
+    review_counts = Counter(str(review.get("id", "")) for review in reviews_data)
+    response_counts = Counter(
+        str(response.get("review_id"))
+        for response in generation_data.get("responses", [])
+        if response.get("review_id") not in (None, "")
+    )
     responses_by_review_id = {
         str(response.get("review_id")): response.get("text", "")
         for response in generation_data.get("responses", [])
-        if response.get("review_id") not in (None, "") and response.get("text")
+        if response.get("review_id") not in (None, "")
+        and response.get("text")
+        and review_counts[str(response["review_id"])] == 1
+        and response_counts[str(response["review_id"])] == 1
+        and not str(response["review_id"]).startswith("ambiguous:")
     }
 
     merged_reviews: List[Dict[str, Any]] = []
@@ -246,6 +255,20 @@ def _run_response_generation(
     }
 
 
+def persist_collection(
+    scraper, config, scraper_result, doctor_data, reviews_data, generation_data
+):
+    snapshot_payload = _build_snapshot_payload(
+        scraper_result, doctor_data, reviews_data, generation_data
+    )
+    if generation_data and generation_data.get("_revision") is not None:
+        snapshot_payload["_draft_generation_revision"] = generation_data["_revision"]
+    saved_file = scraper.save_data(snapshot_payload)
+    if saved_file is None:
+        raise RuntimeError("Scraping concluído, mas o snapshot não pôde ser salvo")
+    return snapshot_payload["reviews"], saved_file
+
+
 def scrape_and_process(
     request_data: Dict,
     job_id: Optional[str] = None,
@@ -272,6 +295,8 @@ def scrape_and_process(
         if not scraper_result:
             raise RuntimeError("Scraper returned no data")
 
+        ensure_collection(scraper_result)
+
         # Extract data
         doctor_data, reviews_data = extract_scraper_result(scraper_result)
         _update_job_meta(
@@ -287,64 +312,22 @@ def scrape_and_process(
         # Run generation if requested
         generation_data = None
         if request_data.get("include_generation"):
+            from src.services.workspace_service import WorkspaceService
+
+            workspace = WorkspaceService(config.data_dir, logger)
+            profile_id = workspace.make_profile_id(
+                doctor_data.get("url") or "", doctor_data.get("name") or ""
+            )
+            generation_revision = workspace.draft_revision(profile_id)
             generation_data = _run_response_generation(
                 reviews_data, request_data, doctor_data
             )
+            generation_data["_revision"] = generation_revision
 
         _update_job_meta(progress=80, message="Persistindo snapshot do scraping")
-        from src.services.workspace_service import (
-            WorkspaceService,
-            _comparable_datetime,
+        reviews_data, saved_file = persist_collection(
+            scraper, config, scraper_result, doctor_data, reviews_data, generation_data
         )
-
-        workspace = WorkspaceService(config.data_dir, logger)
-        profile_id = workspace.make_profile_id(
-            doctor_data.get("url") or "", doctor_data.get("name") or ""
-        )
-        with snapshot_lock(config.data_dir):
-            previous_snapshots = workspace._filter_snapshots(
-                workspace._load_snapshots(), profile_id=profile_id
-            )
-            previous = workspace._latest_by_profile(previous_snapshots).get(profile_id)
-            if previous:
-                previous_ts = previous.get("extracted_ts")
-                historical = [
-                    item
-                    for item in previous_snapshots
-                    if item is not previous
-                    and previous_ts is not None
-                    and item.get("extracted_ts") is not None
-                    and _comparable_datetime(item["extracted_ts"])
-                    != _comparable_datetime(previous_ts)
-                ]
-                # Unknown or equal timestamps make the historical ordering
-                # ambiguous, so do not resurrect any older draft.
-                if any(
-                    item is not previous and item not in historical
-                    for item in previous_snapshots
-                ) or len(
-                    {_comparable_datetime(item["extracted_ts"]) for item in historical}
-                ) != len(
-                    historical
-                ):
-                    historical = []
-                historical.sort(
-                    key=lambda item: _comparable_datetime(item["extracted_ts"]),
-                    reverse=True,
-                )
-                history = [previous["reviews"]] + [
-                    item["reviews"] for item in historical
-                ]
-                reviews_data = carry_forward_historical_drafts(reviews_data, history)
-            snapshot_payload = _build_snapshot_payload(
-                scraper_result=scraper_result,
-                doctor_data=doctor_data,
-                reviews_data=reviews_data,
-                generation_data=generation_data,
-            )
-            saved_file = scraper.save_data(snapshot_payload)
-        if saved_file is None:
-            raise RuntimeError("Scraping concluído, mas o snapshot não pôde ser salvo")
 
         # Create unified result
         result = make_unified_result(
@@ -376,12 +359,21 @@ def scrape_and_process(
             reviews_data=[],
             job_id=job_id,
             status="failed",
+            collection={
+                "status": "failure",
+                "expected_count": None,
+                "extracted_count": None,
+                "stop_reason": type(e).__name__,
+                "duration_ms": int(
+                    (datetime.now() - start_time).total_seconds() * 1000
+                ),
+            },
             start_time=start_time,
             end_time=datetime.now(),
         )
 
-        logger.error(f"scrape_and_process failed: {e}")
-        _update_job_meta(progress=0, message=f"Falha: {e}")
+        logger.error("scrape_and_process failed: %s", type(e).__name__)
+        _update_job_meta(progress=0, message=f"Falha: {type(e).__name__}")
 
         # Send error callback if URL provided
         if callback_url:

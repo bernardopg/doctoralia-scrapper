@@ -1,11 +1,45 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from src.services.workspace_service import WorkspaceService
 
 
 def _write_snapshot(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"foo": "bar"},
+        {"reviews": []},
+        {"doctor_name": "Synthetic settings"},
+        {"url": "https://example.test/profile", "reviews": {}},
+        {"doctor_name": " ", "reviews": []},
+    ],
+)
+def test_unrelated_json_is_not_a_profile(tmp_path, payload):
+    _write_snapshot(tmp_path / "settings.json", payload)
+    service = WorkspaceService(tmp_path)
+    assert service.list_profiles() == []
+    assert service.get_history()["entries"] == []
+
+
+@pytest.mark.parametrize(
+    "identity",
+    [
+        {"doctor_name": "Synthetic"},
+        {"url": "https://example.test/profile"},
+        {"doctor": {"name": "Synthetic"}},
+    ],
+)
+def test_real_snapshot_without_timestamp_remains_accessible(tmp_path, identity):
+    _write_snapshot(tmp_path / "legacy.json", {**identity, "reviews": []})
+    service = WorkspaceService(tmp_path)
+    assert len(service.list_profiles()) == 1
+    assert service.get_history()["entries"][0]["filename"] == "legacy.json"
 
 
 def test_partial_snapshot_does_not_replace_or_prune_complete_snapshot(tmp_path):

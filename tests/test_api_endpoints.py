@@ -229,7 +229,7 @@ class TestScrapeEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "completed"
+        assert data["status"] == "partial"
         assert data["doctor"]["name"] == "Dr. Teste"
 
     def test_scrape_run_reports_incomplete_collection(
@@ -345,7 +345,7 @@ class TestScrapeEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "completed"
+        assert data["status"] == "partial"
         assert data["analysis"] is not None
 
     def test_scrape_run_with_generation(self, client, mock_env, api_key, tmp_path):
@@ -395,7 +395,7 @@ class TestScrapeEndpoints:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "completed"
+        assert data["status"] == "partial"
         assert data["generation"] is not None
         assert len(data["generation"]["responses"]) == 1
 
