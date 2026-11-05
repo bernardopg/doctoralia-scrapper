@@ -1,6 +1,6 @@
 # REL-02 — P0/P1 — Contrato comum de coleta
 
-**Estado:** Em revisão. Implementação no [PR draft #211](https://github.com/bernardopg/doctoralia-scrapper/pull/211), head `48cfbe84c938ec4269a2ef3c37fa2cf8723d30ff`; sem merge ou aceite final.
+**Estado:** Em revisão. Implementação no [PR draft #211](https://github.com/bernardopg/doctoralia-scrapper/pull/211), head `97e84d0c90bba233b0d4146313b1eba90e72cf2d`; sem merge ou aceite final.
 
 ## Problema
 
@@ -81,3 +81,11 @@ O executor reportou 322 testes sintéticos, com rede desabilitada, e Black/isort
 ```
 
 O CI de `48cfbe8` concluiu sem falhas em Python 3.11–3.14; o job Python 3.14 do [run 41999573837](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41999573837) registrou 572 testes aprovados. Codecov aprovou as linhas modificadas cobertas. Isso não substitui revisão independente da nova autoridade de edição nem teste integrado com os templates de #213. Revisão independente solicitada; sem aceite final, coleta externa, deploy ou validação visual combinada.
+
+## Revisão da persistência real e duas correções adicionais
+
+A revisão independente de `48cfbe8` confirmou dois casos: uma edição legada era associada por autor/comentário a um ID duplicado na nova coleta; um JSON sem identidade nem estrutura de snapshot aparecia como perfil por causa do nome padrão. O gestor corrigiu ambos em `97e84d0`, incorporando a atualização remota da main sem force-push. Duplicatas na coleta e no histórico bloqueiam a transferência de edições e tombstones. O inventário exige uma lista de avaliações e identidade real antes de aplicar o nome padrão, preservando snapshots válidos sem timestamp.
+
+Passaram 89 testes de publicação real, workspace, contrato, seleção parcial, armazenamento e worker; Black, isort, Flake8, mypy e `git diff --check` pertinentes passaram. Os testes de publicação agora usam o modelo real de requisição nos caminhos síncronos. Push e SHA remoto confirmados. O novo CI está pendente; os checks de `48cfbe8` não validam `97e84d0`. A revisão de `48cfbe8` reportou aproximadamente 1.194 tokens economizados pelo TokenSave, com fonte real conferida devido ao índice desatualizado.
+
+O PR recebeu atualização remota com auto-merge habilitado antes dessas correções. O gestor desativou auto-merge e confirmou novamente o estado draft no GitHub. Nenhum merge do #211 foi realizado nesta correção. A combinação com #213 e #214 continua pendente.
