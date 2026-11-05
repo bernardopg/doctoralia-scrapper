@@ -22,7 +22,7 @@ Análise independente; integração depende de REL-01 e seus conflitos persistid
 
 ## Critérios de aceite observáveis
 
-Reordenação, duplicatas, edição, autor ausente, desaparecimento/reaparição, snapshots parciais e concorrência preservam dados; decisão registrada e reproduzível.
+Reordenação, duplicatas, edição, autor ausente, desaparecimento/reaparição, snapshots parciais e concorrência preservam dados; decisão registrada e reproduzível. O importador do PR #212 pode manter rascunhos conflitantes materializados: a resolução deve identificar todas as pendências por avaliação, registrar autor/decisão/versão e impedir que um rascunho pendente seja tratado como aprovado.
 
 ## Testes e comandos
 

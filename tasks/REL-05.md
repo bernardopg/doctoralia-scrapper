@@ -22,7 +22,7 @@ REL-01, REL-03 e integração do contrato REL-02.
 
 ## Critérios de aceite observáveis
 
-Leituras/escritas consistentes entre consumidores, isolamento e falha do banco explícitos; ida e rollback preservam histórico e edições numa cópia representativa.
+Leituras/escritas consistentes entre consumidores, isolamento e falha do banco explícitos; rascunhos com conflitos de importação não entram em geração/envio/publicação como aprovados; ida e rollback preservam histórico e edições numa cópia representativa.
 
 ## Testes e comandos
 

@@ -45,3 +45,11 @@ Revisão técnica independente e ensaio de migração/restore com cópia represe
 ## Revisão independente e correções pendentes
 
 A revisão do head `54db82d` identificou riscos materiais: rascunho removido reaparece e ordem de staging substitui cronologia; datetime válido emitido pelo scraper é rejeitado como data; contagens fora de INTEGER e caracteres NUL podem impedir retomada; identidade de perfil diverge da normalização JSON; timestamps locais sem fuso recebem UTC indevidamente. O CI verde anterior não cobre esses casos. Correções e regressões PostgreSQL são necessárias antes do aceite e da REL-05.
+
+## Correções da primeira revisão
+
+O head `08a20dad14dc2f2d09e7cc6244766337b74e8a53` adiciona proveniência temporal dos rascunhos e conflitos para divergências/ausências/empates; aceita datetimes de avaliações preservando a data civil; rejeita timestamps de coleta sem fuso, valores fora de INTEGER, NUL/surrogates e URLs ambíguas, preservando a origem no staging. O executor reportou 29 testes com PostgreSQL descartável e checks de estilo/tipos aprovados.
+
+O gestor conferiu o [CI desse head](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41968083947): Python 3.11–3.14 passaram; no [log Python 3.14](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41968083947/job/127049676189), 534 testes foram aprovados, incluindo dez de reconciliação. Docker, CodeQL e Codecov patch também passaram; o Codecov reportou 91,30% do patch e 18 linhas descobertas. Cobertura local reportada pelo executor (91% reconcile,96% staging,93% combinada) é uma medição diferente.
+
+Uma nova revisão independente ainda é exigida. Rascunhos em conflito podem continuar materializados até decisão humana; não podem ser consumidos como aprovados pelo runtime futuro. Snapshots legados sem fuso exigem tratamento explícito de origem no ensaio. Resolução auditável, cutover e ensaio com cópia representativa continuam REL-03/05/09.
