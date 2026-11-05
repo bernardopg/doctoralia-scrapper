@@ -2,19 +2,17 @@
 
 Este arquivo acompanha a revisão funcional e o trabalho para o próximo release. Os blocos P0–P3 abaixo são o escopo acordado para a revisão; o backlog adicional permanece ao final e não deve ser confundido com funcionalidades já entregues. Marque uma tarefa apenas depois da implementação **e** da validação indicada. Preserve snapshots, configurações e volumes existentes em todas as migrações.
 
-## Estado confirmado — 4 de novembro de 2026
+## Estado confirmado — 5 de novembro de 2026
 
 - A última versão publicada é `v2.7.2`. As alterações posteriores estão em `main`, mas ainda não compõem um novo release.
-- A extração foi ajustada para as datas e o cabeçalho atuais da Doctoralia. Uma coleta real anterior do perfil de Bruna Pinto Gomes obteve 164/164 avaliações; isso não comprova coletas futuras nem todos os campos e fluxos.
-- Os snapshots e rascunhos continuam em JSON. Há bloqueio entre processos, gravação atômica e reconciliação conservadora de rascunhos ([#202](https://github.com/bernardopg/doctoralia-scrapper/pull/202), [#205](https://github.com/bernardopg/doctoralia-scrapper/pull/205)); ambiguidades e dados legados ainda exigem tratamento explícito.
-- A coleta usa ID da Doctoralia, fingerprint quando possível e ID temporário para identidades ambíguas ([#201](https://github.com/bernardopg/doctoralia-scrapper/pull/201), [#206](https://github.com/bernardopg/doctoralia-scrapper/pull/206)). O fallback pode mudar quando os dados da avaliação mudam; ele não prova que duas avaliações são a mesma.
-- O dashboard recebeu proteções de renderização. A auditoria completa de entradas, atributos e ações em navegador ainda está aberta.
-- O PostgreSQL possui migrações versionadas para perfis, avaliações, execuções, observações e rascunhos ([#207](https://github.com/bernardopg/doctoralia-scrapper/pull/207)). O staging armazena bytes originais por workspace e checksum, após backup verificado ([#208](https://github.com/bernardopg/doctoralia-scrapper/pull/208)). **Staging não é migração normalizada**: não resolve conflitos e não alimenta a API ou o dashboard.
-- CI, Docker e CodeQL de `main` passaram para o merge `1f8389a`; essa evidência não substitui os testes do próximo commit ou de um release.
+- Mesclados na main em 5 de novembro: contrato de coleta unificado, com Selenium fora do event loop e snapshot publicado pelos dois caminhos ([#211](https://github.com/bernardopg/doctoralia-scrapper/pull/211)); endurecimento do dashboard com roteiro de navegador ([#213](https://github.com/bernardopg/doctoralia-scrapper/pull/213)); normalização desacoplada do n8n ([#214](https://github.com/bernardopg/doctoralia-scrapper/pull/214)); reconciliação opt-in de snapshots em staging ([#212](https://github.com/bernardopg/doctoralia-scrapper/pull/212)); logger tolerante a arquivo sem permissão ([#216](https://github.com/bernardopg/doctoralia-scrapper/pull/216)); datas de avaliação e de coleta distintas com paginação da fila ([#217](https://github.com/bernardopg/doctoralia-scrapper/pull/217)).
+- Em revisão: resolução auditável de conflitos de rascunho ([#218](https://github.com/bernardopg/doctoralia-scrapper/pull/218)); estados, acessibilidade e aviso de publicação manual ([#219](https://github.com/bernardopg/doctoralia-scrapper/pull/219)).
+- Os snapshots e rascunhos usados pelo runtime continuam em JSON. O banco recebe importação, reconciliação e resolução apenas por CLI opt-in; API e dashboard ainda não leem do PostgreSQL (REL-05).
+- Testes PostgreSQL e Redis rodam em serviços descartáveis no CI. Uma coleta real anterior obteve 164/164 avaliações; não houve nova coleta real nesta rodada.
 
 ## Planejamento do próximo release
 
-O [roadmap](ROADMAP.md) e as [fichas REL-01–REL-10](tasks/README.md) detalham dependências, aceite e evidências das prioridades abaixo. A [foto de prontidão](docs/release-readiness.md) registra a base e os checks consultados. REL-01 (importação transacional) e REL-02 (contrato de coleta) estão **em revisão**, ainda sem aceite. REL-04 foi revisada em isolamento e aguarda integração; REL-07 entregou normalização e inventário parcial, também em revisão. A versão v2.8.0 é candidata sujeita ao escopo entregue; não houve bump. O backlog adicional permanece para priorização separada.
+O [roadmap](ROADMAP.md) e as [fichas REL-01–REL-10](tasks/README.md) detalham dependências, aceite e evidências. REL-01, REL-02, REL-04, REL-06 (datas e paginação da fila) e a normalização de REL-07 estão na main; REL-03 e REL-08 estão em revisão. Pendentes: REL-05 (repositórios PostgreSQL no runtime), inventário completo do n8n, reavaliação da paginação da fonte, REL-09 (ensaio de backup/restore e instalações) e REL-10. A versão v2.8.0 é candidata sujeita ao escopo entregue; não houve bump.
 
 ## P0 — Integridade e segurança antes da migração
 

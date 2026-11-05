@@ -1,6 +1,6 @@
 # REL-07 — P2 — Inventário n8n e normalização desacoplada
 
-**Estado:** Em revisão parcial. Implementação no [PR draft #214](https://github.com/bernardopg/doctoralia-scrapper/pull/214), head `6b89a8dae2dadc86e17e695d1560537f965f731d`; inventário local/externo e ensaio de retorno ainda pendentes.
+**Estado:** Revisado em isolamento; integração e inventário completo pendentes. Implementação no [PR draft #214](https://github.com/bernardopg/doctoralia-scrapper/pull/214), head `6b89a8dae2dadc86e17e695d1560537f965f731d`; inventário local/externo e ensaio de retorno ainda pendentes.
 
 ## Problema
 
@@ -45,3 +45,9 @@ Extrair normalização compartilhada para módulo neutro com shim de importaçã
 O PR #214 extrai a normalização para `src/normalization.py`, conserva o caminho antigo como shim e documenta fluxos, dependências e gates em `docs/integration-inventory.md`. O executor reportou 157 testes direcionados, Black, isort, Flake8, mypy e validação dos três conjuntos Compose com dados fictícios aprovados. O gestor confirmou no remoto o head e os checks concluídos sem falhas, incluindo Codecov, CI, Docker e CodeQL; revisão independente solicitada.
 
 O inventário identifica os exemplos e contratos do repositório e a existência do serviço/volume local, mas não verifica workflows instalados, responsáveis e consumidores externos. Exportação/restauração não ensaiadas. Serviço e volume n8n foram preservados; esta entrega não atende aos gates de remoção. A integração dos imports com #211 também permanece pendente.
+
+## Revisão independente
+
+A revisão de `6b89a8d` não encontrou regressão funcional comprovada bloqueante. Comparou a implementação extraída à anterior e executou comparação diferencial com relógio fixo e dados sintéticos, além de 43 testes de normalização, completude, API e worker, todos aprovados. Não ensaiou mascaramento diferencial específico nem runtime n8n. O shim preserva as oito funções; imports internos incidentais do módulo antigo não são todos reexportados, e patches de relógio passam a apontar para `src.normalization.datetime`. Nenhum consumidor afetado foi identificado. A economia TokenSave reportada foi de aproximadamente 935 tokens; a fonte real foi conferida por causa do índice desatualizado.
+
+Há conflitos textuais concretos com #211 em `src/api/v1/routers/scrape.py` e `src/jobs/tasks.py`: a integração deve manter o contrato e a persistência de REL-02 e os imports neutros de REL-07. O aceite integrado, o inventário externo/local e o ensaio de retorno continuam abertos.

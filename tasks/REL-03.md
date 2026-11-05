@@ -1,6 +1,6 @@
 # REL-03 — P0 — Identidade, conflitos e rascunhos
 
-**Estado:** Planejado. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
+**Estado:** Implementação iniciada em frente isolada Terra 6.1 high. Sem entrega ou testes novos afirmados nesta atualização.
 
 ## Problema
 
@@ -35,3 +35,7 @@ Casos e contagens antes/depois, trilha de decisão, SHA, CI; demonstrar recupera
 ## Riscos
 
 Associação incorreta pode publicar ou apagar rascunhos de outra avaliação.
+
+## Entrega técnica em execução
+
+Implementar resolução opt-in dos conflitos de rascunho do importador, com migração de esquema aditiva, consulta de todas as observações/pendências por avaliação, decisão explícita de manter/escolher/limpar, ator, revisão esperada e auditoria imutável. Concorrência deve rejeitar decisões obsoletas; novas observações conflitantes devem reabrir a pendência. Rascunhos sem resolução não podem ser retornados como aprovados pelo novo acesso de banco. Preservar originais, rejeições e relatórios cumulativos. IDs ausentes, legados ou ambíguos permanecem pendentes; não inferir associação automática. Testar em PostgreSQL exclusivamente descartável, incluindo upgrade, isolamento de workspace, conflitos múltiplos, remoção, retomada e concorrência. O runtime permanece JSON até REL-05.
