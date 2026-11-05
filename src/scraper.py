@@ -989,6 +989,10 @@ class DoctoraliaScraper:
                 write_json_atomic(file_path, data)
 
             self.logger.info("💾 Dados salvos com sucesso em: %s", file_path)
+            # Opt-in PostgreSQL backend: mirror after releasing the JSON lock.
+            from src.services.storage_backend import sync_after_publish
+
+            sync_after_publish(self.config.data_dir)
             return file_path
         except IOError as e:
             self.logger.error("Erro ao salvar os dados: %s", e)
