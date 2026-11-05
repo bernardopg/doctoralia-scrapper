@@ -147,7 +147,7 @@ const document = {
   getElementById: () => output,
   addEventListener: () => {},
 };
-const context = {document, console, URLSearchParams, setTimeout: () => {}};
+const context = {document, console, URLSearchParams, location: {search: ''}, setTimeout: () => {}};
 vm.createContext(context);
 vm.runInContext(source, context);
 context.showResponsesAlert('Erro: <img src=x onerror=alert(1)>', 'error');
