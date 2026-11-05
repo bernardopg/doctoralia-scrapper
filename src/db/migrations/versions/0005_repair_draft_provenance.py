@@ -63,6 +63,23 @@ def _uncertain_time(raw):
         return True
 
 
+def _matches_original(raw, source_id, payload):
+    """An observation is trustworthy only when the staged item agrees exactly."""
+    try:
+        snapshot = json.loads(raw)
+        items = snapshot.get("reviews")
+        if not isinstance(items, list):
+            return False
+        matches = [
+            item
+            for item in items
+            if isinstance(item, dict) and item.get("id") == source_id
+        ]
+        return len(matches) == 1 and matches[0] == payload
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 def _repair_workspace(connection, tables, workspace_id):
     if connection.dialect.name == "postgresql":
         connection.execute(
@@ -107,6 +124,8 @@ def _repair_workspace(connection, tables, workspace_id):
         for row in history:
             payload = row["payload"]
             if not isinstance(payload, dict) or payload.get("id") != row["source_id"]:
+                invalid = True
+            if not _matches_original(row["original_bytes"], row["source_id"], payload):
                 invalid = True
             body = (
                 payload.get("generated_response") if isinstance(payload, dict) else None
@@ -178,6 +197,7 @@ def _repair_workspace(connection, tables, workspace_id):
                     "observation_count": len(history),
                     "latest_observed_at": latest["observed_at"].isoformat(),
                     "time_uncertain": uncertain,
+                    "observation_integrity_uncertain": invalid,
                     "requires_human_resolution": True,
                 },
             )

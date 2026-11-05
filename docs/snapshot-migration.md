@@ -84,7 +84,11 @@ explicit draft rejections. It preserves active drafts, original observations and
 staged bytes; it does not approve or choose a draft on the operator's behalf.
 Missing provenance is reconstructed from the newest observed collection time.
 Conflicting or insufficient observations and legacy timezone uncertainty require
-human review. Existing draft rejections are preserved without a second pending
+human review. Each observation must exactly match the unique item with its source
+ID in the staged original. Missing, duplicate or divergent source items make
+observation integrity uncertain and require review; a partial object containing
+only an ID is not evidence of draft removal. Repair markers contain integrity
+flags, not copies of review or draft text. Existing draft rejections are preserved without a second pending
 entry for the same review. The cumulative pending report increases only when a
 previously unreported legacy uncertainty is discovered.
 

@@ -202,6 +202,7 @@ async def test_upgrade_recovers_states_conflicts_and_reports(
         ).scalar_one()
         assert repaired["review_id"] == "legacy-a-cleared"
         assert repaired["requires_human_resolution"] is True
+        assert repaired["observation_integrity_uncertain"] is False
     for workspace in ("legacy-a", "legacy-b"):
         first = await reconcile_staged(engine, workspace)
         assert first["pending"] == 1
@@ -268,17 +269,38 @@ async def test_legacy_naive_times_remain_explicitly_uncertain(legacy_database):
 
 
 @pytest.mark.asyncio
-async def test_incomplete_observation_payload_is_not_approved(legacy_database):
+@pytest.mark.parametrize(
+    "payload",
+    [
+        None,
+        {"id": "doctoralia:2"},
+        {"id": "doctoralia:2", "generated_response": "same"},
+    ],
+)
+async def test_incomplete_observation_payload_is_not_approved(legacy_database, payload):
     engine, url = legacy_database
     await seed_legacy(engine, "0003_snapshot_reconciliation")
     async with engine.begin() as conn:
         await conn.execute(
             text(
-                "UPDATE review_observations SET payload='null' WHERE review_id='legacy-a-stable'"
-            )
+                "UPDATE review_observations SET payload=CAST(:payload AS JSON) WHERE review_id='legacy-a-stable'"
+            ),
+            {"payload": json.dumps(payload)},
         )
         await conn.execute(
             text("DELETE FROM review_drafts WHERE review_id='legacy-a-stable'")
         )
     await init_db(url)
     assert (await reconcile_staged(engine, "legacy-a"))["pending"] == 2
+    async with engine.connect() as conn:
+        repaired = (
+            await conn.execute(
+                text(
+                    "SELECT payload FROM snapshot_rejections WHERE payload->>'review_id'='legacy-a-stable'"
+                )
+            )
+        ).scalar_one()
+        assert repaired["requires_human_resolution"] is True
+        assert "generated_response" not in repaired
+        assert "comment" not in repaired
+        assert repaired["observation_integrity_uncertain"] is True
