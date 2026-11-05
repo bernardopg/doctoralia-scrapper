@@ -4,14 +4,14 @@ Cada ID é estável; atualize estado, SHA, PR e evidências conforme o trabalho 
 
 | ID | Prioridade | Frente | Estado | Dependências para aceite |
 |---|---|---|---|---|
-| [REL-01](REL-01.md) | P1 | Importação transacional | Reparo testado; integração pendente ([#212](https://github.com/bernardopg/doctoralia-scrapper/pull/212)) | staging existente |
-| [REL-02](REL-02.md) | P0/P1 | Contrato de coleta | Testado; integração pendente ([#211](https://github.com/bernardopg/doctoralia-scrapper/pull/211)) | nenhuma |
-| [REL-03](REL-03.md) | P0 | Identidade, conflitos e rascunhos | Em implementação | REL-01 para integração |
-| [REL-04](REL-04.md) | P0 | Auditoria XSS em navegador | Em integração com REL-02 ([#213](https://github.com/bernardopg/doctoralia-scrapper/pull/213)) | nenhuma |
+| [REL-01](REL-01.md) | P1 | Importação transacional | Mesclado na main ([#212](https://github.com/bernardopg/doctoralia-scrapper/pull/212)); testes PostgreSQL descartável em CI | staging existente |
+| [REL-02](REL-02.md) | P0/P1 | Contrato de coleta | Mesclado na main ([#211](https://github.com/bernardopg/doctoralia-scrapper/pull/211)); sem coleta real nova | nenhuma |
+| [REL-03](REL-03.md) | P0 | Identidade, conflitos e rascunhos | Resolução auditável opt-in em revisão ([#218](https://github.com/bernardopg/doctoralia-scrapper/pull/218)) | REL-01 para integração |
+| [REL-04](REL-04.md) | P0 | Auditoria XSS em navegador | Mesclado na main ([#213](https://github.com/bernardopg/doctoralia-scrapper/pull/213)) | nenhuma |
 | [REL-05](REL-05.md) | P1 | Repositórios PostgreSQL e transição | Planejado | REL-01, REL-02, REL-03 |
-| [REL-06](REL-06.md) | P1 | Paginação e datas | Planejado | REL-02, REL-05 para integração |
-| [REL-07](REL-07.md) | P2 | Inventário n8n e normalização | Revisado; integração pendente ([#214](https://github.com/bernardopg/doctoralia-scrapper/pull/214)) | nenhuma para inventário |
-| [REL-08](REL-08.md) | P2 | UX acessível e estados | Planejado | REL-02, REL-03, REL-05, REL-06 para aceite integrado |
+| [REL-06](REL-06.md) | P1 | Paginação e datas | Datas distintas e paginação da fila em revisão ([#217](https://github.com/bernardopg/doctoralia-scrapper/pull/217)); paginação da fonte não reavaliada | REL-02, REL-05 para integração |
+| [REL-07](REL-07.md) | P2 | Inventário n8n e normalização | Normalização mesclada ([#214](https://github.com/bernardopg/doctoralia-scrapper/pull/214)); inventário de workflows ativos pendente | nenhuma para inventário |
+| [REL-08](REL-08.md) | P2 | UX acessível e estados | Fila de respostas, estados e acessibilidade em revisão ([#219](https://github.com/bernardopg/doctoralia-scrapper/pull/219)); demais telas parciais | REL-02, REL-03, REL-05, REL-06 para aceite integrado |
 | [REL-09](REL-09.md) | P1/P3 | CI, backup/restore e instalações | Planejado | frentes incluídas no release para aceite final |
 | [REL-10](REL-10.md) | P3 | Release e verificação publicada | Planejado | REL-09 e escopo aceito |
 
