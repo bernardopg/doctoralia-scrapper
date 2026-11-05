@@ -1,0 +1,11 @@
+# Contrato de coleta
+
+A API síncrona e o worker usam o mesmo mecanismo de publicação de snapshots JSON, incluindo a reconciliação de rascunhos sob o lock do diretório. Uma resposta de sucesso só é produzida depois da publicação. A rota síncrona executa a operação bloqueante em uma thread, deixando o event loop livre. O backend permanece JSON; não há migração de dados.
+
+`collection` contém `status`, `expected_count` (nulo quando não anunciado), `extracted_count`, `stop_reason` e `duration_ms` quando disponível. `complete` exige paginação esgotada e contagens iguais, inclusive zero real; interrupção ou divergência produz `partial`; contagem desconhecida produz `unknown`. Se um scraper legado não fornecer metadados, novas execuções recebem `unknown` com motivo `metadata_unavailable`. Falhas retornam `failure` no campo de coleta com o tipo da exceção, contagem anunciada desconhecida e duração. O status externo existente permanece `completed`, `partial` (inclusive `unknown`) ou `failed`, para compatibilidade com consumidores de jobs. Resultados históricos sem `collection` continuam legíveis, mas não demonstram completude.
+
+Análise e geração podem processar os dados extraídos, mas o resultado mantém o estado parcial. O Telegram agendado não envia um relatório como completo quando a coleta é parcial, desconhecida ou sem metadados; snapshots antigos sem metadados não são elegíveis para esse envio. O histórico conserva snapshots incompletos, e o dashboard apresenta o estado e as contagens das coletas recentes. Um snapshot incompleto não substitui um completo na seleção do perfil atual. As APIs existentes não expõem um identificador de snapshot no resultado; a visibilidade depende do diretório JSON compartilhado entre API, worker e dashboard. Uma persistência compartilhada entre máquinas é trabalho futuro.
+
+## Evidências e limites
+
+Os testes usam dados sintéticos e mocks. A sincronização por eventos verifica que outra corrotina progride enquanto o scraper está bloqueado; o teste de inicialização verifica o fechamento do driver. Os testes existentes cobrem contagem zero, divergência, contagem desconhecida, timeout de paginação, snapshots parciais e preservação de rascunhos. Nenhuma coleta externa, notificação ou serviço de IA é executado. Não há teste visual interativo de navegador ou infraestrutura real nesta validação.

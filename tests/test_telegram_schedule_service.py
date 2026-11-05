@@ -180,6 +180,7 @@ def test_execute_schedule_records_history_and_attachment(tmp_path, monkeypatch):
         "doctor_name": "Dra. Ana",
         "url": "https://www.doctoralia.com.br/medico/teste",
         "average_rating": 4.8,
+        "collection": {"status": "complete"},
         "reviews": [
             {
                 "id": "review-1",
@@ -589,6 +590,7 @@ def test_snapshot_generation_and_attachment_helpers(tmp_path, monkeypatch):
         json.dumps(
             {
                 "doctor_name": "Dra. Ana",
+                "collection": {"status": "complete"},
                 "url": "https://www.doctoralia.com.br/medico/teste",
                 "reviews": [{"id": "a", "author": "Ana", "comment": "Oi"}],
             }
@@ -610,7 +612,12 @@ def test_snapshot_generation_and_attachment_helpers(tmp_path, monkeypatch):
             self.runtime_config = runtime_config
 
         def scrape_reviews(self, profile_url):
-            return {"doctor_name": "Novo", "url": profile_url, "reviews": []}
+            return {
+                "doctor_name": "Novo",
+                "url": profile_url,
+                "reviews": [],
+                "collection": {"status": "complete"},
+            }
 
         def save_data(self, payload):
             saved = self.runtime_config.data_dir / "fresh.json"
