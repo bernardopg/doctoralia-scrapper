@@ -1,6 +1,6 @@
 # REL-01 — P1 — Importação transacional de staging
 
-**Estado:** Em revisão. Implementação no [PR draft #212](https://github.com/bernardopg/doctoralia-scrapper/pull/212), head `79149c6`; sem merge ou aceite final.
+**Estado:** Em revisão. Implementação no [PR draft #212](https://github.com/bernardopg/doctoralia-scrapper/pull/212), head `710f4da8b3af5b7946d75eab5de471d9e23b15eb`; sem merge ou aceite final.
 
 ## Problema
 
@@ -73,3 +73,9 @@ O agente de correção não entregou mudanças; o gestor assumiu o finding e pub
 Passaram47 testes em PostgreSQL18 descartável, incluindo sete novos testes reais de upgrade de0003/0004, dados em ordem invertida, workspaces distintos, estados mistos, pendências existentes, reinicialização concorrente, reexecução, rollback/retomada, fuso legado incerto e observações incompletas. O serviço descartável foi removido. Black/isort/Flake8/mypy e diffcheck pertinentes passaram. O comando foi: `pytest tests/test_review_storage_migrations.py tests/test_snapshot_import.py tests/test_snapshot_reconcile.py tests/test_snapshot_upgrade.py tests/test_db_init.py -q -o addopts='' --cov=src.db --cov-report=term-missing`, usando apenas TEST_POSTGRES_URL do serviço criado para esse ensaio.
 
 CI e nova revisão independente de `79149c6` ainda pendentes. Os resultados de cobertura/CI de08a20da não são validação desse reparo novo. O aceite integrado continua dependendo de resolução de conflitos e cutover posteriores.
+
+## Integridade das observações legadas
+
+A revisão independente de `79149c6` encontrou um payload parcial contendo apenas o ID que era interpretado como ausência confiável de rascunho. O gestor reproduziu a falha em PostgreSQL descartável e publicou `710f4da`: a observação deve corresponder exatamente ao único item com esse ID nos bytes originais. Divergência, ausência ou duplicidade exigem revisão de integridade; o marcador não copia textos de avaliação ou rascunho. Originais e drafts ativos permanecem preservados.
+
+Passaram 21 testes de `tests/test_snapshot_upgrade.py` e `tests/test_snapshot_reconcile.py`, incluindo payload nulo, somente ID e objeto com campos omitidos. Black, isort, Flake8, mypy e `git diff --check` passaram. O PostgreSQL foi criado exclusivamente para esses testes e removido ao final. Push e SHA remoto confirmados. CI de `710f4da` ainda pendente; a revisão anterior foi estática e não constitui validação independente desse novo head. O aceite integrado permanece aberto.

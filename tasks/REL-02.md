@@ -1,6 +1,6 @@
 # REL-02 — P0/P1 — Contrato comum de coleta
 
-**Estado:** Em revisão. Implementação no [PR draft #211](https://github.com/bernardopg/doctoralia-scrapper/pull/211), head `6d93948ff3d55c798f7fc34380ae63249c859251`; sem merge ou aceite final.
+**Estado:** Em revisão. Implementação no [PR draft #211](https://github.com/bernardopg/doctoralia-scrapper/pull/211), head `48cfbe84c938ec4269a2ef3c37fa2cf8723d30ff`; sem merge ou aceite final.
 
 ## Problema
 
@@ -69,3 +69,15 @@ Execução no checkout isolado da implementação, sem serviços externos. CI do
 A revisão de `dc2d9ef` confirmou o acesso ao parcial e a fixture n8n, mas reproduziu dois problemas: `save_data` real reconcilia novamente usando o completo preferido e pode ressuscitar um rascunho antigo, divergindo do resultado retornado pela API; uma edição em snapshot histórico não tem autoridade temporal própria e pode se perder numa coleta posterior. Também confirmou que setup Selenium esgotado ainda é convertido em `BrowserSetupError`, perdendo o tipo original. A próxima correção deve usar reconciliação única e autoridade de edição explícita, com testes usando `save_data` real, não um gravador substituto.
 
 O Codecov de `dc2d9ef` reportou patch83,54%,13 linhas descobertas. O gestor removeu tratamentos ValueError indevidos em rotas que não selecionam snapshot e ampliou regressões de seleção inválida/sem perfil;85 testes de acesso parcial/dashboard passaram. Esse ajuste está em `d4a83fd`, mas não encerra os problemas de persistência/setup acima.
+
+## Reconciliação única e autoridade explícita de edição
+
+O head `48cfbe84c938ec4269a2ef3c37fa2cf8723d30ff` remove a reconciliação duplicada da publicação real, registra versões de edição e tombstones para limpezas e preserva a última exceção Selenium de setup após cleanup/retries. A entrega usa o `save_data` real sob lock e mantém resultado publicado e retornado equivalentes.
+
+O executor reportou 322 testes sintéticos, com rede desabilitada, e Black/isort/Flake8/mypy pertinentes aprovados. O gestor reexecutou 46 testes com saída zero:
+
+```sh
+/home/bitter/development/doctoralia-scrapper/.venv/bin/python -m pytest tests/test_publication_real.py tests/test_collection_contract.py tests/test_partial_snapshot_access.py -q -o addopts=''
+```
+
+O CI de `48cfbe8` concluiu sem falhas em Python 3.11–3.14; o job Python 3.14 do [run 41999573837](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/41999573837) registrou 572 testes aprovados. Codecov aprovou as linhas modificadas cobertas. Isso não substitui revisão independente da nova autoridade de edição nem teste integrado com os templates de #213. Revisão independente solicitada; sem aceite final, coleta externa, deploy ou validação visual combinada.

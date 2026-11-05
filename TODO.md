@@ -14,7 +14,7 @@ Este arquivo acompanha a revisão funcional e o trabalho para o próximo release
 
 ## Planejamento do próximo release
 
-O [roadmap](ROADMAP.md) e as [fichas REL-01–REL-10](tasks/README.md) detalham dependências, aceite e evidências das prioridades abaixo. A [foto de prontidão](docs/release-readiness.md) registra a base e os checks consultados. REL-01 (importação transacional) e REL-02 (contrato de coleta) estão **em andamento**, ainda sem aceite. A versão v2.8.0 é candidata sujeita ao escopo entregue; não houve bump. O backlog adicional permanece para priorização separada.
+O [roadmap](ROADMAP.md) e as [fichas REL-01–REL-10](tasks/README.md) detalham dependências, aceite e evidências das prioridades abaixo. A [foto de prontidão](docs/release-readiness.md) registra a base e os checks consultados. REL-01 (importação transacional) e REL-02 (contrato de coleta) estão **em revisão**, ainda sem aceite. REL-04 foi revisada em isolamento e aguarda integração; REL-07 entregou normalização e inventário parcial, também em revisão. A versão v2.8.0 é candidata sujeita ao escopo entregue; não houve bump. O backlog adicional permanece para priorização separada.
 
 ## P0 — Integridade e segurança antes da migração
 
