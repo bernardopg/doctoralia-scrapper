@@ -26,7 +26,7 @@ SHA final tem CI verde, versão pacote/API/dashboard e notas coerentes; artefato
 
 ## Testes e comandos
 
-`python scripts/verify_release_version.py` conforme interface do script; `make ci`; consultar workflows, release, artefatos e endpoints após publicação.
+`poetry run python scripts/verify_release_version.py v2.7.2 pyproject.toml src/version.py` verifica a versão atual; substituir o primeiro argumento pela tag candidata depois de atualizar as duas fontes de versão. Executar `make ci`; consultar workflows, release, artefatos e endpoints após publicação.
 
 ## Evidência exigida
 

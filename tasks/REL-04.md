@@ -1,6 +1,6 @@
 # REL-04 — P0 — Auditoria XSS em navegador
 
-**Estado:** Planejado. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
+**Estado:** Em andamento. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
 
 ## Problema
 
