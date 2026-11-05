@@ -23,6 +23,7 @@ from src.dashboard.services import DashboardServices, _clean_optional
 from src.logger import setup_logger
 from src.performance_monitor import PerformanceMonitor
 from src.response_quality_analyzer import ResponseQualityAnalyzer
+from src.services import storage_backend
 from src.services.stats import StatsService
 from src.services.workspace_service import WorkspaceService
 
@@ -59,7 +60,15 @@ class DashboardApp:
             performance_monitor=PerformanceMonitor(self.logger),
             quality_analyzer=ResponseQualityAnalyzer(),
             stats_service=StatsService(data_dir, self.logger),
-            workspace_service=WorkspaceService(data_dir, self.logger),
+            workspace_service=WorkspaceService(
+                data_dir,
+                self.logger,
+                payload_source=(
+                    storage_backend.load_snapshot_payloads
+                    if storage_backend.is_postgres()
+                    else None
+                ),
+            ),
             api_port=api_port,
         )
         self.svc = svc

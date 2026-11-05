@@ -102,7 +102,7 @@ async def test_upgrade_from_first_revision_preserves_existing_data(tmp_path):
         ).scalar_one() == "Existing"
         assert (
             await connection.execute(text("SELECT version_num FROM alembic_version"))
-        ).scalar_one() == "0006_draft_resolution"
+        ).scalar_one() == "0007_draft_edit_version"
     await engine.dispose()
 
 

@@ -200,6 +200,18 @@ def create_blueprint(svc: DashboardServices) -> Blueprint:
             return jsonify({"success": True, "saved": saved})
         except ValueError:
             return jsonify({"error": "Snapshot não encontrado"}), 404
+        except RuntimeError as e:
+            if type(e).__name__ != "PendingDraftConflict":
+                return svc.error_response("Erro interno do dashboard", exc=e)
+            return (
+                jsonify(
+                    {
+                        "error": "Rascunho com conflito pendente no banco; "
+                        "resolva com python -m src.db.draft_resolution."
+                    }
+                ),
+                409,
+            )
         except FileNotFoundError as e:
             return svc.error_response("Snapshot não encontrado", status_code=404, exc=e)
         except OSError as e:

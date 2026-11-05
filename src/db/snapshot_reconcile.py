@@ -264,10 +264,11 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                 continue
             # Empty and missing responses are both authoritative absence.
             draft = draft or None
+            edit_version = _edit_version(item)
             state = (
                 await _execute(
                     conn,
-                    "SELECT observed_at,body FROM snapshot_draft_state WHERE review_id=:id",
+                    "SELECT observed_at,body,edit_version FROM snapshot_draft_state WHERE review_id=:id",
                     id=review_id,
                 )
             ).one_or_none()
@@ -314,14 +315,33 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                     report["pending"] += 1
                 await _execute(
                     conn,
-                    "INSERT INTO snapshot_draft_state (review_id,snapshot_id,observed_at,body) VALUES (:id,:snapshot,:ts,:body)",
+                    "INSERT INTO snapshot_draft_state (review_id,snapshot_id,observed_at,body,edit_version) VALUES (:id,:snapshot,:ts,:body,:version)",
                     snapshot=snapshot_id,
                     id=review_id,
                     ts=timestamp,
                     body=draft,
+                    version=edit_version,
                 )
             else:
-                previous_time, previous_body = state
+                previous_time, previous_body, previous_version = state
+                if (
+                    edit_version > previous_version
+                    and timestamp >= previous_time
+                    and not await _has_pending_draft_conflict(conn, review_id)
+                ):
+                    # A newer versioned edit published by the dashboard or by a
+                    # requested generation replaces the draft explicitly.
+                    await _apply_versioned_edit(conn, review_id, draft, timestamp)
+                    await _execute(
+                        conn,
+                        "UPDATE snapshot_draft_state SET snapshot_id=:snapshot,observed_at=:ts,body=:body,edit_version=:version WHERE review_id=:id",
+                        snapshot=snapshot_id,
+                        id=review_id,
+                        ts=timestamp,
+                        body=draft,
+                        version=edit_version,
+                    )
+                    continue
                 if previous_body != draft:
                     rejections.append(
                         (
@@ -344,6 +364,55 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                     )
     await _record_outcome(conn, snapshot_id, run_id, report, rejections)
     return report
+
+
+def _edit_version(item: dict[str, Any]) -> int:
+    metadata = item.get("draft_edit")
+    if not isinstance(metadata, dict):
+        return 0
+    version = metadata.get("version")
+    return version if type(version) is int and version > 0 else 0
+
+
+async def _has_pending_draft_conflict(conn: AsyncConnection, review_id: str) -> bool:
+    found = await _execute(
+        conn,
+        "SELECT 1 FROM snapshot_rejections WHERE review_id=:id AND kind='draft' "
+        "AND resolution_id IS NULL LIMIT 1",
+        id=review_id,
+    )
+    return found.scalar_one_or_none() is not None
+
+
+async def _apply_versioned_edit(
+    conn: AsyncConnection, review_id: str, body: str | None, timestamp: datetime
+) -> None:
+    current = (
+        await _execute(
+            conn, "SELECT revision FROM review_drafts WHERE review_id=:id", id=review_id
+        )
+    ).scalar_one_or_none()
+    if body is None:
+        await _execute(
+            conn, "DELETE FROM review_drafts WHERE review_id=:id", id=review_id
+        )
+    elif current is None:
+        await _execute(
+            conn,
+            "INSERT INTO review_drafts (review_id,body,updated_at) VALUES (:id,:body,:ts)",
+            id=review_id,
+            body=body,
+            ts=timestamp,
+        )
+    else:
+        await _execute(
+            conn,
+            "UPDATE review_drafts SET body=:body,updated_at=:ts,revision=revision+1 "
+            "WHERE review_id=:id",
+            id=review_id,
+            body=body,
+            ts=timestamp,
+        )
 
 
 async def _record_outcome(
@@ -391,7 +460,9 @@ async def reconcile_staged(engine: AsyncEngine, workspace_id: str) -> dict[str, 
             (
                 await _execute(
                     conn,
-                    "SELECT id FROM snapshot_imports WHERE workspace_id=:w ORDER BY imported_at,id",
+                    # Files staged together share imported_at; snapshot file names start
+                    # with the collection timestamp, so they keep chronological order.
+                    "SELECT id FROM snapshot_imports WHERE workspace_id=:w ORDER BY imported_at,filename,id",
                     w=workspace_id,
                 )
             )

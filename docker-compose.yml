@@ -16,6 +16,9 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MASK_PII=${MASK_PII:-true}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-doctoralia}:${POSTGRES_PASSWORD:-doctoralia}@db:5432/${POSTGRES_DB:-doctoralia}
+      # json (padrão) ou postgres; ver docs/storage-postgres.md
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-json}
+      - STORAGE_WORKSPACE=${STORAGE_WORKSPACE:-default}
     depends_on:
       redis:
         condition: service_healthy
@@ -67,6 +70,9 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - MASK_PII=${MASK_PII:-true}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-doctoralia}:${POSTGRES_PASSWORD:-doctoralia}@db:5432/${POSTGRES_DB:-doctoralia}
+      # json (padrão) ou postgres; ver docs/storage-postgres.md
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-json}
+      - STORAGE_WORKSPACE=${STORAGE_WORKSPACE:-default}
     depends_on:
       redis:
         condition: service_healthy
@@ -192,6 +198,21 @@ services:
 
   n8n:
     image: n8nio/n8n:2.45.7
+    # Opcional desde a 2.8.0: suba com `docker compose --profile n8n up -d`.
+    # O volume n8n-data é preservado mesmo com o serviço desativado.
+    profiles: ["n8n"]
+    # Compose interpola serviços fora do profile; as credenciais só são
+    # exigidas quando o n8n realmente sobe.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        for name in N8N_BASIC_AUTH_USER N8N_BASIC_AUTH_PASSWORD N8N_ENCRYPTION_KEY; do
+          value=$$(printenv "$$name" || true)
+          if [ -z "$$value" ]; then echo "set $$name in .env" >&2; exit 1; fi
+        done
+        exec tini -- /docker-entrypoint.sh "$$@"
+      - n8n
     ports:
       - "127.0.0.1:5678:5678"
     environment:
@@ -201,9 +222,9 @@ services:
       - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:5678}
       - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678/}
       - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:?set N8N_BASIC_AUTH_USER in .env}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:?set N8N_BASIC_AUTH_PASSWORD in .env}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-}
       - N8N_DIAGNOSTICS_ENABLED=${N8N_DIAGNOSTICS_ENABLED:-false}
       - N8N_VERSION_NOTIFICATIONS_ENABLED=${N8N_VERSION_NOTIFICATIONS_ENABLED:-false}
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Sao_Paulo}
@@ -239,6 +260,9 @@ services:
       - API_KEY=${API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-doctoralia}:${POSTGRES_PASSWORD:-doctoralia}@db:5432/${POSTGRES_DB:-doctoralia}
+      # json (padrão) ou postgres; ver docs/storage-postgres.md
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-json}
+      - STORAGE_WORKSPACE=${STORAGE_WORKSPACE:-default}
     depends_on:
       api:
         condition: service_healthy

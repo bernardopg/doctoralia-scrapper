@@ -235,7 +235,7 @@
             </div>
             <div class="flex gap-1 items-center">
               ${item.is_favorite ? '<span class="btn btn-sm btn-secondary"><i class="fas fa-star"></i> Favorito</span>' : ''}
-              <span id="${escapeResponseHtml(providerBadgeId(item))}" class="text-secondary" style="font-size:12px;">${item.generated_response ? 'Sugestão salva' : 'Sem sugestão'}</span>
+              <span id="${escapeResponseHtml(providerBadgeId(item))}" class="text-secondary" style="font-size:12px;">${item.draft_status === 'pending' ? 'Conflito de rascunho pendente' : (item.generated_response ? 'Sugestão salva' : 'Sem sugestão')}</span>
             </div>
           </div>
 
@@ -253,7 +253,8 @@
               <i class="fas fa-wand-magic-sparkles"></i>
               Gerar Sugestão
             </button>
-            <button class="btn btn-secondary" onclick="saveEditedSuggestion(${responseJsArgument(item.profile_id)}, ${responseJsArgument(item.review_id)})">
+            ${item.draft_status === 'pending' ? '<p class="text-secondary" style="font-size:12px; width:100%; margin:0;">Este rascunho tem versões divergentes no banco e não está aprovado. Resolva com <code>python -m src.db.draft_resolution</code> antes de editar.</p>' : ''}
+            <button class="btn btn-secondary" ${item.draft_status === 'pending' ? 'disabled' : ''} onclick="saveEditedSuggestion(${responseJsArgument(item.profile_id)}, ${responseJsArgument(item.review_id)})">
               <i class="fas fa-save"></i>
               Salvar Edição
             </button>
