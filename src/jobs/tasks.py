@@ -14,7 +14,7 @@ from urllib3.util.retry import Retry
 
 # Apply nltk security patch (CVE-2024-53889) before any nltk imports
 from src.api.v1.deps import create_webhook_signature
-from src.integrations.n8n.normalize import extract_scraper_result, make_unified_result
+from src.normalization import extract_scraper_result, make_unified_result
 from src.services.review_reconciliation import carry_forward_historical_drafts
 from src.services.scrape_completeness import result_status
 from src.services.snapshot_storage import snapshot_lock
