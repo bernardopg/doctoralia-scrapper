@@ -1188,7 +1188,7 @@ code {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 18px;
   margin-bottom: 28px;
 }
@@ -1657,6 +1657,55 @@ select.form-control {
   border-radius: var(--radius-full);
 }
 
+
+/* ── Loading / empty / error states ─────────────────────────────── */
+
+.state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.state-block i {
+  font-size: 22px;
+  color: var(--text-tertiary);
+}
+
+.state-block p {
+  margin: 0;
+  max-width: 52ch;
+  overflow-wrap: anywhere;
+}
+
+.state-error {
+  border-style: solid;
+  border-color: var(--apple-red);
+  background: var(--apple-red-soft);
+  color: var(--text-primary);
+}
+
+.state-error i {
+  color: var(--apple-red);
+}
+
+.response-card {
+  box-shadow: none;
+}
+
+.response-card textarea {
+  min-height: 7.5em;
+}
+
+.warning-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    10 · ALERTS
@@ -2626,8 +2675,10 @@ select.form-control {
     padding: 12px;
   }
 
+  /* Two compact columns keep the key counters above the fold on phones. */
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
 
   .result-actions {
@@ -2731,4 +2782,8 @@ select.form-control {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+#responses-filters .form-row + .form-row {
+  margin-top: 12px;
 }

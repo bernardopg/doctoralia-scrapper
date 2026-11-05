@@ -62,16 +62,16 @@
         <!-- Central -->
         <div class="nav-section">
           <div class="nav-section-title" data-i18n="nav.central">Central</div>
-          <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">
+          <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}" {% if request.path == '/' %}aria-current="page"{% endif %}>
             <i class="fas fa-compass"></i>
             <span data-i18n="nav.overview">Overview</span>
           </a>
-          <a href="/profiles" class="nav-item {% if request.path.startswith('/profiles') %}active{% endif %}">
+          <a href="/profiles" class="nav-item {% if request.path.startswith('/profiles') %}active{% endif %}" {% if request.path.startswith('/profiles') %}aria-current="page"{% endif %}>
             <i class="fas fa-user-doctor"></i>
             <span data-i18n="nav.profiles">Perfis</span>
             <span class="nav-badge nav-badge-muted" id="nav-favorites-count">0</span>
           </a>
-          <a href="/responses" class="nav-item {% if request.path.startswith('/responses') %}active{% endif %}">
+          <a href="/responses" class="nav-item {% if request.path.startswith('/responses') %}active{% endif %}" {% if request.path.startswith('/responses') %}aria-current="page"{% endif %}>
             <i class="fas fa-reply-all"></i>
             <span data-i18n="nav.responses">Respostas</span>
             <span class="nav-badge" id="nav-pending-responses-count">0</span>
@@ -88,16 +88,16 @@
             <span data-i18n="nav.startScraping">Iniciar Scraping</span>
           </a>
 
-          <a href="/history" class="nav-item {% if request.path == '/history' %}active{% endif %}">
+          <a href="/history" class="nav-item {% if request.path == '/history' %}active{% endif %}" {% if request.path == '/history' %}aria-current="page"{% endif %}>
             <i class="fas fa-list-alt"></i>
             <span data-i18n="nav.history">Histórico</span>
           </a>
-          <a href="/reports" class="nav-item {% if request.path == '/reports' %}active{% endif %}">
+          <a href="/reports" class="nav-item {% if request.path == '/reports' %}active{% endif %}" {% if request.path == '/reports' %}aria-current="page"{% endif %}>
             <i class="fas fa-chart-line"></i>
             <span data-i18n="nav.reports">Relatórios</span>
           </a>
           <a href="/notifications/telegram/schedule"
-            class="nav-item {% if request.path.startswith('/notifications/telegram') %}active{% endif %}">
+            class="nav-item {% if request.path.startswith('/notifications/telegram') %}active{% endif %}" {% if request.path.startswith('/notifications/telegram') %}aria-current="page"{% endif %}>
             <i class="fab fa-telegram"></i>
             <span data-i18n="nav.notifications">Notificações</span>
           </a>
@@ -109,16 +109,16 @@
         <div class="nav-section">
           <div class="nav-section-title" data-i18n="nav.system">Conta e Sistema</div>
 
-          <a href="/me" class="nav-item {% if request.path.startswith('/me') %}active{% endif %}">
+          <a href="/me" class="nav-item {% if request.path.startswith('/me') %}active{% endif %}" {% if request.path.startswith('/me') %}aria-current="page"{% endif %}>
             <i class="fas fa-id-card"></i>
             <span data-i18n="nav.myArea">Minha Área</span>
           </a>
 
-          <a href="/health-check" class="nav-item {% if request.path == '/health-check' %}active{% endif %}">
+          <a href="/health-check" class="nav-item {% if request.path == '/health-check' %}active{% endif %}" {% if request.path == '/health-check' %}aria-current="page"{% endif %}>
             <i class="fas fa-heartbeat"></i>
             <span data-i18n="nav.health">Health Check</span>
           </a>
-          <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}">
+          <a href="/settings" class="nav-item {% if request.path == '/settings' %}active{% endif %}" {% if request.path == '/settings' %}aria-current="page"{% endif %}>
             <i class="fas fa-cog"></i>
             <span data-i18n="nav.settings">Configurações</span>
           </a>
@@ -569,7 +569,7 @@
 
     // ── Chart.js: cores seguem o tema ativo ────────────
     function syncChartTheme() {
-      if (typeof Chart === 'undefined') return;
+      if (typeof Chart === 'undefined' || !Chart.defaults) return;
       const styles = getComputedStyle(document.documentElement);
       const secondary = styles.getPropertyValue('--text-secondary').trim();
       const grid = styles.getPropertyValue('--border-color').trim();
@@ -592,6 +592,47 @@
       document.getElementById('language-switcher')?.addEventListener('change', (event) => {
         applyDashboardLanguage(event.target.value);
       });
+    }
+
+    /**
+     * Render a loading, empty or error state in a container.
+     * Errors stay visible (unlike transient alerts) and can offer a retry.
+     */
+    function dashboardRenderState(container, kind, message, retry = null) {
+      if (!container) return;
+      const icons = { loading: 'fa-spinner fa-spin', empty: 'fa-inbox', error: 'fa-triangle-exclamation' };
+      container.setAttribute('aria-busy', String(kind === 'loading'));
+      container.innerHTML = `
+        <div class="state-block state-${dashboardEscape(kind)}" role="${kind === 'error' ? 'alert' : 'status'}">
+          <i class="fas ${icons[kind] || 'fa-circle-info'}" aria-hidden="true"></i>
+          <p>${dashboardEscape(message)}</p>
+          ${retry ? '<button type="button" class="btn btn-secondary btn-sm"><i class="fas fa-rotate-right" aria-hidden="true"></i> Tentar novamente</button>' : ''}
+        </div>`;
+      if (retry) container.querySelector('button').addEventListener('click', retry);
+    }
+
+    /** Copy text, falling back to a hidden textarea where the async API is unavailable (plain HTTP). */
+    async function dashboardCopyText(text) {
+      if (navigator.clipboard && window.isSecureContext !== false) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) { /* fall back below */ }
+      }
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      const previous = document.activeElement;
+      area.focus();
+      area.select();
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch (error) { copied = false; }
+      area.remove();
+      if (previous && typeof previous.focus === 'function') previous.focus();
+      return copied;
     }
 
     function repairFormLabels(root = document) {
@@ -718,12 +759,11 @@
 
     // Verificar a cada 30 s, e imediatamente ao carregar
     document.addEventListener('DOMContentLoaded', () => {
-      initializeDashboardPreferences();
-      repairFormLabels();
-      hideDecorativeIcons();
-      checkApiStatus();
-      hydrateSidebarWorkspace();
-      syncChartTheme();
+      // A failing step must not prevent the others (labels, icons, status).
+      [initializeDashboardPreferences, repairFormLabels, hideDecorativeIcons,
+        checkApiStatus, hydrateSidebarWorkspace, syncChartTheme].forEach((step) => {
+        try { step(); } catch (error) { console.warn(`${step.name} failed:`, error); }
+      });
       _apiCheckTimer = setInterval(checkApiStatus, 30_000);
     });
 
