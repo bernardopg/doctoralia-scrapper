@@ -1121,7 +1121,7 @@
   }
 
   function toInlineJsString(value) {
-    return JSON.stringify(String(value ?? ''));
+    return escapeHtml(JSON.stringify(String(value ?? '')));
   }
 
   function normalizeUserProfile(profileData = {}) {
@@ -2126,6 +2126,15 @@
     return parsed.toLocaleString('pt-BR');
   }
 
+  function safeFavoriteUrl(value) {
+    try {
+      const url = new URL(String(value));
+      return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+    } catch (_) {
+      return '';
+    }
+  }
+
   function renderFavoriteProfiles() {
     const container = document.getElementById('favorite-profiles-list');
     const favorites = userProfileState.profile.favorite_profiles || [];
@@ -2191,10 +2200,10 @@
 
               ${favorite.notes ? `<div class="favorite-entry-notes">${escapeHtml(favorite.notes)}</div>` : ''}
 
-              <a class="favorite-entry-link" href="${escapeHtml(favorite.profile_url)}" target="_blank" rel="noopener noreferrer">
+              ${safeFavoriteUrl(favorite.profile_url) ? `<a class="favorite-entry-link" href="${escapeHtml(safeFavoriteUrl(favorite.profile_url))}" target="_blank" rel="noopener noreferrer">
                 <i class="fas fa-arrow-up-right-from-square"></i>
                 Abrir perfil original
-              </a>
+              </a>` : ''}
             </article>
           `;
         }).join('')}
