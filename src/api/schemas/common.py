@@ -20,7 +20,13 @@ class Review(BaseModel):
     """Individual review model."""
 
     id: str = Field(..., description="Unique review identifier")
-    date: str = Field(..., description="Review date")
+    date: Optional[str] = Field(
+        default=None,
+        description=(
+            "Publication date reported by the source; null when it is unknown. "
+            "Never the collection date."
+        ),
+    )
     rating: int = Field(..., description="Rating (1-5)")
     text: str = Field(..., description="Review text content")
     author: Author = Field(..., description="Review author")
