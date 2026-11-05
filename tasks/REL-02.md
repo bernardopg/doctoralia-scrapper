@@ -51,3 +51,15 @@ O agente executor reportou 108 testes e checks Black/isort/mypy aprovados no con
 O CI do head `6d93948` falhou no mesmo teste n8n em Python 3.11–3.14: a fixture não fornecia `data_dir` e ainda assumia completude sem metadados. O gestor corrigiu a fixture com persistência temporária verificável e casos complete/partial/unknown. Corrigiu também a autoridade de rascunhos para ordem cronológica, incluindo parciais posteriores e ausência/limpeza de rascunho. O head `1a7c952` contém essas correções; 152 testes sintéticos passaram no conjunto anterior acrescido de `tests/n8n/test_api.py` e das regressões de cronologia. Black/isort/mypy pertinentes passaram. O CI desse novo head ainda precisa concluir.
 
 Permanecem findings da revisão para implementação: acesso identificado a avaliações/rascunhos de snapshots parciais no dashboard, sem alterar a visão corrente completa; e preservação da causa real de falhas Selenium após retries, com regressão pelo caminho real do scraper. REL-02 continua sem aceite final.
+
+## Segunda entrega: snapshots selecionados e falhas Selenium
+
+O head `dc2d9ef98107d6897fd8de6e426c23108f0065ea` do PR #211 implementa acesso pelo histórico aos reviews/rascunhos de um snapshot identificado, edição no arquivo selecionado e validação de perfil, caminho e links simbólicos. A visão completa continua padrão. Exceções Selenium são propagadas após retries e expostas como tipo seguro; inicialização esgotada usa `BrowserSetupError`.
+
+O gestor inspecionou o diff desde `1a7c952` e reexecutou 276 testes, todos aprovados:
+
+```sh
+/home/bitter/development/doctoralia-scrapper/.venv/bin/python -m pytest tests/test_collection_contract.py tests/test_partial_snapshot_access.py tests/test_jobs_tasks.py tests/test_scrape_collection_flow.py tests/test_scrape_completeness.py tests/test_api_endpoints.py tests/n8n/test_api.py tests/test_workspace_service.py tests/test_dashboard.py tests/test_dashboard_additional.py tests/test_responses_rendering.py tests/test_telegram_schedule_service.py tests/test_scraper.py tests/test_scraper_parsing.py -q -o addopts=''
+```
+
+Execução no checkout isolado da implementação, sem serviços externos. CI do novo head e revisão independente do novo diff ainda pendentes; sem teste visual interativo. A cobertura de 92,5% reportada pelo Codecov refere-se ao head anterior `1a7c952` e não prova a cobertura do novo commit. A combinação dos templates com o PR #213 precisará de validação integrada.
