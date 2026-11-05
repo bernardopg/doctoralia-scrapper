@@ -196,7 +196,7 @@ class BaseMedicalScraper(ABC):
 
             data = {
                 "platform": self.platform_name,
-                "scraped_at": datetime.now().isoformat(),
+                "scraped_at": datetime.now().astimezone().isoformat(),
                 "doctor": {
                     "name": doctor_data.name,
                     "specialty": doctor_data.specialty,

@@ -808,7 +808,7 @@ class DoctoraliaScraper:
             result = {
                 "url": url,
                 "doctor_name": doctor_name,
-                "extraction_timestamp": datetime.now().isoformat(),
+                "extraction_timestamp": datetime.now().astimezone().isoformat(),
                 "reviews": reviews_data,
                 "total_reviews": len(reviews_data),
                 "collection": collection,

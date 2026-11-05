@@ -228,3 +228,14 @@ def test_json_backend_is_default(monkeypatch, tmp_path):
     monkeypatch.delenv("STORAGE_BACKEND", raising=False)
     assert storage_backend.backend() == "json"
     assert storage_backend.sync_after_publish(tmp_path) is None
+
+
+def test_new_snapshots_record_collection_timezone():
+    from datetime import datetime
+
+    from src.jobs.tasks import _build_snapshot_payload
+
+    payload = _build_snapshot_payload({}, {"name": "X", "url": URL}, [], None)
+    parsed = datetime.fromisoformat(payload["extraction_timestamp"])
+    # Naive timestamps are rejected by reconciliation as ambiguous.
+    assert parsed.tzinfo is not None
