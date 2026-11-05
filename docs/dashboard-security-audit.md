@@ -1,61 +1,61 @@
 # Dashboard rendering audit (REL-04)
 
-Base: `origin/main` 8921cfb, including #203. The existing escaping helpers
-protect review text, textarea content, attributes and most inline event arguments.
-This audit also found unescaped report counters and a job detail count, a favorite
-link that accepted non-HTTP schemes, and favorite event arguments that did not
-escape the surrounding single-quoted HTML attribute. Profile and task identifiers
-are now URL encoded when inserted into request URLs.
+This audit covers dashboard rendering with synthetic fixtures. It corrected report
+counters, job detail counts, favorite links and event arguments, and URL encoding
+of profile, task and schedule identifiers. The browser checks exercise only the
+flows listed below; they are not an exhaustive XSS audit.
 
 ## Reproduce
 
-Install the project's Python dependencies in a virtual environment, then install
-Playwright deliberately (it is not a production dependency):
+Linux must permit unprivileged user and network namespaces and provide `unshare`
+and `/usr/bin/ip`. Install application dependencies and Playwright in a **separate**
+test environment; do not install Playwright into the production environment. For
+example, with an existing application virtualenv and Chromium cache:
 
 ```sh
-python -m pip install playwright
-python -m playwright install chromium
-python scripts/test_dashboard_browser.py
+python -m venv /tmp/rel04-browser-venv
+/tmp/rel04-browser-venv/bin/python -m pip install -r requirements.txt playwright
+PLAYWRIGHT_BROWSERS_PATH="$HOME/.cache/ms-playwright" /tmp/rel04-browser-venv/bin/python scripts/test_dashboard_browser.py
 python -m pytest -q tests/test_responses_rendering.py tests/test_dashboard.py tests/test_dashboard_additional.py
 ```
 
-The browser runner starts the actual Flask dashboard on an ephemeral loopback
-port with a temporary data directory, an exclusive test secret and authentication
-disabled. It clears the inherited environment and overrides runtime configuration;
-Python requests are blocked, browser API calls are fulfilled from synthetic
-fixtures, and all other remote browser requests are aborted. It never submits
-payloads to external services. Clipboard writes are explicitly mocked in the
-browser; the operating system clipboard is not tested. No Redis or PostgreSQL is
-used. The suite requires the application's Python dependencies and its NLTK
-resources to be installed beforehand.
+The test environment must also provide the application's dependencies and NLTK
+resources. Playwright needs a compatible cached Chromium or a browser installed
+into a dedicated test cache. The runner re-executes itself with `unshare --user
+--map-root-user --net`, activates only loopback, and refuses to run if the
+namespace or interface checks fail. Flask binds an ephemeral port inside that
+namespace. It checks Python socket failures for another loopback port and a
+non-loopback destination, a successful connection to Flask, a blocked requests
+proxy, browser fetch and WebSocket failure, and an unsuccessful popup. The
+browser context blocks service workers and intercepts requests as an additional
+layer; mocked API responses and the requests guard prevent real API operations.
+The network namespace isolates the test from host network interfaces and host
+loopback, but is not a filesystem sandbox.
+
+The runner uses a temporary HOME and data directory, a test-only session secret,
+and synthetic authentication configuration for both dashboard components from
+startup through server shutdown. Before project imports, a Python audit hook
+rejects opens of `.env`, `config.json` and common credentials paths; temporary
+canaries verify rejection. `AppConfig.load` is patched to fail even if a caller
+catches ordinary exceptions. This audit applies to Python file opens and is not
+a general operating-system filesystem access control mechanism. No actual
+credentials or persistent configuration are intentionally opened by this test.
 
 ## Page and context matrix
 
-| Page | Context and exercised flow |
+| Page | Exercised flow |
 | --- | --- |
-| Base / overview | Shared Jinja rendering, dynamic favorite text and action summary; hostile markup remains text. |
-| Responses | Dynamic review text, textarea, attribute and inline IDs; edit/save with hostile identifiers and legitimate text, mocked clipboard copy. |
-| Profiles | Dynamic name and specialty, profile identifier in selection request; displayed hostile markup remains text. |
-| History | Dynamic snapshot text and job detail, hostile identifier and count; detail opened in browser. |
-| Reports | Dynamic summary counter, profile and inventory fixtures; hostile summary markup remains literal. |
-| Minha Área | Dynamic favorite text, single-quoted event argument and URL; hostile identifier, hover and edit; `javascript:` and `data:` links omitted, HTTPS link retained. |
-| Telegram schedule | Dynamic schedule name and inline ID; edit opened with hostile identifier. No notification is sent. |
-| Settings and health | Pages loaded with simulated responses; no mutation or service health assertion. |
+| Overview | Hostile counter as text, favorite text, and the positive numeric next-action branch. |
+| Responses | Hostile review fields and distinct IDs; edit/save payload and simulated clipboard copy. |
+| Profiles | Hostile names and reviews; profile selection and encoded query identifier. |
+| History | Snapshot text and task detail with hostile count and encoded task path. |
+| Reports | Four hostile operational counters and distinct top-profile and inventory text. |
+| Minha Área | Favorite text and edit, unsafe URL schemes rejected and HTTPS retained. |
+| Telegram schedule | Hostile schedule and history text and counters; edit/save with encoded schedule path, mocked API. |
+| Settings and health | Smoke loading with simulated responses. |
 
-## Recorded run and limits
-
-On 2026-11-05, headless Chromium **156.0.8078.4**, driven by Python
-Playwright, passed the runner. Before the fix, the reports fixture created an
-image element and its error handler incremented the execution sentinel. After
-fixing it, the runner reports PASS with no dialog or sentinel execution; it also
-checks literal text, generated links, and the saved response payload. Python
-unit tests and formatting/type checks are separate from browser evidence.
-
-The test uses a finite set of synthetic payloads, API responses and interactions;
-it is not an exhaustive proof against XSS. It does not exercise a real backend,
-production authentication, real clipboard permissions, mobile browsers, browser
-extensions, external links, Telegram delivery, AI generation, or actual saved
-snapshots. Settings and health receive smoke coverage only. The API schema may
-normally restrict some malicious counter values, but rendering remains defensive
-for historical or malformed data. Static third-party resources are blocked in
-this run, and charts are stubbed rather than visually validated.
+The browser runs headless with a stubbed chart and a mocked clipboard. It does not
+validate real authentication, API persistence, Telegram delivery, external
+services, OS clipboard permissions, mobile browsers or chart appearance. Static
+third-party resources are blocked. The runner never intentionally sends a
+notification or payload outside the isolated namespace.
