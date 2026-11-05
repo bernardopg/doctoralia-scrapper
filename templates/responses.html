@@ -23,12 +23,12 @@
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Data Inicial</label>
-        <input type="date" id="responses-date-from" class="form-control">
+        <label class="form-label" for="responses-review-date-from">Avaliação publicada a partir de</label>
+        <input type="date" id="responses-review-date-from" class="form-control" aria-describedby="responses-date-hint">
       </div>
       <div class="form-group">
-        <label class="form-label">Data Final</label>
-        <input type="date" id="responses-date-to" class="form-control">
+        <label class="form-label" for="responses-review-date-to">Avaliação publicada até</label>
+        <input type="date" id="responses-review-date-to" class="form-control" aria-describedby="responses-date-hint">
       </div>
       <div class="form-group">
         <label class="form-label">Busca</label>
@@ -50,7 +50,7 @@
       <div class="form-group">
         <label class="form-label">Ações</label>
         <div class="flex gap-2">
-          <button class="btn btn-primary" onclick="loadResponsesWorkspace()">
+          <button class="btn btn-primary" onclick="applyResponsesFilters()">
             <i class="fas fa-sync-alt"></i>
             Atualizar
           </button>
@@ -61,6 +61,10 @@
         </div>
       </div>
     </div>
+
+    <p class="text-secondary" id="responses-date-hint" style="font-size:12px; margin: 4px 0 0;">
+      As datas filtram pela publicação da avaliação na Doctoralia, não pela data da coleta. Avaliações sem data publicada ficam fora do filtro.
+    </p>
 
     <div class="checkbox-wrapper mt-2">
       <input type="checkbox" id="responses-favorites-only">
@@ -97,8 +101,31 @@
       Itens Pendentes
     </h3>
   </div>
-  <div class="card-body" id="responses-list">
-    <div class="text-secondary">Carregando backlog...</div>
+  <div class="card-body">
+    <div id="responses-filter-note" class="text-secondary" style="font-size:13px; margin-bottom:12px;" role="status" hidden></div>
+    <div id="responses-list" aria-live="polite" aria-busy="true">
+      <div class="text-secondary">Carregando backlog...</div>
+    </div>
+    <nav class="flex justify-between items-center" id="responses-pagination" aria-label="Paginação da fila de respostas" style="gap:12px; flex-wrap:wrap; margin-top:12px;" hidden>
+      <div class="flex gap-2 items-center">
+        <button type="button" class="btn btn-secondary btn-sm" id="responses-prev-page" onclick="changeResponsesPage(-1)">
+          <i class="fas fa-chevron-left"></i> Anterior
+        </button>
+        <span id="responses-page-label" class="text-secondary" style="font-size:13px;" aria-live="polite"></span>
+        <button type="button" class="btn btn-secondary btn-sm" id="responses-next-page" onclick="changeResponsesPage(1)">
+          Próxima <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+      <label class="text-secondary flex gap-1 items-center" style="font-size:13px;">
+        Itens por página
+        <select id="responses-page-size" class="form-control" style="width:auto;" onchange="responsesState.page = 1; loadResponsesWorkspace();">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </label>
+    </nav>
   </div>
 </div>
 {% endblock %}
@@ -107,6 +134,8 @@
 <script>
   const responsesState = {
     items: [],
+    page: 1,
+    totalPages: 1,
     snapshot: new URLSearchParams(location.search).get('snapshot'),
     snapshotProfile: new URLSearchParams(location.search).get('profile_id'),
   };
@@ -125,17 +154,20 @@
   function responsesQuery() {
     const params = new URLSearchParams();
     const profileId = document.getElementById('responses-profile-filter').value;
-    const dateFrom = document.getElementById('responses-date-from').value;
-    const dateTo = document.getElementById('responses-date-to').value;
+    const reviewDateFrom = document.getElementById('responses-review-date-from').value;
+    const reviewDateTo = document.getElementById('responses-review-date-to').value;
+    const pageSize = document.getElementById('responses-page-size')?.value || '25';
     const search = document.getElementById('responses-search').value.trim();
     const favoritesOnly = document.getElementById('responses-favorites-only').checked;
 
     if (responsesState.snapshot) { params.set('snapshot', responsesState.snapshot); params.set('profile_id', responsesState.snapshotProfile || ''); }
     else if (profileId) params.set('profile_id', profileId);
-    if (dateFrom) params.set('date_from', dateFrom);
-    if (dateTo) params.set('date_to', dateTo);
+    if (reviewDateFrom) params.set('review_date_from', reviewDateFrom);
+    if (reviewDateTo) params.set('review_date_to', reviewDateTo);
     if (search) params.set('q', search);
     if (favoritesOnly) params.set('favorites_only', '1');
+    params.set('page', String(responsesState.page));
+    params.set('page_size', pageSize);
     const query = params.toString();
     return query ? `?${query}` : '';
   }
@@ -184,7 +216,11 @@
           <div class="flex justify-between items-center mb-2">
             <div>
               <div style="font-weight:700;">${escapeResponseHtml(item.doctor_name)}</div>
-              <div class="text-secondary" style="font-size:13px;">${escapeResponseHtml(item.author)} • ${dashboardReviewDate(item.date)} • ${escapeResponseHtml(item.rating || '-')} ★</div>
+              <div class="text-secondary" style="font-size:13px;">${escapeResponseHtml(item.author)} • ${escapeResponseHtml(item.rating || '-')} ★</div>
+              <div class="text-secondary" style="font-size:12px;">
+                Avaliação: ${item.review_date ? dashboardReviewDate(item.review_date) : 'data não informada'}
+                • Coletada em ${item.collected_at ? dashboardReviewDate(String(item.collected_at).slice(0, 10)) : '-'}
+              </div>
             </div>
             <div class="flex gap-1 items-center">
               ${item.is_favorite ? '<span class="btn btn-sm btn-secondary"><i class="fas fa-star"></i> Favorito</span>' : ''}
@@ -300,6 +336,7 @@
       if (data.error) throw new Error(data.error);
 
       responsesState.items = data.items || [];
+      renderResponsesPagination(data.pagination, data.summary);
       populateResponseFilters(data.filters || []);
       if (responsesState.snapshot) {
         const select = document.getElementById('responses-profile-filter');
@@ -317,10 +354,46 @@
     }
   }
 
+  function renderResponsesPagination(pagination, summary) {
+    const nav = document.getElementById('responses-pagination');
+    const note = document.getElementById('responses-filter-note');
+    const undated = summary?.undated_excluded ?? 0;
+    note.hidden = undated === 0;
+    note.textContent = undated
+      ? `${undated} avaliação(ões) sem data publicada não aparecem com o filtro de data atual.`
+      : '';
+    if (!pagination) {
+      nav.hidden = true;
+      return;
+    }
+    responsesState.page = pagination.page;
+    responsesState.totalPages = pagination.total_pages;
+    nav.hidden = pagination.total_items === 0;
+    document.getElementById('responses-page-label').textContent =
+      `Página ${pagination.page} de ${pagination.total_pages} • ${pagination.total_items} pendente(s)`;
+    document.getElementById('responses-prev-page').disabled = pagination.page <= 1;
+    document.getElementById('responses-next-page').disabled = pagination.page >= pagination.total_pages;
+  }
+
+  function changeResponsesPage(delta) {
+    const next = responsesState.page + delta;
+    if (next < 1 || next > responsesState.totalPages) return;
+    responsesState.page = next;
+    loadResponsesWorkspace().then(() => {
+      document.getElementById('responses-list').scrollIntoView({ block: 'start' });
+    });
+  }
+
+  function applyResponsesFilters() {
+    responsesState.page = 1;
+    return loadResponsesWorkspace();
+  }
+
   function resetResponsesFilters() {
+    responsesState.page = 1;
     document.getElementById('responses-profile-filter').value = '';
-    document.getElementById('responses-date-from').value = '';
-    document.getElementById('responses-date-to').value = '';
+    document.getElementById('responses-review-date-from').value = '';
+    document.getElementById('responses-review-date-to').value = '';
     document.getElementById('responses-search').value = '';
     document.getElementById('responses-favorites-only').checked = false;
     loadResponsesWorkspace();

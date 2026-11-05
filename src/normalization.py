@@ -90,7 +90,9 @@ def normalize_reviews(raw_reviews: List[Dict[str, Any]]) -> List[Review]:
         # Create review
         review = Review(
             id=review_id,
-            date=raw.get("date", datetime.now().isoformat()),
+            # An unknown publication date stays unknown; substituting the
+            # collection time would make filters and reports misleading.
+            date=raw.get("date") or None,
             rating=raw.get("rating", 0),
             text=raw.get("comment", raw.get("text", "")),
             author=author,
