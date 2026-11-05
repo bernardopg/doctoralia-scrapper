@@ -112,3 +112,39 @@ TEST_POSTGRES_URL='postgresql+asyncpg://USER:PASSWORD@HOST/DISPOSABLE_DB' \
   pytest -q tests/test_review_storage_migrations.py tests/test_snapshot_import.py \
   tests/test_snapshot_reconcile.py tests/test_snapshot_upgrade.py
 ```
+
+## Resolving draft conflicts (opt in)
+
+Reconciliation records a `draft` rejection whenever observations of the same
+review disagree; it never overwrites the first imported draft. Migration
+`0006_draft_resolution` links each draft rejection to its review when a stable
+identifier allows it (the review ID recorded by the legacy repair, or the
+snapshot profile plus the `doctoralia:` source ID). Rejections without such an
+identifier stay listed as `unlinked`; no association is inferred.
+
+```sh
+# Every review with pending draft conflicts, its observations and decisions.
+python -m src.db.draft_resolution list --workspace-id WORKSPACE_ID
+# One review.
+python -m src.db.draft_resolution list --workspace-id WORKSPACE_ID --review-id REVIEW_ID
+# Record a decision. --expected-revision is the revision shown by `list`.
+python -m src.db.draft_resolution resolve --workspace-id WORKSPACE_ID \
+  --review-id REVIEW_ID --decision keep|choose|clear --actor NAME \
+  --expected-revision N [--rejection-id REJECTION_ID] [--note TEXT]
+```
+
+- `keep` keeps the current draft (or its absence), `choose` adopts the draft
+  proposed by one pending conflict (`--rejection-id`), `clear` removes the draft.
+  One decision resolves every pending conflict of the review.
+- A decision on an outdated revision fails with exit code 2 and changes
+  nothing. Decisions use the same workspace lock as reconciliation.
+- `draft_resolutions` is append-only in PostgreSQL (a trigger rejects `UPDATE`
+  and `DELETE`). It stores the actor, the previous and resolved drafts, the
+  expected and resulting revisions, the resolved rejections and the time.
+- A later snapshot with a different draft creates a new pending conflict and
+  reopens the review.
+- `src.db.draft_resolution.draft_for_review` returns `status: "pending"` and no
+  approved body while any conflict is unresolved. The running application still
+  reads drafts from JSON; this accessor is for the future database repositories.
+- Downgrading below `0006` drops the resolution history. Restore the verified
+  database backup instead if it must be kept.

@@ -99,7 +99,8 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
         "rejected": 0,
         "pending": 0,
     }
-    rejections: list[tuple[int | None, str, str, Any]] = []
+    # (item index, kind, reason, payload, review id for draft conflicts)
+    rejections: list[tuple[int | None, str, str, Any, str | None]] = []
     run_id = None
     try:
         timestamp = _timestamp(
@@ -128,7 +129,7 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
             raise ValueError("invalid profile")
         url = url.strip()
     except (ValueError, AttributeError, TypeError) as exc:
-        rejections.append((None, "snapshot", str(exc), data))
+        rejections.append((None, "snapshot", str(exc), data, None))
         report["rejected"] = len(reviews)
     else:
         candidates = (
@@ -145,7 +146,7 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
         ]
         # Case differences in paths may identify different resources.
         if len(matches) > 1 or (matches and matches[0][1].strip() != url):
-            rejections.append((None, "snapshot", "ambiguous profile URL", data))
+            rejections.append((None, "snapshot", "ambiguous profile URL", data, None))
             report["rejected"] = len(reviews)
             matches = []
             profile = None
@@ -221,7 +222,7 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                 reviewed = _date(item.get("date"))
             except ValueError as exc:
                 report["rejected"] += 1
-                rejections.append((index, "review", str(exc), item))
+                rejections.append((index, "review", str(exc), item, None))
                 continue
             result = await _execute(
                 conn,
@@ -258,7 +259,7 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
             draft = item.get("generated_response")
             valid = draft is None or isinstance(draft, str)
             if not valid:
-                rejections.append((index, "draft", "invalid draft", item))
+                rejections.append((index, "draft", "invalid draft", item, review_id))
                 report["pending"] += 1
                 continue
             # Empty and missing responses are both authoritative absence.
@@ -289,7 +290,13 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                     ).scalar_one_or_none()
                     if prior_observation:
                         rejections.append(
-                            (index, "draft", "unknown earlier draft provenance", item)
+                            (
+                                index,
+                                "draft",
+                                "unknown earlier draft provenance",
+                                item,
+                                review_id,
+                            )
                         )
                         report["pending"] += 1
                     else:
@@ -302,7 +309,7 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                         )
                 elif existing is not None and existing != draft:
                     rejections.append(
-                        (index, "draft", "conflicting existing draft", item)
+                        (index, "draft", "conflicting existing draft", item, review_id)
                     )
                     report["pending"] += 1
                 await _execute(
@@ -317,7 +324,13 @@ async def _reconcile_one(conn: AsyncConnection, row: Any) -> dict[str, int]:
                 previous_time, previous_body = state
                 if previous_body != draft:
                     rejections.append(
-                        (index, "draft", "conflicting draft observations", item)
+                        (
+                            index,
+                            "draft",
+                            "conflicting draft observations",
+                            item,
+                            review_id,
+                        )
                     )
                     report["pending"] += 1
                 if timestamp > previous_time:
@@ -338,7 +351,7 @@ async def _record_outcome(
     snapshot_id: str,
     run_id: str | None,
     report: dict[str, int],
-    rejections: list[tuple[int | None, str, str, Any]],
+    rejections: list[tuple[int | None, str, str, Any, str | None]],
 ) -> None:
     await _execute(
         conn,
@@ -347,16 +360,17 @@ async def _record_outcome(
         run=run_id,
         report=json.dumps(report),
     )
-    for item_index, kind, reason, payload in rejections:
+    for item_index, kind, reason, payload, review_id in rejections:
         await _execute(
             conn,
-            "INSERT INTO snapshot_rejections (id,snapshot_id,item_index,kind,reason,payload) VALUES (:id,:snapshot,:idx,:kind,:reason,CAST(:payload AS JSON))",
+            "INSERT INTO snapshot_rejections (id,snapshot_id,item_index,kind,reason,payload,review_id) VALUES (:id,:snapshot,:idx,:kind,:reason,CAST(:payload AS JSON),:review)",
             id=_id(),
             snapshot=snapshot_id,
             idx=item_index,
             kind=kind,
             reason=reason,
             payload=json.dumps(_rejection_payload(payload), ensure_ascii=False),
+            review=review_id,
         )
 
 
