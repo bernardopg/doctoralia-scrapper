@@ -173,12 +173,13 @@ def test_draft_authority_uses_chronology_including_partial_snapshots(
         "reviews": [review],
     }
 
-    def save(payload):
-        target = tmp_path / "new.json"
-        target.write_text(json.dumps(payload), encoding="utf-8")
-        return target
+    from src.scraper import DoctoraliaScraper
 
-    scraper.save_data.side_effect = save
+    real = DoctoraliaScraper.__new__(DoctoraliaScraper)
+    real.config = config
+    real.logger = MagicMock()
+    scraper.save_data.side_effect = lambda payload: real.save_data(payload)
+
     with (
         patch("src.scraper.DoctoraliaScraper", return_value=scraper),
         patch("src.config.settings.AppConfig.load", return_value=config),
@@ -195,7 +196,12 @@ def test_draft_authority_uses_chronology_including_partial_snapshots(
     assert result["status"] == "completed"
     expected = newer_draft or None
     assert result["reviews"][0]["metadata"].get("generated_response") == expected
-    saved = json.loads((tmp_path / "new.json").read_text(encoding="utf-8"))
+    saved_path = next(
+        p
+        for p in tmp_path.glob("*.json")
+        if p.name not in {"complete.json", "partial.json"}
+    )
+    saved = json.loads(saved_path.read_text(encoding="utf-8"))
     assert saved["reviews"][0].get("generated_response") == expected
 
 
@@ -311,7 +317,7 @@ def test_setup_failures_close_each_driver_and_report_safe_cause(
         else:
             result = scrape_and_process({"doctor_url": url})
     assert result["status"] == "failed"
-    assert result["collection"]["stop_reason"] == "BrowserSetupError"
+    assert result["collection"]["stop_reason"] == error_name
     assert "secret" not in str(result)
     assert len(drivers) == 6
     for driver in drivers:
@@ -433,3 +439,61 @@ def test_snapshot_persistence_failure_reports_failure(tmp_path, execution):
     assert result["collection"]["stop_reason"] == "RuntimeError"
     assert result["collection"]["duration_ms"] >= 0
     assert not list(tmp_path.glob("*.json"))
+
+
+@pytest.mark.parametrize(
+    "error_name", ["SessionNotCreatedException", "WebDriverException"]
+)
+@pytest.mark.parametrize("execution", ["sync", "worker"])
+def test_remote_constructor_failure_preserves_selenium_type(
+    tmp_path, error_name, execution
+):
+    from contextlib import nullcontext
+    from unittest.mock import MagicMock
+
+    from selenium.common import exceptions
+
+    from src.api.v1.routers.scrape import _scrape_run
+    from src.jobs.tasks import scrape_and_process
+    from src.scraper import DoctoraliaScraper
+
+    config = MagicMock(data_dir=tmp_path)
+    config.scraping.max_retries = 2
+    config.integrations.selenium_remote_url = "http://synthetic.invalid"
+    scraper = DoctoraliaScraper.__new__(DoctoraliaScraper)
+    scraper.config = config
+    scraper.logger = MagicMock()
+    scraper.driver = None
+    scraper.performance_monitor = MagicMock()
+    scraper.performance_monitor.track_operation.return_value = nullcontext(MagicMock())
+    callbacks = []
+    with (
+        patch("src.scraper.DoctoraliaScraper", return_value=scraper),
+        patch("src.config.settings.AppConfig.load", return_value=config),
+        patch(
+            "src.scraper.Remote", side_effect=getattr(exceptions, error_name)("secret")
+        ) as remote,
+        patch.object(
+            scraper, "safe_driver_quit", wraps=scraper.safe_driver_quit
+        ) as cleanup,
+        patch("src.scraper.time.sleep"),
+        patch(
+            "src.jobs.tasks.post_callback",
+            side_effect=lambda _, result, job: callbacks.append(result),
+        ),
+        patch("src.jobs.tasks._update_job_meta") as meta,
+    ):
+        url = "https://www.doctoralia.com.br/synthetic"
+        if execution == "sync":
+            result = _scrape_run(SimpleNamespace(doctor_url=url), config).model_dump()
+        else:
+            result = scrape_and_process(
+                {"doctor_url": url}, callback_url="https://invalid"
+            )
+    assert remote.call_count == 6
+    assert cleanup.call_count == 8
+    assert result["status"] == "failed"
+    assert result["collection"]["stop_reason"] == error_name
+    assert "secret" not in str((result, callbacks, meta.call_args_list))
+    if callbacks:
+        assert callbacks[0] == result

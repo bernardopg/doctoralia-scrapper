@@ -12,6 +12,7 @@ from src.jobs.tasks import (
     post_callback,
     scrape_and_process,
 )
+from src.scraper import DoctoraliaScraper
 from src.services.review_reconciliation import (
     carry_forward_drafts as _carry_forward_drafts,
 )
@@ -157,7 +158,10 @@ def test_job_preserves_legacy_draft_on_next_snapshot(tmp_path):
                 {"id": "doctoralia:123", "author": "Ana", "comment": "Muito bom"}
             ],
         }
-        scraper.save_data.return_value = tmp_path / "new.json"
+        real = DoctoraliaScraper.__new__(DoctoraliaScraper)
+        real.config = MagicMock(data_dir=tmp_path)
+        real.logger = MagicMock()
+        scraper.save_data.side_effect = lambda payload: real.save_data(payload)
         result = scrape_and_process({"doctor_url": url})
     assert result["status"] == "partial"
     assert (
@@ -200,7 +204,10 @@ def test_job_recovers_draft_when_review_was_absent_from_previous_snapshot(tmp_pa
             "url": url,
             "reviews": [review],
         }
-        scraper.save_data.return_value = tmp_path / "new.json"
+        real = DoctoraliaScraper.__new__(DoctoraliaScraper)
+        real.config = MagicMock(data_dir=tmp_path)
+        real.logger = MagicMock()
+        scraper.save_data.side_effect = lambda payload: real.save_data(payload)
         scrape_and_process({"doctor_url": url})
     assert (
         scraper.save_data.call_args.args[0]["reviews"][0]["generated_response"]
@@ -240,7 +247,10 @@ def test_job_does_not_recover_draft_when_snapshot_times_are_ambiguous(tmp_path):
             "url": url,
             "reviews": [review],
         }
-        scraper.save_data.return_value = tmp_path / "new.json"
+        real = DoctoraliaScraper.__new__(DoctoraliaScraper)
+        real.config = MagicMock(data_dir=tmp_path)
+        real.logger = MagicMock()
+        scraper.save_data.side_effect = lambda payload: real.save_data(payload)
         scrape_and_process({"doctor_url": url})
     assert not scraper.save_data.call_args.args[0]["reviews"][0].get(
         "generated_response"
@@ -296,8 +306,13 @@ def test_job_uses_draft_edited_during_generation(tmp_path):
     config = MagicMock(data_dir=tmp_path)
 
     def generate(*args, **kwargs):
-        old["reviews"][0]["generated_response"] = "Editada durante geração"
-        snapshot.write_text(json.dumps(old))
+        from src.services.workspace_service import WorkspaceService
+
+        service = WorkspaceService(tmp_path)
+        profile = service.make_profile_id(url, "Dra Ana")
+        assert service.save_generated_response(
+            profile, "doctoralia:123", "Editada durante geração", "old.json"
+        )
         return {"responses": [{"review_id": "doctoralia:123", "text": "Nova sugestão"}]}
 
     with (
@@ -311,7 +326,10 @@ def test_job_uses_draft_edited_during_generation(tmp_path):
             "url": url,
             "reviews": [{"id": "doctoralia:123", "author": "Ana", "comment": "Ótimo"}],
         }
-        scraper.save_data.return_value = tmp_path / "new.json"
+        real = DoctoraliaScraper.__new__(DoctoraliaScraper)
+        real.config = MagicMock(data_dir=tmp_path)
+        real.logger = MagicMock()
+        scraper.save_data.side_effect = lambda payload: real.save_data(payload)
         result = scrape_and_process({"doctor_url": url, "include_generation": True})
     assert result["status"] == "partial"
     assert (

@@ -84,7 +84,7 @@ class WorkspaceService:
                 "profile_url", ""
             )
             extracted_at = data.get("scraped_at") or data.get("extraction_timestamp")
-            if not extracted_at or (not doctor_name and not profile_url):
+            if not doctor_name and not profile_url:
                 return None
             profile_id = self.make_profile_id(profile_url, doctor_name)
             ratings = [
@@ -755,6 +755,23 @@ class WorkspaceService:
             "filters": history["filters"],
         }
 
+    def draft_revision(self, profile_id: str) -> int:
+        """Read the current edit revision while holding the publication lock."""
+        with snapshot_lock(self.data_dir):
+            snapshots = self._filter_snapshots(
+                self._load_snapshots(), profile_id=profile_id
+            )
+            return max(
+                (
+                    review["draft_edit"]["version"]
+                    for item in snapshots
+                    for review in item["reviews"]
+                    if isinstance(review.get("draft_edit"), dict)
+                    and type(review["draft_edit"].get("version")) is int
+                ),
+                default=0,
+            )
+
     def save_generated_response(
         self,
         profile_id: str,
@@ -797,7 +814,18 @@ class WorkspaceService:
             ]
             if len(matches) != 1:
                 return None
+            versions = [
+                review.get("draft_edit", {}).get("version", 0)
+                for item in snapshots
+                for review in item["reviews"]
+                if isinstance(review.get("draft_edit"), dict)
+                and type(review["draft_edit"].get("version")) is int
+            ]
             matches[0]["generated_response"] = generated_response
+            matches[0]["draft_edit"] = {
+                "version": max(versions, default=0) + 1,
+                "cleared": not bool(generated_response),
+            }
 
             write_json_atomic(file_path, payload)
 
