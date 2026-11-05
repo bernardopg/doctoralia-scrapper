@@ -52,6 +52,29 @@ def candidate(reviews, timestamp="2026-01-01T12:00:00+00:00"):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "timestamp", ["0001-01-01T00:00:00+14:00", "9999-12-31T23:59:59-14:00"]
+)
+async def test_timestamp_overflow_is_rejected_without_blocking_next_snapshot(
+    database, timestamp
+):
+    review = {"id": "doctoralia:101", "comment": "Synthetic review"}
+    await stage_snapshots(database, "rel01-a", [candidate([review], timestamp)])
+    await stage_snapshots(database, "rel01-a", [candidate([review])])
+    report = await reconcile_staged(database, "rel01-a")
+    assert report["snapshots"] == 2
+    assert report["rejected"] == 1
+    assert report["imported"] == 1
+    async with database.connect() as conn:
+        reason = (
+            await conn.execute(
+                text("SELECT reason FROM snapshot_rejections WHERE kind='snapshot'")
+            )
+        ).scalar_one()
+        assert reason == "collection timestamp outside supported UTC range"
+
+
+@pytest.mark.asyncio
 async def test_reconcile_isolated_idempotent_and_auditable(database):
     first = candidate(
         [

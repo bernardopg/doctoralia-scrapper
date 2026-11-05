@@ -33,7 +33,10 @@ def _timestamp(value: Any) -> datetime:
         raise ValueError("invalid collection timestamp") from exc
     if result.tzinfo is None or result.utcoffset() is None:
         raise ValueError("collection timestamp has no timezone")
-    return result.astimezone(timezone.utc)
+    try:
+        return result.astimezone(timezone.utc)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError("collection timestamp outside supported UTC range") from exc
 
 
 def _date(value: Any) -> date | None:
