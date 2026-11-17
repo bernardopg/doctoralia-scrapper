@@ -6,6 +6,24 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-11-16
+
+### Fixed
+
+- Agendamentos do Telegram com geração de respostas agora gravam o snapshot
+  de forma atômica (lock + escrita atômica, nome com sufixo único), reconciliam
+  rascunhos com os snapshots existentes e versionam o rascunho gerado. Uma
+  edição concorrente feita no dashboard não é mais sobrescrita, e só as
+  respostas efetivamente salvas entram na notificação.
+- Com `STORAGE_BACKEND=postgres`, a geração agendada respeita rascunhos com
+  conflito pendente (pula a avaliação) e sincroniza o rascunho gerado com o
+  banco após a gravação.
+- Respostas geradas vazias são ignoradas em vez de gravar rascunho em branco.
+- Notificações do Telegram: escape de Markdown/MarkdownV2 refeito por
+  segmentos (negrito e código inline preservados, conteúdo escapado
+  corretamente); sem `parse_mode`, e no fallback após erro de parse, a
+  mensagem e a legenda vão em texto puro, sem `*` e crases soltos.
+
 ## [2.8.1] - 2026-11-16
 
 ### Atualização

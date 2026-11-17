@@ -28,7 +28,7 @@ def test_sanitize_markdown_private(notifier):
     # Accessing the private method intentionally for coverage
     sanitized = notifier._sanitize_markdown(raw)
     # Ensure underscores are escaped but bold preserved
-    assert "**bold**" in sanitized
+    assert "*bold*" in sanitized
     assert "_world_" not in sanitized  # It should become escaped
     assert "(test)!" in sanitized
 
@@ -53,6 +53,41 @@ def test_sanitize_markdownv2_keeps_escaping_special_characters(notifier):
     sanitized = notifier._sanitize_markdown(raw, parse_mode="MarkdownV2")
 
     assert "relatorio\\_01\\.json\\." in sanitized
+
+
+@pytest.mark.parametrize("mode", ["Markdown", "MarkdownV2", ""])
+@pytest.mark.parametrize("document", [False, True])
+def test_message_formats_and_plain_fallback(
+    monkeypatch, notifier, tmp_path, mode, document
+):
+    notifier.config.telegram.parse_mode = mode
+    calls = []
+
+    def fake_post(url, data=None, **kwargs):
+        calls.append(data.copy())
+        return DummyResponse(400 if len(calls) == 1 and mode else 200)
+
+    monkeypatch.setattr("requests.post", fake_post)
+    message = "📣 *Scrape diário - Dra Bruna Gomes*\n📁 `file_name.json`\n• Geyse: Olá!"
+    if document:
+        path = tmp_path / "report.txt"
+        path.write_text("relatório")
+        assert notifier.send_document(path, message)
+        key = "caption"
+    else:
+        assert notifier.send_message(message)
+        key = "text"
+    expected_plain = (
+        "📣 Scrape diário - Dra Bruna Gomes\n📁 file_name.json\n• Geyse: Olá!"
+    )
+    if mode == "MarkdownV2":
+        assert "*Scrape diário \\- Dra Bruna Gomes*" in calls[0][key]
+        assert "Olá\\!" in calls[0][key]
+    if mode:
+        assert "parse_mode" not in calls[1]
+        assert calls[1][key] == expected_plain
+    else:
+        assert calls[0][key] == expected_plain
 
 
 def test_send_message_rate_limit_then_success(monkeypatch, notifier):

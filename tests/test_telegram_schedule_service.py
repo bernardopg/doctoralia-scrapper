@@ -256,6 +256,104 @@ def test_execute_schedule_records_history_and_attachment(tmp_path, monkeypatch):
     assert DummyNotifier.sent_documents[0].exists() is True
 
 
+def test_generated_snapshot_is_atomic_versioned_and_synchronized(tmp_path, monkeypatch):
+    from src.services import storage_backend
+
+    config = build_config(tmp_path)
+    service = TelegramScheduleService(
+        redis_client=FakeRedis(), config_loader=lambda: config
+    )
+    payload = {
+        "doctor_name": "Dra. Ana",
+        "url": config.urls.profile_url,
+        "extraction_timestamp": "2026-11-06T07:00:00+00:00",
+        "collection": {"status": "complete"},
+        "reviews": [
+            {
+                "id": "doctoralia:123",
+                "author": "Ana",
+                "comment": "Ótima",
+                "generated_response": "Obrigada!",
+                "draft_edit": {"version": 1, "cleared": False},
+            }
+        ],
+    }
+    calls = []
+    monkeypatch.setattr(
+        storage_backend,
+        "sync_after_publish",
+        lambda path: calls.append(list(path.glob("*.json"))),
+    )
+    path = service._save_snapshot(payload, config, generation_revision=0)
+    assert path.exists()
+    assert json.loads(path.read_text())["reviews"][0]["draft_edit"]["version"] == 1
+    assert calls == [[path]]
+    second = service._save_snapshot(payload, config, generation_revision=0)
+    assert second != path
+
+
+def test_generation_does_not_overwrite_concurrent_draft_edit(tmp_path, monkeypatch):
+    from src.services import storage_backend
+
+    config = build_config(tmp_path)
+    service = TelegramScheduleService(
+        redis_client=FakeRedis(), config_loader=lambda: config
+    )
+    base = {
+        "doctor_name": "Dra. Ana",
+        "url": config.urls.profile_url,
+        "extraction_timestamp": "2026-11-06T07:00:00+00:00",
+        "collection": {"status": "complete"},
+        "reviews": [
+            {
+                "id": "doctoralia:123",
+                "author": "Ana",
+                "comment": "Ótima",
+                "generated_response": "Editado manualmente",
+                "draft_edit": {"version": 1, "cleared": False},
+            }
+        ],
+    }
+    config.data_dir.joinpath("earlier.json").write_text(json.dumps(base))
+    generated = json.loads(json.dumps(base))
+    generated["reviews"][0]["generated_response"] = "Resposta antiga gerada"
+    monkeypatch.setattr(storage_backend, "sync_after_publish", lambda path: None)
+    path = service._save_snapshot(generated, config, generation_revision=0)
+    assert (
+        json.loads(path.read_text())["reviews"][0]["generated_response"]
+        == "Editado manualmente"
+    )
+
+
+def test_generation_skips_database_conflicts(tmp_path, monkeypatch):
+    from src.db.review_store import PendingDraftConflict
+    from src.services import storage_backend
+
+    config = build_config(tmp_path)
+    service = TelegramScheduleService(
+        redis_client=FakeRedis(), config_loader=lambda: config
+    )
+    generator = MagicMock()
+    generator.generate_response_with_metadata.return_value = {"text": "Obrigada"}
+    monkeypatch.setattr(
+        "src.services.telegram_schedule_service.ResponseGenerator",
+        lambda *a, **kw: generator,
+    )
+    monkeypatch.setattr(storage_backend, "is_postgres", lambda: True)
+
+    def check(url, review_id):
+        if review_id == "doctoralia:1":
+            raise PendingDraftConflict("pending")
+
+    monkeypatch.setattr(storage_backend, "ensure_draft_editable", check)
+    reviews = [{"id": "doctoralia:1"}, {"id": "doctoralia:2"}]
+    result = service._generate_responses(
+        reviews, {"url": config.urls.profile_url}, config, "local", 10
+    )
+    assert [item["review_id"] for item in result] == ["doctoralia:2"]
+    assert not reviews[0].get("generated_response")
+
+
 def test_send_test_notification_handles_validation_and_success(tmp_path, monkeypatch):
     redis_client = FakeRedis()
     service = TelegramScheduleService(
@@ -670,6 +768,7 @@ def test_snapshot_generation_and_attachment_helpers(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "src.services.telegram_schedule_service.ResponseGenerator", DummyGenerator
     )
+    monkeypatch.setattr("src.services.storage_backend.is_postgres", lambda: False)
     reviews = [
         {"id": "ok", "author": "Ana", "comment": "Oi"},
         {"id": "skip-replied", "comment": "Ok", "doctor_reply": "já respondeu"},

@@ -719,6 +719,16 @@ class TelegramScheduleService:
                 doctor_data, reviews_data = extract_scraper_result(snapshot_payload)
 
         if schedule.get("include_generation") and reviews_data:
+            from src.services.workspace_service import WorkspaceService
+
+            workspace = WorkspaceService(runtime_config.data_dir, self.logger)
+            profile_url = (
+                (snapshot_payload or {}).get("url") or doctor_data.get("url") or ""
+            )
+            profile_id = workspace.make_profile_id(
+                profile_url, doctor_data.get("name") or ""
+            )
+            generation_revision = workspace.draft_revision(profile_id)
             generated_responses = self._generate_responses(
                 reviews_data=reviews_data,
                 doctor_data=doctor_data,
@@ -727,9 +737,30 @@ class TelegramScheduleService:
                 max_reviews=int(schedule.get("max_reviews") or 20),
             )
             if snapshot_payload is not None and generated_responses:
+                generated_ids = {str(item["review_id"]) for item in generated_responses}
+                for review in reviews_data:
+                    if str(review.get("id")) in generated_ids:
+                        review["draft_edit"] = {
+                            "version": generation_revision + 1,
+                            "cleared": False,
+                        }
                 snapshot_payload["reviews"] = reviews_data
                 snapshot_payload["total_reviews"] = len(reviews_data)
-                snapshot_path = self._save_snapshot(snapshot_payload, runtime_config)
+                snapshot_path = self._save_snapshot(
+                    snapshot_payload,
+                    runtime_config,
+                    generation_revision=generation_revision,
+                )
+                reviews_data = snapshot_payload["reviews"]
+                saved = {
+                    str(review.get("id")): review.get("generated_response")
+                    for review in reviews_data
+                }
+                generated_responses = [
+                    item
+                    for item in generated_responses
+                    if saved.get(str(item["review_id"])) == item["response"]
+                ]
 
         health_snapshot = (
             self._collect_health_snapshot(runtime_config)
@@ -864,12 +895,21 @@ class TelegramScheduleService:
         results = []
         for review in pending_reviews:
             try:
+                from src.services import storage_backend
+
+                if storage_backend.is_postgres():
+                    storage_backend.ensure_draft_editable(
+                        doctor_data.get("url") or runtime_config.urls.profile_url or "",
+                        str(review.get("id") or ""),
+                    )
                 response = generator.generate_response_with_metadata(
                     review,
                     doctor_context=doctor_data,
                     generation_mode=generation_mode,
                     language="pt-BR",
                 )
+                if not response.get("text"):
+                    continue
                 review["generated_response"] = response["text"]
                 results.append(
                     {
@@ -963,8 +1003,11 @@ class TelegramScheduleService:
             handle.write(json.dumps(payload, ensure_ascii=False, indent=2))
 
     def _save_snapshot(
-        self, payload: Dict[str, Any], runtime_config: Any
-    ) -> Optional[Path]:
+        self,
+        payload: Dict[str, Any],
+        runtime_config: Any,
+        generation_revision: Optional[int] = None,
+    ) -> Path:
         data_dir = _as_path(runtime_config.data_dir)
         data_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -975,9 +1018,29 @@ class TelegramScheduleService:
             .replace(" ", "_")
             .lower()
         )
-        file_path = data_dir / f"{timestamp}_{safe_name}.json"
-        with open(file_path, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
+        file_path = data_dir / f"{timestamp}_{uuid.uuid4().hex[:8]}_{safe_name}.json"
+        from src.services.review_reconciliation import reconcile_snapshot_drafts
+        from src.services.snapshot_storage import snapshot_lock, write_json_atomic
+        from src.services.storage_backend import sync_after_publish
+        from src.services.workspace_service import WorkspaceService
+
+        with snapshot_lock(data_dir):
+            workspace = WorkspaceService(data_dir, self.logger)
+            profile_url = (
+                payload.get("url")
+                or (payload.get("doctor") or {}).get("profile_url")
+                or ""
+            )
+            profile_id = workspace.make_profile_id(profile_url, doctor_name)
+            if profile_url and isinstance(payload.get("reviews"), list):
+                snapshots = workspace._filter_snapshots(
+                    workspace._load_json_snapshots(), profile_id=profile_id
+                )
+                payload["reviews"] = reconcile_snapshot_drafts(
+                    payload["reviews"], snapshots, generation_revision
+                )
+            write_json_atomic(file_path, payload)
+        sync_after_publish(data_dir)
         return file_path
 
     def _collect_health_snapshot(self, runtime_config: Any) -> Dict[str, Any]:
