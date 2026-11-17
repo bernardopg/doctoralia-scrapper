@@ -44,4 +44,39 @@ O banco do n8n da instalação tinha 0 workflows, 0 credenciais, 0 webhooks e 0 
 - Exclusão de snapshots pela interface opera sobre JSON; coletas no banco não são apagadas pela interface.
 - A paginação real da Doctoralia não foi alterada: a coleta atual carrega todas as avaliações (164/164 no perfil testado). Outros perfis e mudanças futuras do site não foram verificados.
 - Melhorias de REL-08 cobrem a fila de respostas e a base; as demais telas mantêm o layout anterior com as correções de segurança. Sem teste com leitor de tela, Firefox ou Safari.
-- O release (tag, imagens GHCR e PyPI) só é publicado após aprovação do responsável; health e versão na instalação atualizada devem ser conferidos após o deploy.
+- Tags, imagens GHCR e pacotes PyPI da 2.8.x estão publicados (ver abaixo). Health, readiness e versão na instalação em uso ainda não foram conferidos após atualização: isso depende do deploy pelo responsável.
+
+## Patches 2.8.1–2.8.3 — 16 de novembro de 2026
+
+Nenhum patch altera esquema, migrações ou formato dos snapshots. A atualização é a troca de imagem ou pacote; o backup antes continua recomendado.
+
+| Versão | PR | Commit da tag | Conteúdo |
+| --- | --- | --- | --- |
+| 2.8.1 | [#228](https://github.com/bernardopg/doctoralia-scrapper/pull/228) | `afe9b31` | Dependências na versão mais recente (consolida os PRs do Dependabot #223–#227 e o que ele não rastreava), Python 3.15 na imagem e no CI, mínimo 3.11.5 |
+| 2.8.2 | [#229](https://github.com/bernardopg/doctoralia-scrapper/pull/229) | `4699466` | Geração agendada do Telegram sem sobrescrever rascunhos, respeito a conflitos no PostgreSQL, escape de Markdown corrigido |
+| 2.8.3 | [#230](https://github.com/bernardopg/doctoralia-scrapper/pull/230) e o PR deste registro | — | Teste ponta a ponta da geração agendada e esta documentação; sem mudança de comportamento |
+
+### Verificações
+
+- CI do GitHub verde em cada PR: Python 3.11–3.15, lint, segurança, Docker (build, varredura de vulnerabilidades e testes de integração), CodeQL e revisão de dependências. Exceção: no #229 o `codecov/patch` (não obrigatório) falhou com 56% de cobertura nas linhas novas; o #230 cobriu essas linhas e o check passou.
+- Suíte local completa em Python 3.15 com PostgreSQL e Redis descartáveis: 656 testes no #229 e 657 no #230, sem falhas nem ignorados.
+- Workflow de release concluído com sucesso: [v2.8.1](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/43999907978) e [v2.8.2](https://github.com/bernardopg/doctoralia-scrapper/actions/runs/44005466897). Os checksums da 2.8.3 ficam nas notas da sua release.
+
+### Artefatos publicados
+
+Os SHA-256 dos pacotes no PyPI coincidem com os anexos da GitHub Release. Digests das imagens obtidos com `docker buildx imagetools inspect`.
+
+| Artefato | SHA-256 |
+| --- | --- |
+| `doctoralia_scrapper-2.8.1-py3-none-any.whl` | `fc4f1292a011343c9e44526063360901cc055c434b720cdcb63007a5ca816507` |
+| `doctoralia_scrapper-2.8.1.tar.gz` | `38e901e4035ba5a2f1be946a70eabf2d8abb6ad271d76de86535fce40a1f1ee5` |
+| `ghcr.io/bernardopg/doctoralia-scrapper/api:2.8.1` | `7c3dcc9361811bbd0990222ea29d9c5e58d499c48f2ea40f8afbe8dd687e5c47` |
+| `ghcr.io/bernardopg/doctoralia-scrapper/worker:2.8.1` | `415980f799051c55dec3da7ae9c465cff2f89d1910b8b33be465e584b6d943c4` |
+| `doctoralia_scrapper-2.8.2-py3-none-any.whl` | `243def58eecc994bdc97c52078d6851ac62f1423a17e55ee48b498c9131705bb` |
+| `doctoralia_scrapper-2.8.2.tar.gz` | `3be016314b1a33458c8c694c1721381980e783bb232cf8cb39c9ae8e4bbcf5ea` |
+| `ghcr.io/bernardopg/doctoralia-scrapper/api:2.8.2` | `92728eaef2d62f477507df989d4a8f55c8ba032e3d8b842a38632399e7c4830a` |
+| `ghcr.io/bernardopg/doctoralia-scrapper/worker:2.8.2` | `b363fafd37b34434beee4d9345d2a66868bae8cef8f1562507f424457c1fc9f1` |
+
+### Pendente
+
+- Atualizar a instalação em uso (com backup antes) e conferir `/v1/health`, `/v1/ready` e `/v1/version`. Não foi feito nestes patches.
