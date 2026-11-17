@@ -4,7 +4,7 @@ Base auditada: [prontidão da 2.8.0](docs/release-readiness.md). A rastreabilida
 
 ## Estado
 
-REL-01 a REL-09 foram entregues na main e ensaiados conforme a [prontidão](docs/release-readiness.md). REL-10 (tag, artefatos e verificação pós-deploy) depende da aprovação do responsável.
+REL-01 a REL-09 foram entregues na main e ensaiados conforme a [prontidão](docs/release-readiness.md). Em REL-10, tags, PyPI e imagens GHCR da 2.8.0 à 2.8.3 estão publicados e os checksums registrados. Falta a verificação pós-deploy na instalação em uso, que depende do responsável.
 
 ## Depois da 2.8.0
 

@@ -2,9 +2,9 @@
 
 Este arquivo acompanha a revisão funcional e o trabalho para o próximo release. Os blocos P0–P3 abaixo são o escopo acordado para a revisão; o backlog adicional permanece ao final e não deve ser confundido com funcionalidades já entregues. Marque uma tarefa apenas depois da implementação **e** da validação indicada. Preserve snapshots, configurações e volumes existentes em todas as migrações.
 
-## Estado confirmado — 5 de novembro de 2026
+## Estado confirmado — 16 de novembro de 2026
 
-A 2.8.0 está preparada com REL-01 a REL-09 entregues; detalhes, evidências e limites em [prontidão](docs/release-readiness.md) e no [CHANGELOG](CHANGELOG.md). Os blocos P0–P3 abaixo registram o planejamento original; itens remanescentes estão em "Depois da 2.8.0" no [roadmap](ROADMAP.md).
+A 2.8.0 foi publicada com REL-01 a REL-09 entregues, seguida dos patches 2.8.1 (dependências), 2.8.2 (geração agendada do Telegram) e 2.8.3 (testes e registro). Detalhes, evidências, checksums e limites em [prontidão](docs/release-readiness.md) e no [CHANGELOG](CHANGELOG.md). Os blocos P0–P3 abaixo registram o planejamento original; itens remanescentes estão em "Depois da 2.8.0" no [roadmap](ROADMAP.md).
 
 ## P0 — Integridade e segurança antes da migração
 

@@ -1,6 +1,6 @@
 # REL-10 — P3 — Release, artefatos e runtime
 
-**Estado:** Planejado. **Evidência atual:** planejamento; nenhum teste ou implantação desta ficha é afirmado por este PR.
+**Estado:** Parcial. **Evidência atual:** tags `v2.8.0` a `v2.8.3` publicadas com GitHub Release, PyPI e imagens GHCR; checksums e links de CI em [prontidão](../docs/release-readiness.md#patches-281283--16-de-novembro-de-2026). Falta observar health, readiness e versão na instalação em uso após a atualização.
 
 ## Problema
 

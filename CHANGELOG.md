@@ -6,6 +6,28 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-11-16
+
+Sem mudança de comportamento em relação à 2.8.2. Atualização opcional.
+
+### Tests
+
+- Teste ponta a ponta de `_execute_schedule` com geração de respostas
+  ([#230](https://github.com/bernardopg/doctoralia-scrapper/pull/230)): o
+  rascunho gerado é gravado com `draft_edit.version` incrementada, respostas
+  vazias são ignoradas e uma edição feita no dashboard entre a geração e a
+  gravação prevalece e sai do relatório do Telegram. As linhas novas da 2.8.2
+  em `telegram_schedule_service.py` e `telegram_notifier.py` ficam 100%
+  cobertas.
+
+### Documentation
+
+- [Prontidão](docs/release-readiness.md) registra os patches 2.8.1–2.8.3:
+  PRs, verificações e checksums dos artefatos publicados (PyPI, GitHub
+  Release e imagens GHCR).
+- `TODO.md`, `ROADMAP.md` e a ficha REL-10 atualizados com o estado
+  publicado e o que ainda depende da instalação em uso.
+
 ## [2.8.2] - 2026-11-16
 
 ### Fixed
