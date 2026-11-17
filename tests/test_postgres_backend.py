@@ -148,6 +148,52 @@ async def test_rejected_identities_are_reported_per_run(database, tmp_path):
     assert payload["collection"]["rejected_reviews"] == 1
 
 
+def test_telegram_generated_draft_syncs_to_database(dsn, tmp_path, monkeypatch):
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from src.services.telegram_schedule_service import TelegramScheduleService
+
+    async def prepare():
+        await drop_db(dsn)
+        await init_db(dsn)
+        engine = create_async_engine(dsn)
+        async with engine.begin() as conn:
+            await conn.execute(
+                text(
+                    "INSERT INTO workspaces (id,name,slug) VALUES ('ws-rel05','Default','default')"
+                )
+            )
+        await engine.dispose()
+
+    asyncio.run(prepare())
+    monkeypatch.setenv("STORAGE_BACKEND", "postgres")
+    monkeypatch.setenv("DATABASE_URL", dsn)
+    storage_backend.reset()
+    try:
+        write_snapshot(tmp_path, "a.json", 1, [review(1)])
+        assert storage_backend.sync_after_publish(tmp_path) is not None
+        payload = json.loads((tmp_path / "a.json").read_text())
+        payload["reviews"][0].update(
+            generated_response="Resposta gerada",
+            draft_edit={"version": 1, "cleared": False},
+        )
+        service = TelegramScheduleService(
+            redis_client=MagicMock(), config_loader=lambda: None
+        )
+        service._save_snapshot(
+            payload, SimpleNamespace(data_dir=tmp_path), generation_revision=0
+        )
+        assert storage_backend.status()["last_sync"]["status"] == "ok"
+        payloads = storage_backend.load_snapshot_payloads()
+        assert payloads[-1]["reviews"][0]["generated_response"] == "Resposta gerada"
+        assert payloads[-1]["reviews"][0]["draft_status"] == "approved"
+    finally:
+        storage_backend.reset()
+        asyncio.run(drop_db(dsn))
+
+
 def test_dashboard_flow_through_runtime_backend(dsn, tmp_path, monkeypatch):
     import asyncio
 

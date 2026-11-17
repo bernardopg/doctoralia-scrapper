@@ -28,32 +28,39 @@ class TelegramNotifier:
         if effective_parse_mode not in {"Markdown", "MarkdownV2"}:
             return text
 
-        protected_tokens: list[str] = []
+        token_pattern = r"`([^`\n]+)`|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*"
+        special = (
+            r"([\\_*\[\]()~`>#+\-=|{}.!])"
+            if effective_parse_mode == "MarkdownV2"
+            else r"([\\_*`\[])"
+        )
 
-        def _protect(match: re.Match[str]) -> str:
-            protected_tokens.append(match.group(0))
-            return f"\u0000{len(protected_tokens) - 1}\u0000"
+        def escape(value: str) -> str:
+            return re.sub(special, r"\\\1", value)
 
-        # Preserve explicit formatting produced by the app before escaping
-        sanitized = re.sub(r"`[^`\n]+`", _protect, text)
-        sanitized = re.sub(r"\*\*[^*\n]+\*\*", _protect, sanitized)
-        sanitized = re.sub(r"\*[^*\n]+\*", _protect, sanitized)
+        parts = []
+        position = 0
+        for match in re.finditer(token_pattern, text):
+            parts.append(escape(text[position : match.start()]))
+            if match.group(1) is not None:
+                # Inside inline code Telegram only requires escaping backticks and backslashes.
+                code = re.sub(r"([\\`])", r"\\\1", match.group(1))
+                parts.append(f"`{code}`")
+            else:
+                content = match.group(2) or match.group(3)
+                parts.append(f"*{escape(content)}*")
+            position = match.end()
+        parts.append(escape(text[position:]))
+        return "".join(parts)
 
-        if effective_parse_mode == "MarkdownV2":
-            sanitized = re.sub(
-                r"([\\_*\[\]()~`>#+\-=|{}.!])",
-                r"\\\1",
-                sanitized,
-            )
-        else:
-            sanitized = re.sub(r"([\\_*`\[])", r"\\\1", sanitized)
-
-        def _restore(match: re.Match[str]) -> str:
-            return protected_tokens[int(match.group(1))]
-
-        sanitized = re.sub(r"\u0000(\d+)\u0000", _restore, sanitized)
-
-        return sanitized
+    @staticmethod
+    def _plain_text(text: str) -> str:
+        """Remove app-generated bold and inline-code delimiters for plain text."""
+        return re.sub(
+            r"`([^`\n]+)`|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*",
+            lambda match: next(group for group in match.groups() if group is not None),
+            text,
+        )
 
     def _get_parse_mode(self) -> str:
         """Obtém parse_mode da configuração, com fallback seguro."""
@@ -73,12 +80,14 @@ class TelegramNotifier:
             return False
 
         parse_mode = self._get_parse_mode()
+        plain_message = self._plain_text(message)
 
         if parse_mode in {"Markdown", "MarkdownV2"}:
             message = self._sanitize_markdown(message, parse_mode=parse_mode)
         elif parse_mode == "HTML":
-            # Escape only raw angle brackets/ampersands when HTML mode is explicitly used.
             message = html.escape(message, quote=False)
+        else:
+            message = plain_message
 
         url = f"https://api.telegram.org/bot{self.config.telegram.token}/sendMessage"
         data = {
@@ -110,6 +119,7 @@ class TelegramNotifier:
                     )
                     # Tentar sem parse_mode
                     data.pop("parse_mode", None)
+                    data["text"] = plain_message
                     response = requests.post(url, data=data, timeout=30)
                     if response.status_code == 200:
                         self.logger.info(
@@ -155,11 +165,14 @@ class TelegramNotifier:
             return False
 
         parse_mode = self._get_parse_mode()
+        plain_caption = self._plain_text(caption)
 
         if parse_mode in {"Markdown", "MarkdownV2"}:
             caption = self._sanitize_markdown(caption, parse_mode=parse_mode)
         elif parse_mode == "HTML":
             caption = html.escape(caption, quote=False)
+        else:
+            caption = plain_caption
 
         url = f"https://api.telegram.org/bot{self.config.telegram.token}/sendDocument"
 
@@ -192,6 +205,7 @@ class TelegramNotifier:
                             "tentando sem parse_mode"
                         )
                         data.pop("parse_mode", None)
+                        data["caption"] = plain_caption
                         file.seek(0)
                         response = requests.post(
                             url, files=files, data=data, timeout=60
