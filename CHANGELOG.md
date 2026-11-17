@@ -6,6 +6,30 @@ O formato segue a ideia do [Keep a Changelog](https://keepachangelog.com/pt-BR/1
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-11-16
+
+### Atualização
+
+- A imagem Docker passa a usar Python 3.15 (`python:3.15-slim`). Reconstrua
+  as imagens (`docker compose build`) ou baixe as novas tags publicadas.
+- A versão mínima de Python sobe de 3.11 para 3.11.5, exigida pelo
+  `soupsieve` 4.x. Instalações locais em 3.11.0–3.11.4 precisam atualizar o
+  interpretador.
+
+### Changed
+
+- Dependências Python atualizadas para as versões mais recentes: `fastapi`
+  0.163.1, `sqlalchemy` 2.1.9, `soupsieve` 4.1.1, `filelock` 4.2.10,
+  `types-psutil` 7.2.2.20261111, `croniter` 7.0.0 (via `rq`), `regex`,
+  `click`, `typing-inspection` e demais transitivas; ferramentas de
+  desenvolvimento `pytest-asyncio` 1.5.0, `pylint` 4.1.4, `httpx2` 2.16.2 e
+  `coverage` 7.17.3. `requirements.txt` regenerado a partir do lockfile.
+- CI testa Python 3.11–3.15; lint, auditoria, build e release rodam em 3.15.
+  `black` passa a mirar `py315`.
+- `trufflesecurity/trufflehog` 3.99.9 no CI.
+- Imagens do Compose: `selenium/standalone-chrome` 4.52.0 (alinhada ao
+  cliente `selenium` 4.52.x) e `n8nio/n8n` 2.47.7.
+
 ## [2.8.0] - 2026-11-05
 
 ### Atualização
