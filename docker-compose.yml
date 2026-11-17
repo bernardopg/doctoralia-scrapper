@@ -171,7 +171,7 @@ services:
     restart: "no"
 
   selenium:
-    image: selenium/standalone-chrome:4.51.0  # pinned; latest Grid release (W3C WebDriver, compatible with the selenium 4.52.x client)
+    image: selenium/standalone-chrome:4.52.0  # pinned; latest Grid release (W3C WebDriver, matches the selenium 4.52.x client)
     shm_size: "2g"
     ports:
       - "4444:4444"
@@ -197,7 +197,7 @@ services:
           memory: 512M
 
   n8n:
-    image: n8nio/n8n:2.45.7
+    image: n8nio/n8n:2.47.7
     # Opcional desde a 2.8.0: suba com `docker compose --profile n8n up -d`.
     # O volume n8n-data é preservado mesmo com o serviço desativado.
     profiles: ["n8n"]
